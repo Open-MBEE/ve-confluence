@@ -18,6 +18,7 @@
 <script lang="ts">
 	import {createEventDispatcher} from 'svelte';
 	const dispatch = createEventDispatcher();
+	import {lang} from '../common/static';
 
 	export let G_CONTEXT: import('../common/ve4').Ve4ComponentContext;
 	const {

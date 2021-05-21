@@ -16,6 +16,7 @@
     "@tsconfig/svelte": "^1.0.0",
     "@types/jquery": "^3.5.5",
     "@types/xmldom": "^0.1.30",
+    "js-yaml": "^4.1.0",
     "less": "^4.1.1",
     "rollup": "^2.3.4",
     "rollup-plugin-css-only": "^3.1.0",

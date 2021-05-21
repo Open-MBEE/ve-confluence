@@ -1,5 +1,9 @@
 import ConfluencePage from './class/confluence-page';
 import G_META from './common/meta';
+import {
+	process,
+	lang,
+} from './common/static';
 import {format} from './util/intl';
 import {
 	qs,
@@ -19,6 +23,7 @@ import SparqlEndpoint from './util/sparql-endpoint';
 import H_PREFIXES from './common/prefixes';
 import type XHTMLDocument from './class/xhtml-document';
 import type {Ve4Metadata} from './class/confluence-page';
+import type { Ve4ComponentContext } from './common/ve4';
 
 
 
@@ -82,7 +87,7 @@ type ControlBarConfig = {
 
  
 
-const P_DNG_WEB_PREFIX = process.env.DOORS_NG;
+const P_DNG_WEB_PREFIX = process.env.DOORS_NG_PREFIX;
 const SI_DNG_LOOKUP = 'Doors-NG Artifact or Requirement'.replace(/ /g, '+');
 
 // for excluding elements that are within active directives
@@ -116,10 +121,22 @@ const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 	// }),
 };
 
+
+const G_CONTEXT: Ve4ComponentContext = {
+	k_sparql: null as unknown as SparqlEndpoint,
+};
+
 /**
- * init object used by all components to query SPARQL endpoint
+ * content mixin
  */
-let k_sparql: SparqlEndpoint;
+const GM_CONTEXT = {
+	G_CONTEXT,
+},
+
+// /**
+//  * init object used by all components to query SPARQL endpoint
+//  */
+// let k_sparql: SparqlEndpoint;
 
 // // query tables
 // function load_query_tables() {
@@ -199,7 +216,7 @@ function add_controls() {
 
 let k_page: ConfluencePage;
 let k_doc: XHTMLDocument;
-let g_ve4: Ve4Metadata;
+let g_ve4: Ve4Metadata | null;
 
 
 
@@ -246,7 +263,7 @@ function* correlate(gc_correlator: CorrelationDescriptor): Generator<ViewBundle>
 	const nl_nodes = a_nodes.length;
 
 	// find all corresponding dom elements
-	const a_elmts = qsa(dm_content, gc_correlator.live);
+	const a_elmts = qsa(dm_content, gc_correlator.live) as HTMLElement[];
 
 	// mismatch
 	if(a_elmts.length !== nl_nodes) {
@@ -287,9 +304,7 @@ function render_component(g_bundle: ViewBundle, b_hide_anchor=false) {
 		props: {
 			...(g_bundle.props || {}),
 			g_node: g_bundle.node,
-			G_CONTEXT: {
-				k_sparql,
-			},
+			...GM_CONTEXT,
 		},
 	});
 }
@@ -309,7 +324,7 @@ export async function main() {
 	await Promise.all([
 		// fetch document metadata
 		async () => {
-			g_ve4 = await k_page.metadata() as any;
+			g_ve4 = await k_page.metadata() as Ve4Metadata | null;
 		},
 
 		// load page's XHTML source
@@ -319,12 +334,12 @@ export async function main() {
 	].map(f => f()));
 
 	// init SPARQL endpoint
-	k_sparql = new SparqlEndpoint({
+	G_CONTEXT.k_sparql = new SparqlEndpoint({
 		endpoint: process.env.SPARQL_ENDPOINT || 'void://',
 		prefixes: H_PREFIXES,
 		concurrency: 16,
 		variables: {
-			DATA_GRAPH: `<${g_ve4.sources.doors?.graph || 'void://'}>`,
+			DATA_GRAPH: `<${g_ve4?.sources?.doors?.graph || 'void://'}>`,
 		},
 	});
 

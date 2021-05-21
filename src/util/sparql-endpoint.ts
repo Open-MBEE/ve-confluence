@@ -48,6 +48,11 @@ export class SparqlQueryHelper {
 		return this._h_variables[si_key];
 	}
 
+	iri(p_iri: string) {
+		// prevent injection attacks
+		return p_iri.replace(/\s+/g, '+').replace(/>/g, '_');
+	}
+
 	literal(s_value: string, s_lang_or_datatype?: string) {
 		// post modifier
 		let s_post = '';

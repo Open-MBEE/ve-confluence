@@ -110,12 +110,6 @@ declare global {
 	interface JQuery {
 		tipsy(): any;
 	}
-
-	const process: {
-		env: Record<string, string>;
-	}
-
-	const lang: Record<string, Record<string, string>>;
 };
 
 /**
@@ -129,3 +123,4 @@ export const G_META: MetaMap = Object.entries(AJS.Meta.getAllAsMap())
 	}), {}) as MetaMap;
 
 export default G_META;
+

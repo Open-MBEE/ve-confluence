@@ -105,27 +105,31 @@ async function fetch_ve4_metadata(s_page_title: string): Promise<ConfluencePrope
 	});
 
 	const a_results = g_res.results;
-	if(a_results.length) {
-		const g_ve4 = a_results[0].metadata.properties[SI_VE4_METADATA_PROPERTY_KEY] as ConfluenceProperty;
 
-		// check schema version
-		switch(g_ve4.value.schema) {
-			// OK (latest)
-			case '1.0': {
-				break;
-			}
+	// no ve4 metadata
+	if(!a_results.length) return null;
 
-			// unrecognized version; metadata is corrupt
-			default: {
-				throw new Error(`Unrecognized VE4 schema version: ${g_ve4.value.schema}`);
-			}
+	// ref metadata
+	const g_ve4 = a_results[0].metadata.properties[SI_VE4_METADATA_PROPERTY_KEY] as ConfluenceProperty | undefined;
+
+	// no ve4 metadata
+	if(!g_ve4) return null;
+
+	// check schema version
+	switch(g_ve4.value.schema) {
+		// OK (latest)
+		case '1.0': {
+			break;
 		}
 
-		// return property
-		return g_ve4;
+		// unrecognized version; metadata is corrupt
+		default: {
+			throw new Error(`Unrecognized VE4 schema version: ${g_ve4.value.schema}`);
+		}
 	}
 
-	return null;
+	// return property
+	return g_ve4;
 }
 
 export class ConfluencePage {
@@ -190,7 +194,12 @@ export class ConfluencePage {
 
 
 
+	/**
+	 * Fetches metadata about the current document
+	 * @returns the metadata object
+	 */
 	async metadata(): Promise<Ve4Metadata | undefined> {
+		// select page ancestry to deduce which is the document cover page
 		const a_ancestry = qsa(dm_main, 'ol#breadcrumbs>li span a').map(dm => dm?.textContent || '');
 
 		// narrow down to possible cover pages

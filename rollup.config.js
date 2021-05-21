@@ -1,3 +1,6 @@
+import fs from 'fs';
+import yaml from 'js-yaml';
+
 import svelte from 'rollup-plugin-svelte';
 import commonjs from '@rollup/plugin-commonjs';
 import resolve from '@rollup/plugin-node-resolve';
@@ -30,6 +33,21 @@ function serve() {
 	};
 }
 
+const replace_values = (h_replace) => Object.entries(h_replace).reduce((h_out, [si_var, w_value]) => ({
+	...h_out,
+	[`export const ${si_var}`]: `export const ${si_var} = ${JSON.stringify(w_value)}; //`,
+}), {});
+
+console.dir(replace_values({
+	process: {
+		env: {
+			SPARQL_ENDPOINT: process.env.SPARQL_ENDPOINT,
+			DOORS_NG_PREFIX: process.env.DOORS_NG_PREFIX,
+		},
+	},
+	lang: yaml.load(fs.readFileSync('./resource/lang.yaml'))[process.env.LANG],
+}));
+
 export default {
 	input: 'src/main.ts',
 	output: {
@@ -40,15 +58,17 @@ export default {
 	},
 	plugins: [
 		replace({
-			process: JSON.stringify({
-				env: {
-					SPARQL_ENDPOINT: process.env.SPARQL_ENDPOINT,
+			preventAssignment: false,
+			delimiters: ['', ''],
+			values: replace_values({
+				process: {
+					env: {
+						SPARQL_ENDPOINT: process.env.SPARQL_ENDPOINT,
+						DOORS_NG_PREFIX: process.env.DOORS_NG_PREFIX,
+					},
 				},
+				lang: yaml.load(fs.readFileSync('./resource/lang.yaml'))[process.env.LANG],
 			}),
-			lang: {
-				loading_pending: 'Loading...',
-				loading_failed: 'Failed to load',
-			},
 		}),
 
 		svelte({

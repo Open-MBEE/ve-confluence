@@ -206,7 +206,7 @@
 {#if b_display_params}
 	<div class="parameters" transition:slide={{}}>
 		{#each Object.values(h_params) as g_param}
-			<QueryTableParam {g_param} {k_sparql} on:change={render} />
+			<QueryTableParam {G_CONTEXT} {g_param} on:change={render} />
 		{/each}
 	</div>
 {/if}
