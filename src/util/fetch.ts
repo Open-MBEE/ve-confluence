@@ -33,8 +33,8 @@ async function request_json<Data extends JSONObject>(s_method: RequestMethod, pr
         // uri already has query string
         if(pr_uri.includes('?')) throw new Error(`Cannot specify 'search' option in fetch config when URI already contains search params: "${pr_uri}"`);
 
-        // append search params
-        pr_uri += '?'+(new URLSearchParams(gc_fetch.search));
+        // append search params; ensure plus signs remain
+        pr_uri += ('?'+(new URLSearchParams(gc_fetch.search)));
 
         delete gc_fetch.search;
     }

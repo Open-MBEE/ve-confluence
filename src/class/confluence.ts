@@ -80,7 +80,7 @@ type HelixSource = CommonSource & {
 
 type Source = DngMdkSource | HelixSource;
 
-namespace ConfluenceApi {
+export namespace ConfluenceApi {
 	export type PageId = `${string}`;
 	
 	export type PageVersionNumber = number;
@@ -166,7 +166,7 @@ async function fetch_page_properties<BundleType extends MetadataBundle=PageMetad
 		search: {
 			type:'page',
 			spaceKey: G_META.space_key,
-			title: s_page_title.replace(/ /g, '+'),
+			title: s_page_title,
 			expand: `ancestors,metadata.properties.${si_metadata_key}`,
 		},
 	});
@@ -207,6 +207,8 @@ function normalize_metadata<Key extends Ve4MetadataKey, MetadataType extends Met
 	return g_metadata;
 }
 
+const H_CACHE_PAGES: Record<string, ConfluencePage> = {};
+
 export class ConfluencePage {
 	static async fromCurrentPage() {
 		const k_page = new ConfluencePage(G_META.page_id, G_META.page_title);
@@ -232,8 +234,8 @@ export class ConfluencePage {
 		return new ConfluencePage(g_info.id, g_info.title);
 	}
 
-	private _si_page: ConfluenceApi.PageId;
-	private _s_page_title: string;
+	private _si_page!: ConfluenceApi.PageId;
+	private _s_page_title!: string;
 
 	private _b_cached_content = false;
 	private _g_content: PageContent | null = null;
@@ -246,8 +248,18 @@ export class ConfluencePage {
 
 
 	constructor(si_page: ConfluenceApi.PageId, s_page_title: string) {
+		// args signature
+		const si_args = `${si_page}:${s_page_title}`;
+
+		// use cached page rather than waiting for async fetch call
+		if(si_args in H_CACHE_PAGES) return H_CACHE_PAGES[si_args];
+
+		// construct new page
 		this._si_page = si_page;
 		this._s_page_title = s_page_title;
+
+		// cache instance
+		H_CACHE_PAGES[si_args] = this;
 	}
 
 	get pageId(): ConfluenceApi.PageId {
@@ -282,8 +294,12 @@ export class ConfluencePage {
 
 	private async _info(b_force=false): Promise<PageInfo | null> {
 		if(this._b_cached_info && !b_force) return this._g_info;
+
+		const g_info = await fetch_page_properties(this._s_page_title);
+
 		this._b_cached_info = true;
-		return this._g_info = await fetch_page_properties(this._s_page_title);
+
+		return this._g_info = g_info;
 	}
 
 	async getAncestry(b_force=false): Promise<ConfluenceApi.BasicPage[]> {
@@ -335,7 +351,7 @@ export class ConfluencePage {
 
 		// fetch ancestry
 		const a_ancestry = await this.getAncestry();
-	
+
 		// this is cover page; cache and return it
 		if(await this.isDocumentCoverPage()) {
 			this._b_cached_document = true;
@@ -360,7 +376,7 @@ export class ConfluencePage {
 	}
 
 	async isDocumentMember(): Promise<boolean> {
-		return null !== this.getDocument();
+		return null !== await this.getDocument();
 	}
 }
 
@@ -416,7 +432,7 @@ export class ConfluenceDocument {
 	}
 
 	async postMetadata(gm_document: DocumentMetadata, n_version=1, s_message='') {
-		await confluence_post_json(`/content/${this._si_cover_page}`, {
+		await confluence_post_json(`/content/${this._si_cover_page}/property/${G_VE4_METADATA_KEYS.CONFLUENCE_DOCUMENT}`, {
 			json: {
 				value: gm_document,
 				version: {

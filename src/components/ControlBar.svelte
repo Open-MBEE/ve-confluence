@@ -1,6 +1,11 @@
 <script lang="ts">
     import DatasetsTable from '../components/DatasetsTable.svelte';
 
+    import {
+        ConfluencePage,
+        ConfluenceDocument,
+    } from '../class/confluence';
+
     import { getContext, onMount } from 'svelte';
     import G_META from '../common/meta';
     import {lang} from '../common/static';
@@ -21,7 +26,7 @@
 
     export let G_CONTEXT: import('../common/ve4').Ve4ComponentContext;
 	// const {
-	// 	k_sparql,
+	// 	// k_sparql,
 	// } = G_CONTEXT;
 
     import { Tabs, TabList, TabPanel, Tab } from 'svelte-tabs';
@@ -31,12 +36,16 @@
     let dm_bar: HTMLDivElement;
     let b_collapsed = true;
     let dm_icon_dropdown: HTMLDivElement;
+    let b_document = false;
+
+    let k_page: ConfluencePage | null = null;
+    let k_document: ConfluenceDocument | null = null;
 
     function realign_control_bar() {
         dm_bar.style.marginLeft = dm_main.style.marginLeft || '';
     }
 
-    onMount(() => {
+    onMount(async() => {
         b_ready = true;
 
         // user does not have write permisisons
@@ -62,6 +71,12 @@
         d_observer.observe(dm_main, {
             attributes: true,
         });
+
+        k_page = await ConfluencePage.fromCurrentPage();
+
+        if(await k_page.isDocumentMember()){
+            k_document = await k_page.getDocument();
+        }
     });
 
     function toggle_collapse() {
@@ -73,6 +88,12 @@
         else {
             dm_icon_dropdown.classList.add('rotate-collapse');
             dm_icon_dropdown.classList.remove('rotate-expand');
+        }
+    }
+
+    async function create_document() {
+        if(k_page) {
+            k_document = await ConfluenceDocument.createNew(k_page);
         }
     }
 </script>
@@ -223,9 +244,9 @@
                         size="2x"
                     ></Fa>
                     <!-- help icon -->
-                    <svg width="20" height="21" viewBox="0 0 20 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <!-- <svg width="20" height="21" viewBox="0 0 20 21" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M10 0.701111C4.48 0.701111 0 5.18111 0 10.7011C0 16.2211 4.48 20.7011 10 20.7011C15.52 20.7011 20 16.2211 20 10.7011C20 5.18111 15.52 0.701111 10 0.701111ZM11 17.7011H9V15.7011H11V17.7011ZM13.07 9.95111L12.17 10.8711C11.45 11.6011 11 12.2011 11 13.7011H9V13.2011C9 12.1011 9.45 11.1011 10.17 10.3711L11.41 9.11111C11.78 8.75111 12 8.25111 12 7.70111C12 6.60111 11.1 5.70111 10 5.70111C8.9 5.70111 8 6.60111 8 7.70111H6C6 5.49111 7.79 3.70111 10 3.70111C12.21 3.70111 14 5.49111 14 7.70111C14 8.58111 13.64 9.38111 13.07 9.95111Z" fill="white"/>
-                    </svg>
+                    </svg> -->
                 </span>
                 <span class="icon-dropdown animated rotate-expand" bind:this={dm_icon_dropdown}>
                     <!-- drop-down -->
@@ -238,16 +259,20 @@
         {#if !b_collapsed}
             <div class="expanded" transition:slide={{}}>
                 <Tabs>
-                    <TabList>
-                        <Tab>Status</Tab>
-                    </TabList>
+                    {#if k_document}
+                        <TabList>
+                            <Tab>Status</Tab>
+                        </TabList>
 
-                    <TabPanel>
-                        <div class="tab-body">
-                            <p>New updates are available every Friday at 10:00 PM</p>
-                            <DatasetsTable {G_CONTEXT}></DatasetsTable>
-                        </div>
-                    </TabPanel>
+                        <TabPanel>
+                            <div class="tab-body">
+                                <p>New updates are available every Friday at 10:00 PM</p>
+                                <DatasetsTable {G_CONTEXT}></DatasetsTable>
+                            </div>
+                        </TabPanel>
+                    {:else}
+                        <button on:click={create_document}>Convert this page to become the document cover page of a new document</button>
+                    {/if}
                 </Tabs>
             </div>
         {/if}

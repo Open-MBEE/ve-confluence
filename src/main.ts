@@ -1,4 +1,9 @@
-import ConfluencePage from './class/confluence
+import {
+	PageMetadata,
+	ConfluencePage,
+	ConfluenceDocument,
+ } from './class/confluence';
+
 import G_META from './common/meta';
 import {
 	process,
@@ -24,7 +29,7 @@ import InsertBlockView from './components/InsertBlockView.svelte';
 import SparqlEndpoint from './util/sparql-endpoint';
 import H_PREFIXES from './common/prefixes';
 import type XHTMLDocument from './class/xhtml-document';
-import type {ConfluencePageMetadata} from './class/confluence
+
 import type { Ve4ComponentContext } from './common/ve4';
 
 
@@ -146,10 +151,14 @@ const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 	// 		p_url: ym_anchor.getAttribute('href'),
 	// 	},
 	// }),
+	'CAE CED Table Element': () => ({
+		component: QueryTable,
+	}),
 };
 
 
 const G_CONTEXT: Ve4ComponentContext = {
+	k_page: null as unknown as ConfluencePage,
 	k_sparql: null as unknown as SparqlEndpoint,
 };
 
@@ -242,8 +251,9 @@ function add_controls() {
 }
 
 let k_page: ConfluencePage;
-let k_doc: XHTMLDocument;
-let gm_page: ConfluencePageMetadata | null;
+let k_document: ConfluenceDocument | null;
+let k_source: XHTMLDocument;
+let gm_page: PageMetadata | null;
 
 
 
@@ -286,7 +296,7 @@ function control_bar(gc_bar: ControlBarConfig) {
 
 function* correlate(gc_correlator: CorrelationDescriptor): Generator<ViewBundle> {
 	// find all matching page nodes
-	const a_nodes = k_doc.select<Node>(gc_correlator.storage);
+	const a_nodes = k_source.select<Node>(gc_correlator.storage);
 	const nl_nodes = a_nodes.length;
 
 	// find all corresponding dom elements
@@ -362,49 +372,52 @@ export async function main() {
 		props: GM_CONTEXT,
 	});
 
-	k_page = await ConfluencePage.fromCurrentPage();
+	G_CONTEXT.k_page = k_page = await ConfluencePage.fromCurrentPage();
 
-	let b_document = false;
-	({
-		gm_page,
-		b_document,
-		k_doc,
-	} = await all_async({
-		// fetch page metadata
-		gm_page: k_page.getMetadata(),
+	const a_res = await Promise.allSettled([
+		(async() => {
+			// fetch page metadata
+			const g_meta = await k_page.getMetadata();
+			gm_page = g_meta?.value || null;
+		})(),
 
-		// page is part of document
-		b_document: k_page.isDocumentPage(),
+		(async() => {
+			// page is part of document
+			k_document = await k_page.getDocument();
+		})(),
 
-		// load page's XHTML source
-		k_doc: k_page.getContentAsXhtmlDocument(),
-	}) as any);
-
-	// not a document page
-	if(!b_document || !gm_page) {
+		(async() => {
+			// load page's XHTML source
+			k_source = (await k_page.getContentAsXhtmlDocument())?.value || null;
+		})(),
+	]);
+debugger;
+	// not a document member
+	if(!k_document) {
 		// exit
 		return;
 	}
 
+
 	// const h_sources = keyed<'key'>(gm_page.sources as any, 'key');
 
-	for(const g_source of gm_page.sources) {
-		const si_source = g_source.key;
+	// for(const g_source of gm_page.sources) {
+	// 	const si_source = g_source.key;
 
-		if(!(si_source in H_SOURCE_HANDLERS)) {
-			
-		}
-	}
+	// 	if(!(si_source in H_SOURCE_HANDLERS)) {
 
-	// init SPARQL endpoint
-	G_CONTEXT.k_sparql = new SparqlEndpoint({
-		endpoint: process.env.SPARQL_ENDPOINT || 'void://',
-		prefixes: H_PREFIXES,
-		concurrency: 16,
-		variables: {
-			DATA_GRAPH: `<${h_sources.doors || 'void://'}>`,
-		},
-	});
+	// 	}
+	// }
+
+	// // init SPARQL endpoint
+	// G_CONTEXT.k_sparql = new SparqlEndpoint({
+	// 	endpoint: process.env.SPARQL_ENDPOINT || 'void://',
+	// 	prefixes: H_PREFIXES,
+	// 	concurrency: 16,
+	// 	variables: {
+	// 		DATA_GRAPH: `<${h_sources.doors || 'void://'}>`,
+	// 	},
+	// });
 
 	// each page directive
 	for(const si_page_directive in H_PAGE_DIRECTIVES) {

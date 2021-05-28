@@ -1,3 +1,4 @@
+import G_META from '../common/meta';
 import AsyncLockPool from './async-lock-pool';
 
 type Hash = Record<string, string>;
@@ -87,6 +88,22 @@ export class SparqlEndpoint {
 			return `prefix ${si_prefix}: <${p_iri}>\n`;
 		}).join('');
 		this._k_helper = new SparqlQueryHelper(gc_init.variables || {});
+	}
+
+	async auth() {
+		// authenticate to access the named graph
+		fetch(`${this._p_endpoint}/auth`, {
+			method: 'POST',
+			mode: 'cors',
+			headers: {
+				'Content-Type': 'application/json',
+				'Accept': 'application/json',
+			},
+			body: JSON.stringify({
+				href: document.location.href,
+				cookie: document.cookie,
+			}),
+		})
 	}
 
 	// submit SPARQL SELECT query
