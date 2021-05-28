@@ -1,7 +1,14 @@
 <script lang="ts">
+    import DatasetsTable from '../components/DatasetsTable.svelte';
+
     import { getContext, onMount } from 'svelte';
     import G_META from '../common/meta';
     import {lang} from '../common/static';
+
+    import Fa from 'svelte-fa';
+    import {
+        faQuestionCircle,
+    } from '@fortawesome/free-solid-svg-icons';
 
     import {
         qs,
@@ -12,7 +19,7 @@
         slide,
     } from 'svelte/transition';
 
-    // export let G_CONTEXT: import('../common/ve4').Ve4ComponentContext;
+    export let G_CONTEXT: import('../common/ve4').Ve4ComponentContext;
 	// const {
 	// 	k_sparql,
 	// } = G_CONTEXT;
@@ -23,6 +30,11 @@
     let b_read_only = false;
     let dm_bar: HTMLDivElement;
     let b_collapsed = true;
+    let dm_icon_dropdown: HTMLDivElement;
+
+    function realign_control_bar() {
+        dm_bar.style.marginLeft = dm_main.style.marginLeft || '';
+    }
 
     onMount(() => {
         b_ready = true;
@@ -32,23 +44,94 @@
             b_read_only = true;
         }
 
-        queueMicrotask(() => {
-            dm_bar.style.marginLeft = dm_main.style.marginLeft || '';
+        // initial control bar alignment
+        queueMicrotask(realign_control_bar);
+
+        // create new observer
+        const d_observer = new MutationObserver((a_mutations) => {
+            // each mutation in list
+            for(const d_mutation of a_mutations) {
+                // style attribute change; realign control bar
+                if('attributes' === d_mutation.type && 'style' === d_mutation.attributeName) {
+                    realign_control_bar();
+                }
+            }
+        });
+
+        // start observing 'main' attribute changes
+        d_observer.observe(dm_main, {
+            attributes: true,
         });
     });
 
     function toggle_collapse() {
         b_collapsed = !b_collapsed;
+        if(b_collapsed) {
+            dm_icon_dropdown.classList.add('rotate-expand');
+            dm_icon_dropdown.classList.remove('rotate-collapse');
+        }
+        else {
+            dm_icon_dropdown.classList.add('rotate-collapse');
+            dm_icon_dropdown.classList.remove('rotate-expand');
+        }
     }
 </script>
 
 <style lang="less">
+    @import "../../submodule/animate.less/dist/less/_mixins";
+    @import "./ve";
+
+    .animated {
+        &.bounce {
+            #a.animated();
+            #a.rotate();
+        }
+    }
+
+    .animated {
+        animation-duration: 0.4s;
+    }
+
+    :global(.rotate-expand) {
+        animation-name: rotate-expand;
+        #a.keyframes(
+            rotate-expand; {
+                from {
+                    #a._transform-origin(center);
+                    #a._transform(rotate(0deg));
+                }
+                to {
+                    #a._transform-origin(center);
+                    #a._transform(rotate(-180deg));
+                }
+            }
+        );
+    }
+
+    :global(.rotate-collapse) {
+        animation-name: rotate-collapse;
+        animation-duration: 0.5s;
+        #a.keyframes(
+            rotate-collapse; {
+                from {
+                    #a._transform-origin(center);
+                    #a._transform(rotate(-180deg));
+                }
+                to {
+                    #a._transform-origin(center);
+                    #a._transform(rotate(0deg));
+                }
+            }
+        );
+    }
+
     .ve4-control-bar {
-        background-color: #404040;
+        background-color: var(--ve-color-dark-background);
         font-family: Roboto, -apple-system, BlinkMacSystemFont, 'Segoe UI', Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-        color: #ffffff;
+        color: var(--ve-color-light-text);
         
         .heading {
+            position: relative;
             cursor: pointer;
 
             .heading-center {
@@ -62,6 +145,17 @@
                     font-weight: 500;
                     font-size: 12pt;
                 }
+
+                .icon-help {
+                    transform: scale(0.5);
+                    margin-left: 0.5em;
+                }
+
+                .icon-dropdown {
+                    position: absolute;
+                    right: 1em;
+                }
+
             }
         }
 
@@ -92,35 +186,52 @@
     <div class="ve4-control-bar" bind:this={dm_bar} transition:slide={{}}>
         <div class="heading" on:click={toggle_collapse}>
             <div class="heading-center">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right:0.5em;">
-                    <path fill-rule="evenodd" clip-rule="evenodd" d="M5.52841 10.2178C5.71048 10.2178 5.87334 10.1031 5.93679 9.93022L7.20029 6.48755C7.28415 6.25907 7.16929 6.00499 6.94375 5.92004C6.7182 5.8351 6.46739 5.95145 6.38354 6.17993L5.52841 8.50989L4.67329 6.17993C4.58943 5.95145 4.33862 5.8351 4.11308 5.92004C3.88754 6.00499 3.77268 6.25907 3.85653 6.48755L5.12003 9.93022C5.18348 10.1031 5.34635 10.2178 5.52841 10.2178Z" fill="#B5B5B5"/>
-                    <path fill-rule="evenodd" clip-rule="evenodd" d="M11.9648 6.33298C11.9648 6.08921 11.7663 5.8916 11.5214 5.8916H9.21562C8.97072 5.8916 8.7722 6.08921 8.7722 6.33298V9.77574C8.7722 10.0195 8.97072 10.2171 9.21562 10.2171H11.5214C11.7663 10.2171 11.9648 10.0195 11.9648 9.77574C11.9648 9.53197 11.7663 9.33436 11.5214 9.33436H9.65904V6.77436H11.5214C11.7663 6.77436 11.9648 6.57675 11.9648 6.33298Z" fill="#B5B5B5"/>
-                    <path fill-rule="evenodd" clip-rule="evenodd" d="M8.875 8.00349C8.875 7.74753 9.07663 7.54004 9.32536 7.54004H11.4113C11.66 7.54004 11.8617 7.74753 11.8617 8.00349C11.8617 8.25945 11.66 8.46694 11.4113 8.46694H9.32536C9.07663 8.46694 8.875 8.25945 8.875 8.00349Z" fill="#B5B5B5"/>
-                    <path fill-rule="evenodd" clip-rule="evenodd" d="M7.3867 1.01273C7.42256 1.25183 7.25714 1.47462 7.01723 1.51036C3.84485 1.98289 1.41163 4.71054 1.41163 8.0038C1.41163 11.2948 3.84157 14.021 7.01083 14.4963C7.2507 14.5323 7.41589 14.7552 7.3798 14.9943C7.34371 15.2333 7.12 15.398 6.88012 15.362C3.28747 14.8233 0.533203 11.7345 0.533203 8.0038C0.533203 4.27061 3.29118 1.18017 6.88739 0.644516C7.12729 0.608782 7.35084 0.773638 7.3867 1.01273ZM8.61487 1.01289C8.65079 0.773804 8.87438 0.609006 9.11428 0.644803C12.7095 1.18128 15.4665 4.27127 15.4665 8.0038C15.4665 11.7347 12.712 14.8235 9.11913 15.3621C8.87925 15.398 8.65555 15.2334 8.61947 14.9943C8.5834 14.7553 8.74861 14.5323 8.98848 14.4964C12.1579 14.0213 14.5881 11.295 14.5881 8.0038C14.5881 4.71113 12.1558 1.98386 8.98421 1.51061C8.74431 1.47481 8.57895 1.25198 8.61487 1.01289Z" fill="#B5B5B5"/>
-                    <mask id="mask0" mask-type="alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="16" height="16">
+                <!-- ve icon -->
+                <span class="icon-ve">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right:0.5em;">
                         <path fill-rule="evenodd" clip-rule="evenodd" d="M5.52841 10.2178C5.71048 10.2178 5.87334 10.1031 5.93679 9.93022L7.20029 6.48755C7.28415 6.25907 7.16929 6.00499 6.94375 5.92004C6.7182 5.8351 6.46739 5.95145 6.38354 6.17993L5.52841 8.50989L4.67329 6.17993C4.58943 5.95145 4.33862 5.8351 4.11308 5.92004C3.88754 6.00499 3.77268 6.25907 3.85653 6.48755L5.12003 9.93022C5.18348 10.1031 5.34635 10.2178 5.52841 10.2178Z" fill="#B5B5B5"/>
                         <path fill-rule="evenodd" clip-rule="evenodd" d="M11.9648 6.33298C11.9648 6.08921 11.7663 5.8916 11.5214 5.8916H9.21562C8.97072 5.8916 8.7722 6.08921 8.7722 6.33298V9.77574C8.7722 10.0195 8.97072 10.2171 9.21562 10.2171H11.5214C11.7663 10.2171 11.9648 10.0195 11.9648 9.77574C11.9648 9.53197 11.7663 9.33436 11.5214 9.33436H9.65904V6.77436H11.5214C11.7663 6.77436 11.9648 6.57675 11.9648 6.33298Z" fill="#B5B5B5"/>
                         <path fill-rule="evenodd" clip-rule="evenodd" d="M8.875 8.00349C8.875 7.74753 9.07663 7.54004 9.32536 7.54004H11.4113C11.66 7.54004 11.8617 7.74753 11.8617 8.00349C11.8617 8.25945 11.66 8.46694 11.4113 8.46694H9.32536C9.07663 8.46694 8.875 8.25945 8.875 8.00349Z" fill="#B5B5B5"/>
                         <path fill-rule="evenodd" clip-rule="evenodd" d="M7.3867 1.01273C7.42256 1.25183 7.25714 1.47462 7.01723 1.51036C3.84485 1.98289 1.41163 4.71054 1.41163 8.0038C1.41163 11.2948 3.84157 14.021 7.01083 14.4963C7.2507 14.5323 7.41589 14.7552 7.3798 14.9943C7.34371 15.2333 7.12 15.398 6.88012 15.362C3.28747 14.8233 0.533203 11.7345 0.533203 8.0038C0.533203 4.27061 3.29118 1.18017 6.88739 0.644516C7.12729 0.608782 7.35084 0.773638 7.3867 1.01273ZM8.61487 1.01289C8.65079 0.773804 8.87438 0.609006 9.11428 0.644803C12.7095 1.18128 15.4665 4.27127 15.4665 8.0038C15.4665 11.7347 12.712 14.8235 9.11913 15.3621C8.87925 15.398 8.65555 15.2334 8.61947 14.9943C8.5834 14.7553 8.74861 14.5323 8.98848 14.4964C12.1579 14.0213 14.5881 11.295 14.5881 8.0038C14.5881 4.71113 12.1558 1.98386 8.98421 1.51061C8.74431 1.47481 8.57895 1.25198 8.61487 1.01289Z" fill="#B5B5B5"/>
-                    </mask>
-                    <g mask="url(#mask0)">
-                        <g style="mix-blend-mode:lighten">
-                            <rect width="16" height="16" fill="#969696"/>
+                        <mask id="mask0" mask-type="alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="16" height="16">
+                            <path fill-rule="evenodd" clip-rule="evenodd" d="M5.52841 10.2178C5.71048 10.2178 5.87334 10.1031 5.93679 9.93022L7.20029 6.48755C7.28415 6.25907 7.16929 6.00499 6.94375 5.92004C6.7182 5.8351 6.46739 5.95145 6.38354 6.17993L5.52841 8.50989L4.67329 6.17993C4.58943 5.95145 4.33862 5.8351 4.11308 5.92004C3.88754 6.00499 3.77268 6.25907 3.85653 6.48755L5.12003 9.93022C5.18348 10.1031 5.34635 10.2178 5.52841 10.2178Z" fill="#B5B5B5"/>
+                            <path fill-rule="evenodd" clip-rule="evenodd" d="M11.9648 6.33298C11.9648 6.08921 11.7663 5.8916 11.5214 5.8916H9.21562C8.97072 5.8916 8.7722 6.08921 8.7722 6.33298V9.77574C8.7722 10.0195 8.97072 10.2171 9.21562 10.2171H11.5214C11.7663 10.2171 11.9648 10.0195 11.9648 9.77574C11.9648 9.53197 11.7663 9.33436 11.5214 9.33436H9.65904V6.77436H11.5214C11.7663 6.77436 11.9648 6.57675 11.9648 6.33298Z" fill="#B5B5B5"/>
+                            <path fill-rule="evenodd" clip-rule="evenodd" d="M8.875 8.00349C8.875 7.74753 9.07663 7.54004 9.32536 7.54004H11.4113C11.66 7.54004 11.8617 7.74753 11.8617 8.00349C11.8617 8.25945 11.66 8.46694 11.4113 8.46694H9.32536C9.07663 8.46694 8.875 8.25945 8.875 8.00349Z" fill="#B5B5B5"/>
+                            <path fill-rule="evenodd" clip-rule="evenodd" d="M7.3867 1.01273C7.42256 1.25183 7.25714 1.47462 7.01723 1.51036C3.84485 1.98289 1.41163 4.71054 1.41163 8.0038C1.41163 11.2948 3.84157 14.021 7.01083 14.4963C7.2507 14.5323 7.41589 14.7552 7.3798 14.9943C7.34371 15.2333 7.12 15.398 6.88012 15.362C3.28747 14.8233 0.533203 11.7345 0.533203 8.0038C0.533203 4.27061 3.29118 1.18017 6.88739 0.644516C7.12729 0.608782 7.35084 0.773638 7.3867 1.01273ZM8.61487 1.01289C8.65079 0.773804 8.87438 0.609006 9.11428 0.644803C12.7095 1.18128 15.4665 4.27127 15.4665 8.0038C15.4665 11.7347 12.712 14.8235 9.11913 15.3621C8.87925 15.398 8.65555 15.2334 8.61947 14.9943C8.5834 14.7553 8.74861 14.5323 8.98848 14.4964C12.1579 14.0213 14.5881 11.295 14.5881 8.0038C14.5881 4.71113 12.1558 1.98386 8.98421 1.51061C8.74431 1.47481 8.57895 1.25198 8.61487 1.01289Z" fill="#B5B5B5"/>
+                        </mask>
+                        <g mask="url(#mask0)">
+                            <g style="mix-blend-mode:lighten">
+                                <rect width="16" height="16" fill="#969696"/>
+                            </g>
+                            <g style="mix-blend-mode:overlay">
+                                <rect width="16" height="16" fill="#FF9900"/>
+                            </g>
                         </g>
-                        <g style="mix-blend-mode:overlay">
-                            <rect width="16" height="16" fill="#FF9900"/>
-                        </g>
-                    </g>
-                </svg>
+                    </svg>
+                </span>
                 <span class="title">
                     {lang.basic.app_title}
                 </span>
                 {#if b_read_only}
-                    <span>
-                        read-only
+                    <span class="icon-readonly">
+                        Read-Only
                     </span>
                 {/if}
-                <span>
+                <span class="icon-help">
+                    <Fa
+                        icon={faQuestionCircle}
+                        size="2x"
+                    ></Fa>
+                    <!-- help icon -->
+                    <svg width="20" height="21" viewBox="0 0 20 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M10 0.701111C4.48 0.701111 0 5.18111 0 10.7011C0 16.2211 4.48 20.7011 10 20.7011C15.52 20.7011 20 16.2211 20 10.7011C20 5.18111 15.52 0.701111 10 0.701111ZM11 17.7011H9V15.7011H11V17.7011ZM13.07 9.95111L12.17 10.8711C11.45 11.6011 11 12.2011 11 13.7011H9V13.2011C9 12.1011 9.45 11.1011 10.17 10.3711L11.41 9.11111C11.78 8.75111 12 8.25111 12 7.70111C12 6.60111 11.1 5.70111 10 5.70111C8.9 5.70111 8 6.60111 8 7.70111H6C6 5.49111 7.79 3.70111 10 3.70111C12.21 3.70111 14 5.49111 14 7.70111C14 8.58111 13.64 9.38111 13.07 9.95111Z" fill="white"/>
+                    </svg>
+                </span>
+                <span class="icon-dropdown animated rotate-expand" bind:this={dm_icon_dropdown}>
+                    <!-- drop-down -->
+                    <svg width="24" height="25" viewBox="0 0 24 25" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M7.41 9.09L12 13.67L16.59 9.09L18 10.5L12 16.5L6 10.5L7.41 9.09Z" fill="white"/>
+                    </svg>                        
                 </span>
             </div>
         </div>
@@ -134,9 +245,7 @@
                     <TabPanel>
                         <div class="tab-body">
                             <p>New updates are available every Friday at 10:00 PM</p>
-                            <span>
-                                Table placeholder
-                            </span>
+                            <DatasetsTable {G_CONTEXT}></DatasetsTable>
                         </div>
                     </TabPanel>
                 </Tabs>

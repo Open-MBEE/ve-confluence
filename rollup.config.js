@@ -9,6 +9,7 @@ import { terser } from 'rollup-plugin-terser';
 import sveltePreprocess from 'svelte-preprocess';
 import typescript from '@rollup/plugin-typescript';
 import replace from '@rollup/plugin-replace';
+import url from '@rollup/plugin-url';
 
 const production = !process.env.ROLLUP_WATCH;
 
@@ -36,6 +37,7 @@ function serve() {
 const replace_values = (h_replace) => Object.entries(h_replace).reduce((h_out, [si_var, w_value]) => ({
 	...h_out,
 	[`export const ${si_var}`]: `export const ${si_var} = ${JSON.stringify(w_value)}; //`,
+	[`export let ${si_var}`]: `export let ${si_var} = ${JSON.stringify(w_value)}; //`,
 }), {});
 
 console.dir(replace_values({
@@ -45,7 +47,7 @@ console.dir(replace_values({
 			DOORS_NG_PREFIX: process.env.DOORS_NG_PREFIX,
 		},
 	},
-	lang: yaml.load(fs.readFileSync('./resource/lang.yaml'))[process.env.LANG],
+	lang: yaml.load(fs.readFileSync(`./resource/${process.env.LANG_FILE || 'lang.yaml'}`))[process.env.LANG],
 }));
 
 export default {
@@ -67,9 +69,20 @@ export default {
 						DOORS_NG_PREFIX: process.env.DOORS_NG_PREFIX,
 					},
 				},
-				lang: yaml.load(fs.readFileSync('./resource/lang.yaml'))[process.env.LANG],
+				lang: yaml.load(fs.readFileSync(`./resource/${process.env.LANG_FILE || 'lang.yaml'}`))[process.env.LANG],
+				static_css: [
+					'./submodule/animate.less/dist/css/animate.css',
+					// './node_modules/@fortawesome/fontawesome-free/css/all.min.css',
+				].map(pr => fs.readFileSync(pr, 'utf8')).join('\n'),
+				static_js: [
+					'./node_modules/@fortawesome/fontawesome-free/js/all.min.js',
+				].map(pr => fs.readFileSync(pr, 'utf8')).join('\n'),
 			}),
 		}),
+
+		// url({
+		// 	include: ['**/*.css'],
+		// }),
 
 		svelte({
 			preprocess: sveltePreprocess({ sourceMap: !production }),

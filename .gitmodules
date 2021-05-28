@@ -1,0 +1,3 @@
+[submodule "submodule/animate.less"]
+	path = submodule/animate.less
+	url = https://github.com/codeworksdev/animate.less

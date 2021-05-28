@@ -1,8 +1,10 @@
-import ConfluencePage from './class/confluence-page';
+import ConfluencePage from './class/confluence
 import G_META from './common/meta';
 import {
 	process,
 	lang,
+	static_css,
+	static_js,
 } from './common/static';
 import {format} from './util/intl';
 import {
@@ -22,11 +24,36 @@ import InsertBlockView from './components/InsertBlockView.svelte';
 import SparqlEndpoint from './util/sparql-endpoint';
 import H_PREFIXES from './common/prefixes';
 import type XHTMLDocument from './class/xhtml-document';
-import type {Ve4Metadata} from './class/confluence-page';
+import type {ConfluencePageMetadata} from './class/confluence
 import type { Ve4ComponentContext } from './common/ve4';
 
 
+// write static css
+{
+	const dm_style = document.createElement('style');
+	dm_style.innerHTML = static_css;
+	document.body.appendChild(dm_style);
+}
 
+// write global js
+{
+	const dm_script = document.createElement('script');
+	dm_script.type = 'text/javascript';
+	dm_script.innerHTML = static_js;
+	document.body.appendChild(dm_script);
+}
+
+// write remote resuorces
+{
+	// document.body.appendChild(dd('link', {
+	// 	rel: 'stylesheet',
+	// 	// href: 'https://ced-cdn-test.s3-us-gov-west-1.amazonaws.com/confluence-ui/fontawesome-free/css/all.min.css',
+	// 	href: 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css',
+	// 	integrity: 'sha512-iBBXm8fW90+nuLcSKlbmrPcLa0OT92xO1BIsZ+ywDWZCvqsWgccV3gFoRBv0z+8dLJgyAHIhR35VZc2oM/gI1w==',
+	// 	crossorigin: 'anonymous',
+	// 	referrerpolicy: 'no-referrer',
+	// }));
+}
 /**
  * tuple of a node's corresponding HTML element and a struct with properties to be used later
  */
@@ -131,7 +158,7 @@ const G_CONTEXT: Ve4ComponentContext = {
  */
 const GM_CONTEXT = {
 	G_CONTEXT,
-},
+};
 
 // /**
 //  * init object used by all components to query SPARQL endpoint
@@ -216,7 +243,7 @@ function add_controls() {
 
 let k_page: ConfluencePage;
 let k_doc: XHTMLDocument;
-let g_ve4: Ve4Metadata | null;
+let gm_page: ConfluencePageMetadata | null;
 
 
 
@@ -312,26 +339,62 @@ function render_component(g_bundle: ViewBundle, b_hide_anchor=false) {
 async function load_page() {
 }
 
+async function all_async(g_pass: Record<string, Promise<unknown>>): Promise<Record<string, unknown>> {
+	const a_resolved = await Promise.all(Object.values(g_pass));
+
+	return Object.keys(g_pass).reduce((h_out, [si_key], i_which) => ({
+		...h_out,
+		[si_key]: a_resolved[i_which],
+	}), {});
+}
+
+function keyed<By extends string='id'>(a_input: [{[K in By]: string}], si_key='id') {
+	return a_input.reduce((h_out, g_each) => ({
+		...h_out,
+		[g_each[si_key as By]]: g_each,
+	}), {});
+}
+
 export async function main() {
 	new ControlBar({
 		target: dm_main.parentElement as HTMLElement,
 		anchor: dm_main,
-		props: {},
+		props: GM_CONTEXT,
 	});
 
-	k_page = await ConfluencePage.this();
+	k_page = await ConfluencePage.fromCurrentPage();
 
-	await Promise.all([
-		// fetch document metadata
-		async () => {
-			g_ve4 = await k_page.metadata() as Ve4Metadata | null;
-		},
+	let b_document = false;
+	({
+		gm_page,
+		b_document,
+		k_doc,
+	} = await all_async({
+		// fetch page metadata
+		gm_page: k_page.getMetadata(),
+
+		// page is part of document
+		b_document: k_page.isDocumentPage(),
 
 		// load page's XHTML source
-		async() => {
-			k_doc = await k_page.document();
-		},
-	].map(f => f()));
+		k_doc: k_page.getContentAsXhtmlDocument(),
+	}) as any);
+
+	// not a document page
+	if(!b_document || !gm_page) {
+		// exit
+		return;
+	}
+
+	// const h_sources = keyed<'key'>(gm_page.sources as any, 'key');
+
+	for(const g_source of gm_page.sources) {
+		const si_source = g_source.key;
+
+		if(!(si_source in H_SOURCE_HANDLERS)) {
+			
+		}
+	}
 
 	// init SPARQL endpoint
 	G_CONTEXT.k_sparql = new SparqlEndpoint({
@@ -339,7 +402,7 @@ export async function main() {
 		prefixes: H_PREFIXES,
 		concurrency: 16,
 		variables: {
-			DATA_GRAPH: `<${g_ve4?.sources?.doors?.graph || 'void://'}>`,
+			DATA_GRAPH: `<${h_sources.doors || 'void://'}>`,
 		},
 	});
 

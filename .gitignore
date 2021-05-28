@@ -9,6 +9,7 @@ sftp-config.json
 /data
 *.ignore
 .git-*
+*jpl-internal*
 
 # Logs
 logs
