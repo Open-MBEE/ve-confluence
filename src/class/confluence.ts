@@ -32,7 +32,9 @@ export interface PageMetadata extends JSONObject {
 export interface DocumentMetadata extends JSONObject {
 	schema: '1.0';
 	type: 'document';
-	sources: Source[];
+	sources: {
+		[key in SourceKey]?: Source;
+	};
 }
 
 type Metadata = PageMetadata | DocumentMetadata;
@@ -48,8 +50,8 @@ export type DocumentMetadataBundle = {
 type MetadataBundle = PageMetadataBundle | DocumentMetadataBundle;
 
 
-type SourceKeyDoorsNg = 'doors-ng';
-const SI_SOURCE_DOOORS_NG: SourceKeyDoorsNg = 'doors-ng';
+type SourceKeyDoorsNg = 'dng';
+const SI_SOURCE_DOOORS_NG: SourceKeyDoorsNg = 'dng';
 
 type SourceKeyHelix = 'helix';
 const SI_SOURCE_HELIX: SourceKeyHelix = 'helix';
@@ -67,18 +69,18 @@ type NeptuneSource = CommonSource & {
 	readonly modified: string;
 }
 
-type DngMdkSource = NeptuneSource & {
-	readonly key: 'doors-ng';
+export type DngMdkSource = NeptuneSource & {
+	readonly key: 'dng';
 	readonly ref: string;
 	readonly mopid: string;
 	readonly commit: string;
 }
 
-type HelixSource = CommonSource & {
+export type HelixSource = CommonSource & {
 	readonly key: 'helix';
 }
 
-type Source = DngMdkSource | HelixSource;
+export type Source = DngMdkSource | HelixSource;
 
 export namespace ConfluenceApi {
 	export type PageId = `${string}`;
@@ -400,7 +402,7 @@ export class ConfluenceDocument {
 		const gm_document: DocumentMetadata = {
 			type: 'document',
 			schema: '1.0',
-			sources: [],
+			sources: {},
 		};
 
 		await k_document.postMetadata(gm_document);
@@ -431,7 +433,7 @@ export class ConfluenceDocument {
 		return normalize_metadata<Ve4MetadataKeyDocument, DocumentMetadata>((await this._info(b_force))?.metadata.properties[G_VE4_METADATA_KEYS.CONFLUENCE_DOCUMENT]);
 	}
 
-	async postMetadata(gm_document: DocumentMetadata, n_version=1, s_message='') {
+	async postMetadata(gm_document: DocumentMetadata, n_version=1, s_message=''): Promise<boolean> {
 		await confluence_post_json(`/content/${this._si_cover_page}/property/${G_VE4_METADATA_KEYS.CONFLUENCE_DOCUMENT}`, {
 			json: {
 				value: gm_document,
@@ -442,6 +444,8 @@ export class ConfluenceDocument {
 				},
 			},
 		});
+
+		return true;
 	}
 
 	async isDocumentCoverPage(b_force=false): Promise<boolean> {
@@ -449,16 +453,17 @@ export class ConfluenceDocument {
 	}
 
 	async getDataSource<SourceType extends Source>(si_key: SourceKey, b_force=false): Promise<SourceType | null> {
-		const a_sources = (await this.getMetadata(b_force))?.value.sources;
-		if(!a_sources) return null;
+		const h_sources = (await this.getMetadata(b_force))?.value.sources;
+		if(!h_sources) return null;
+		return (h_sources[si_key] as SourceType) || null;
+	}
 
-		for(const g_source of a_sources) {
-			// doors-ng source
-			if(si_key === g_source.key) {
-				return g_source as SourceType;
-			}
-		}
-
-		return null;
+	async setDataSource<SourceType extends Source>(si_key: SourceKey, g_source: SourceType): Promise<boolean> {
+		const g_info = await this.getMetadata();
+		if(!g_info) return false;
+		const gm_document = g_info.value;
+		const h_sources = gm_document.sources;
+		h_sources[si_key] = g_source;
+		return await this.postMetadata(gm_document, ++g_info.version.number);
 	}
 }

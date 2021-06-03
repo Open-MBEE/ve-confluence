@@ -1,5 +1,5 @@
 
-export type SourceKey = 'doors-ng' | 'helix';
+export type SourceKey = 'dng' | 'helix';
 
 export class Source {
     

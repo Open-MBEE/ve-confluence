@@ -94,6 +94,18 @@
     async function create_document() {
         if(k_page) {
             k_document = await ConfluenceDocument.createNew(k_page);
+
+            // default dng data souce
+            k_document.setDataSource('dng', {
+                key: 'dng',
+                qualifier: 'mms://cae_dng/europa-clipper/master/latest',
+                modified: (new Date()).toISOString(),
+                endpoint: 'https://ced.jpl.nasa.gov/sparql',
+                graph: 'https://opencae.jpl.nasa.gov/data.europa-clipper',
+                mopid: 'cae_dng/europa-clipper',
+                ref: 'master',
+                commit: '#latest',
+            });
         }
     }
 </script>
@@ -146,9 +158,8 @@
         );
     }
 
-    .ve4-control-bar {
+    .ve-control-bar {
         background-color: var(--ve-color-dark-background);
-        font-family: Roboto, -apple-system, BlinkMacSystemFont, 'Segoe UI', Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
         color: var(--ve-color-light-text);
         
         .heading {
@@ -204,7 +215,7 @@
 </style>
 
 {#if b_ready}
-    <div class="ve4-control-bar" bind:this={dm_bar} transition:slide={{}}>
+    <div class="ve-control-bar" bind:this={dm_bar} transition:slide={{}}>
         <div class="heading" on:click={toggle_collapse}>
             <div class="heading-center">
                 <!-- ve icon -->

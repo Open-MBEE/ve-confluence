@@ -2,6 +2,7 @@ import {
 	PageMetadata,
 	ConfluencePage,
 	ConfluenceDocument,
+	Source,
  } from './class/confluence';
 
 import G_META from './common/meta';
@@ -31,6 +32,7 @@ import H_PREFIXES from './common/prefixes';
 import type XHTMLDocument from './class/xhtml-document';
 
 import type { Ve4ComponentContext } from './common/ve4';
+import type { SourceKey } from './class/source';
 
 
 // write static css
@@ -169,86 +171,8 @@ const GM_CONTEXT = {
 	G_CONTEXT,
 };
 
-// /**
-//  * init object used by all components to query SPARQL endpoint
-//  */
-// let k_sparql: SparqlEndpoint;
-
-// // query tables
-// function load_query_tables() {
-// 	const a_renders = qsa(document, `span[id^="ve4-render-table-"]`);
-
-// 	for(const dm_render of a_renders) {
-// 		const dm_wrap: Element = (dm_render.closest('p')?.nextSibling as Element) || qs(dm_render, 'div.table-wrap');
-
-// 		// not a rendered table
-// 		if(!dm_wrap.matches('div.table-wrap')) continue;
-// 		if(!(dm_wrap.firstChild as Element)?.matches('table')) continue;
-
-// 		const m_id = /^ve4-render-table-(\w+)$/.exec(dm_render.id) as RegExpExecArray;
-// 		const dm_directive = qs(document, `span#ve4-directive-table-${m_id[1]}`);
-// 		const dm_a = qs(dm_directive, 'a');
-// 		const pr_href = dm_a.getAttribute('href');
-
-// 		new QueryTable({
-// 			target: dm_wrap.parentNode as Element,
-// 			anchor: dm_wrap,
-// 			props: {
-// 				dm_anchor: dm_wrap,
-// 				k_sparql,
-// 			},
-// 		});
-// 	}
-// }
-
-
-
 const xpath_attrs = (a_attrs: string[]) => a_attrs.map(sx => `[${sx}]`).join('');
 
-
-function complete_next_view() {
-	debugger;
-}
-
-function add_controls() {
-	// create 'complete views' button
-	const dm_button_complete = dd('a', {
-		href: 'javascript:void(0)',
-		class: 'aui-button aui-button-subtle edit',
-		accesskey: 'v',
-		title: `Complete views (Type 'v')`,
-		resolved: true,
-	}, [
-		dd('span', {}, [
-			dd('span', {
-				class: 'aui-icon aui-icon-small aui-iconfont-check-circle-filled',
-			}),
-			' Complete ',
-			dd('u', {}, ['v']),
-			'iews ',
-		]),
-	]);
-
-	// add click listener
-	dm_button_complete.addEventListener('click', complete_next_view);
-
-	// select menu bar
-	const dm_menu = qs(document, '#navigation .ajs-menu-bar') as HTMLElement;
-
-	// append buttons
-	dm_menu.prepend(dd('li', {
-		class: 'ajs-button normal',
-	}, [dm_button_complete]));
-
-	// handle key shortcuts
-	document.addEventListener('keydown', (e_keydown) => {
-		// 'V' keydown
-		if('KeyV' === e_keydown.key) {
-			e_keydown.stopPropagation();
-			complete_next_view();
-		}
-	});
-}
 
 let k_page: ConfluencePage;
 let k_document: ConfluenceDocument | null;
@@ -346,24 +270,21 @@ function render_component(g_bundle: ViewBundle, b_hide_anchor=false) {
 	});
 }
 
-async function load_page() {
-}
+const H_SOURCE_HANDLERS: Record<SourceKey, (source: Source) => void> = {
+	dng: (g_source) => {
+		// init SPARQL endpoint
+		G_CONTEXT.k_sparql = new SparqlEndpoint({
+			endpoint: process.env.SPARQL_ENDPOINT || 'void://',
+			prefixes: H_PREFIXES,
+			concurrency: 16,
+			variables: {
+				DATA_GRAPH: `<${g_source.endpoint || 'void://'}>`,
+			},
+		});
+	},
 
-async function all_async(g_pass: Record<string, Promise<unknown>>): Promise<Record<string, unknown>> {
-	const a_resolved = await Promise.all(Object.values(g_pass));
-
-	return Object.keys(g_pass).reduce((h_out, [si_key], i_which) => ({
-		...h_out,
-		[si_key]: a_resolved[i_which],
-	}), {});
-}
-
-function keyed<By extends string='id'>(a_input: [{[K in By]: string}], si_key='id') {
-	return a_input.reduce((h_out, g_each) => ({
-		...h_out,
-		[g_each[si_key as By]]: g_each,
-	}), {});
-}
+	helix: () => {},
+};
 
 export async function main() {
 	new ControlBar({
@@ -374,7 +295,7 @@ export async function main() {
 
 	G_CONTEXT.k_page = k_page = await ConfluencePage.fromCurrentPage();
 
-	const a_res = await Promise.allSettled([
+	await Promise.allSettled([
 		(async() => {
 			// fetch page metadata
 			const g_meta = await k_page.getMetadata();
@@ -391,33 +312,42 @@ export async function main() {
 			k_source = (await k_page.getContentAsXhtmlDocument())?.value || null;
 		})(),
 	]);
-debugger;
+
 	// not a document member
 	if(!k_document) {
 		// exit
 		return;
 	}
 
+	debugger;
+	await k_document.setDataSource('dng', {
+		key: 'dng',
+		qualifier: 'mms://cae_dng/europa-clipper/master/latest',
+		modified: (new Date()).toISOString(),
+		endpoint: 'https://ced.jpl.nasa.gov/sparql',
+		graph: 'https://opencae.jpl.nasa.gov/data.europa-clipper',
+		mopid: 'cae_dng/europa-clipper',
+		ref: 'master',
+		commit: '#latest',
+	});
 
-	// const h_sources = keyed<'key'>(gm_page.sources as any, 'key');
+	// fetch document metadata
+	const gm_document = await k_document.getMetadata();
 
-	// for(const g_source of gm_page.sources) {
-	// 	const si_source = g_source.key;
+	// no metadata; error
+	if(!gm_document) {
+		throw new Error(`Document exists but no metadata`);
+	}
 
-	// 	if(!(si_source in H_SOURCE_HANDLERS)) {
+	const a_sources = gm_document.value.sources;
+	const h_sources: Record<string, Source> = {};
+	for(const [si_key, g_source] of Object.entries(a_sources)) {
+		if(!(si_key in H_SOURCE_HANDLERS)) {
+			throw new Error(`No source handler found for ${si_key}`);
+		}
 
-	// 	}
-	// }
-
-	// // init SPARQL endpoint
-	// G_CONTEXT.k_sparql = new SparqlEndpoint({
-	// 	endpoint: process.env.SPARQL_ENDPOINT || 'void://',
-	// 	prefixes: H_PREFIXES,
-	// 	concurrency: 16,
-	// 	variables: {
-	// 		DATA_GRAPH: `<${h_sources.doors || 'void://'}>`,
-	// 	},
-	// });
+		H_SOURCE_HANDLERS[si_key as SourceKey](g_source as Source);
+	}
 
 	// each page directive
 	for(const si_page_directive in H_PAGE_DIRECTIVES) {

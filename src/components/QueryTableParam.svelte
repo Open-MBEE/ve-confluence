@@ -1,6 +1,7 @@
 <script context="module" lang="ts">
 	export interface Value {
 		label: string;
+		value: string;
 		count: number;
 		state: number;
 	}
@@ -19,6 +20,7 @@
 	import {createEventDispatcher} from 'svelte';
 	const dispatch = createEventDispatcher();
 	import {lang} from '../common/static';
+	import Select from 'svelte-select';
 
 	export let G_CONTEXT: import('../common/ve4').Ve4ComponentContext;
 	const {
@@ -60,6 +62,7 @@
 
 		let a_values = a_bindings.map(({value:g_value, count:g_count}) => ({
 			label: g_value.value,
+			value: g_value.value,
 			count: +(g_count.value),
 			state: XC_STATE_VISIBLE,
 		}));
@@ -122,7 +125,10 @@
 		a_values_selected.length = 0;
 		dispatch('change');
 	}
-
+	
+	function handle_select(d_event) {
+		debugger;
+	}
 </script>
 
 <style lang="less">
@@ -174,7 +180,7 @@
 	}
 </style>
 
-<fieldset>
+<!-- <fieldset> -->
 	<legend class="param-header">
 		<span>{g_param.label || g_param.key}</span>
 		<input type="text" placeholder="{lang.placeholder.filter_query_params}" bind:value={g_param.filter}>
@@ -186,13 +192,14 @@
 	{:else if XC_LOAD_ERROR === xc_load}
 		<p style="color:red;">{lang.loading_failed}</p>
 	{:else}
-		<div class="param-values" bind:this={dm_values}>
+		<Select items={g_param.values} isMulti={true} on:select={handle_select}></Select>
+		<!-- <div class="param-values" bind:this={dm_values}>
 			{#each g_param.values as g_value}
 				<label class:hidden={XC_STATE_HIDDEN === g_value.state}>
 					<input type="checkbox" name="query_maturity" id="query_maturity_{g_value.label}" value="{g_value.label}" bind:group={a_values_selected} on:change={() => dispatch('change')}>
 					{format_param_value_label(g_value)}
 				</label>
 			{/each}
-		</div>
+		</div> -->
 	{/if}
-</fieldset>
+<!-- </fieldset> -->

@@ -7,6 +7,15 @@
 		slide,
 	} from 'svelte/transition';
 
+    import Fa from 'svelte-fa';
+    import {
+        faCheckCircle,
+        faCircleNotch,
+		faFilter,
+		faHistory,
+    } from '@fortawesome/free-solid-svg-icons';
+    
+
 	import {
 		build_select_query,
 	} from './query-table';
@@ -21,6 +30,29 @@
 		k_sparql,
 	} = G_CONTEXT;
 
+	const A_DUMMY_TABLE_HEADERS = [
+		{
+			label: 'ID',
+		},
+		{
+			label: 'Requirement Name',
+		},
+		{
+			label: 'Requirement Text',
+		},
+		{
+			label: 'Key/Driver Indicator',
+		},
+		{
+			label: 'Affected Systems',
+		},
+		{
+			label: 'Maturity',
+		},
+	];
+
+	const A_DUMMY_TABLE_ROWS = [{}, {}, {}];
+
 	export let dm_anchor = document.createElement('div');
 
 	type Hash = Record<string, string>;
@@ -33,8 +65,12 @@
 		rows: Array<Hash>;
 	}
 
+	let b_expand = false;
+
+
 	let b_loading = false;
 	let b_showing = false;
+	let g_source: {label:string} | null = null;
 
 	$: dm_anchor.style.display = (b_showing && b_display_params)? 'none': 'block';
 	$: dm_anchor.style.opacity = b_loading? '0.5': '1.0';
@@ -47,13 +83,13 @@
 	let b_preview = false;
 
 	export let h_params: Record<string, Param> = {
-		level: {
-			key: 'Level',
-			sort: (g_a: {label: string}, g_b: {label: string}) => g_a.label < g_b.label? -1: 1,
-			filter: '',
-			values: [],
-			selected: ['L3'],
-		},
+		// level: {
+		// 	key: 'Level',
+		// 	sort: (g_a: {label: string}, g_b: {label: string}) => g_a.label < g_b.label? -1: 1,
+		// 	filter: '',
+		// 	values: [],
+		// 	selected: ['L3'],
+		// },
 		sysvac: {
 			key: 'System VAC',
 			filter: '',
@@ -148,37 +184,41 @@
 		b_loading = false;
 		b_showing = true;
 	}
+
+	function toggle_parameters() {
+		b_expand = !b_expand;
+		if(!b_expand) return;
+
+		
+	}
+
+	const a_query_types = [
+		{
+			label: 'Appendix Flight Systems Requirements',
+			value: 'afsr',
+		},
+	];
 </script>
 
 <style lang="less">
+	@import './ve.less';
+
 	.controls {
 		display: flex;
-		background-color: rgba(255, 246, 230,0.4);
-		border: 1px solid rgba(0,0,0,0.2);
-		padding: 4pt;
+		margin-bottom: 0.5em;
 
-		.metadata {
+		* {
+			align-self: center;
+		}
+	
+		.label {
 			flex: 1 auto;
 		}
 
-		button {
-			background-color: #dfdfdf;
-			float: right;
-			border: 1px solid #aaa;
-			padding: 6pt 12pt;
-			margin: auto;
+		.buttons {
+			flex: 1 auto;
+			text-align: right;
 		}
-	}
-
-	.parameters {
-		background-color: #dfdfdf;
-		padding: 2pt 8pt;
-	}
-
-	.info {
-		background-color: beige;
-		padding: 4pt 10pt;
-		margin-top: 6pt;
 	}
 
 	.loading {
@@ -188,19 +228,221 @@
 	.hidden {
 		display: none;
 	}
+	
+	.label {
+		font-weight: 500;
+	}
 
+	.table {
+		&.expanded {
+			.config {
+				.tabs {
+					border-bottom: 1px solid var(--ve-color-light-text);
+				}
+			}
+		}
+
+		.config {
+			background-color: var(--ve-color-dark-background);
+			padding: 7pt 14pt;
+			border-radius: 3px 3px 0 0;
+			display: flex;
+
+			.tabs {
+				align-self: center;
+				border-bottom: 1px solid transparent;
+				margin: 0;
+				padding: 4px 0 4px 0;
+
+				* {
+					align-self: baseline;
+					padding: 5px 10px;
+				}
+
+				.active {
+					border-bottom: 3px solid var(--ve-color-light-text);
+				}
+
+				*:nth-child(n+2) {
+					margin-left: 0.25em;
+				}
+
+
+				:global(* svg) {
+					margin-right: 3px;
+					transform: scale(0.9);
+				}
+
+				.parameters {
+					color: var(--ve-color-light-text);
+					cursor: pointer;
+				}
+
+				.version {
+					color: var(--ve-color-medium-light-text);
+				}
+			}
+
+			.info {
+				background-color: var(--ve-color-dark-text);
+				color: var(--ve-color-light-text);
+				border-radius: 2px;
+				margin-left: auto;
+				margin-top: 0;
+
+				font-size: 12px;
+				font-weight: 500;
+				letter-spacing: 1px;
+				align-self: center;
+				padding: 2pt 4pt;
+			}
+		}
+
+		.config-body {
+			background-color: var(--ve-color-dark-background);
+			color: var(--ve-color-medium-light-text);
+			padding: 6pt 20pt 6pt 20pt;
+
+			.query-type {
+				color: var(--ve-color-light-text);
+
+				*:nth-child(n+2) {
+					margin-left: 0.5em;
+				}
+
+				select {
+					padding: 3px 6px;
+				}
+			}
+
+			.form {
+				margin-top: 1em;
+				display: table;
+
+				.header {
+					font-size: 12px;
+				}
+
+				&>:global(*) {
+					display: table-row;
+
+					:global(*) {
+						display: table-cell;
+					}
+				}
+			}
+		}
+
+		.table-wrap {
+			border: 2px solid var(--ve-color-dark-background);
+			margin: 0;
+
+			table {
+				width: 100%;
+
+				.ve-table-preview-cell-placeholder {
+					background-color: #e5e5e5;
+					vertical-align: middle;
+					height: 1em;
+					display: inline-block;
+					width: 100%;
+					border-radius: 4px;
+				}
+			}
+		}
+	}
 </style>
 
-<div class="controls">
-	<span class="metadata">
-		<div>
-			<b>Lorem Ipsum</b>
+<div class="ve-query-table">
+	<div class="controls">
+		<span class="label">
+			Connected Data Table {g_source? `with ${g_source.label}`: ''}
+		</span>
+		<span class="buttons">
+			<button class="ve-button-primary">Publish</button>
+			<button class="ve-button-secondary">Cancel</button>
+		</span>
+		<!-- <button on:click={toggle_param_display}>{b_display_params? 'Cancel Edits': 'Edit Parameters'}</button> -->
+	</div>
+
+	<div class="table" class:expanded={b_expand}>
+		<div class="config">
+			<span class="tabs">
+				<span class="parameters" on:click={toggle_parameters} class:active={b_expand}>
+					<Fa icon={faFilter} size="xs" />
+					Parameters
+				</span>
+				<span class="version">
+					<Fa icon={faHistory} size="xs" />
+					Version: March 20, 2021
+				</span>
+			</span>
+			<span class="info">
+				PREVIEW (0 results)
+			</span>
 		</div>
-		<div>
-			Last Generated: {(new Date()).toLocaleString()}
+		{#if b_expand}
+			<div class="config-body" transition:slide={{}}>
+				<div class="query-type">
+					<span class="label">Query Type</span>
+					<select>
+						{#each a_query_types as g_query_type}
+							<option value={g_query_type.value}>
+								{g_query_type.label}
+							</option>
+						{/each}
+					</select>
+				</div>
+				<div class="form">
+					<div class="header">
+						<span>Parameter</span>
+						<span>Value</span>
+					</div>
+					{#each Object.values(h_params) as g_param}
+						<QueryTableParam {G_CONTEXT} {g_param} on:change={render} />
+					{/each}
+				</div>
+			</div>
+		{/if}
+		<div class="table-wrap">
+			<table class="wrapped confluenceTable tablesorter tablesorter-default stickyTableHeaders" role="grid" style="padding: 0px;" resolved="">
+				<colgroup>
+					{#each A_DUMMY_TABLE_HEADERS as g_header, i_header}
+						<col>
+					{/each}
+				</colgroup>
+				<thead class="tableFloatingHeaderOriginal">
+					<tr role="row" class="tablesorter-headerRow">
+						{#each A_DUMMY_TABLE_HEADERS as g_header, i_header}
+							<th class="confluenceTh tablesorter-header sortableHeader tablesorter-headerUnSorted" data-column="{i_header}" tabindex="0" scope="col" role="columnheader" aria-disabled="false" unselectable="on" aria-sort="none" aria-label="{g_header.label}: No sort applied, activate to apply an ascending sort" style="user-select: none;">
+								<div class="tablesorter-header-inner">{g_header.label}</div>
+							</th>
+						{/each}
+					</tr>
+				</thead>
+				<thead class="tableFloatingHeader" style="display: none;">
+					<tr role="row" class="tablesorter-headerRow">
+						{#each A_DUMMY_TABLE_HEADERS as g_header, i_header}
+							<th class="confluenceTh tablesorter-header sortableHeader tablesorter-headerUnSorted" data-column="{i_header}" tabindex="0" scope="col" role="columnheader" aria-disabled="false" unselectable="on" aria-sort="none" aria-label="{g_header.label}: No sort applied, activate to apply an ascending sort" style="user-select: none;">
+								<div class="tablesorter-header-inner">{g_header.label}</div>
+							</th>
+						{/each}
+					</tr>
+				</thead>
+				<tbody aria-live="polite" aria-relevant="all">
+					{#each A_DUMMY_TABLE_ROWS as g_row}
+						<tr role="row">
+							{#each A_DUMMY_TABLE_HEADERS as g_header}
+								<td class="confluenceTd">
+									<span class="ve-table-preview-cell-placeholder">&nbsp;</span>
+								</td>
+							{/each}
+						</tr>
+					{/each}
+				</tbody>
+			</table>
 		</div>
-	</span>
-	<button on:click={toggle_param_display}>{b_display_params? 'Cancel Edits': 'Edit Parameters'}</button>
+	</div>
 </div>
 
 {#if b_display_params}
