@@ -132,42 +132,62 @@
 </script>
 
 <style lang="less">
-	fieldset {
-		margin-bottom: 5pt;
+	hr {
+		grid-column-start: 1;
+		grid-column-end: span 2;
+		width: 100%;
+		height: 0px;
+		margin-top: 4px;
+	}
 
-		.param-header {
-			margin-top: 2pt;
-			margin-bottom: 1pt;
+	[class^="param-"] {
+		align-self: center;
+		margin-bottom: 2px;
+	}
 
-			&>*:nth-child(n+2) {
-				margin-left: 8pt;
-			}
+	.param-label {
+		color: var(--ve-color-light-text);
+		margin-right: 6em;
+		font-size: 13px;
+	}
 
-			span {
-				font-weight: bold;
-			}
+	.param-values {
+		// display: grid;
+		// grid-template-columns: auto auto auto auto auto;
 
-			input {
+		// label {
+		// 	border: 1px solid transparent;
 
-			}
+		// 	&:hover {
+		// 		background-color: aliceblue;
+		// 		border: 1px solid rgba(0,0,0,0.3);
+		// 	}
+		// 
 
-			a {
+		color: var(--ve-color-dark-text);
+		font-size: 13px;
 
-			}
+		--height: 24px;
+		--indicatorTop: 0px;
+		--indicatorWidth: 7px;
+		--indicatorHeight: 5px;
+		--itemColor: var(--ve-color-dark-text);
+		--multiItemBorderRadius: 2px;
+		--multiItemPadding: 0 6px 0 6px;
+		--multiItemMargin: 3px 0 3px 4px;
+		--multiClearTop: 2px;
+		--multiItemBG: var(--ve-color-medium-light-text);
+		--multiItemHeight: 22px;
+		--multiClearBG: transparent;
+		--multiClearFill: var(--ve-color-dark-text);
+		--multiSelectPadding: 0;
+
+		:global(.indicator+div:nth-child(n+3)) {
+			margin-top: -5px;
 		}
 
-		.param-values {
-			display: grid;
-			grid-template-columns: auto auto auto auto auto;
-
-			label {
-				border: 1px solid transparent;
-
-				&:hover {
-					background-color: aliceblue;
-					border: 1px solid rgba(0,0,0,0.3);
-				}
-			}
+		:global(.multiSelectItem_clear>svg) {
+			transform: scale(0.9);
 		}
 	}
 
@@ -181,25 +201,34 @@
 </style>
 
 <!-- <fieldset> -->
-	<legend class="param-header">
+	<hr>
+	<legend class="param-label">
 		<span>{g_param.label || g_param.key}</span>
-		<input type="text" placeholder="{lang.placeholder.filter_query_params}" bind:value={g_param.filter}>
-		<a href="javascript:void(0)" on:click={checkboxes_select_all} class:greyed-out={g_param.values.length && g_param.values.length === a_values_selected.length}>select all</a>
-		<a href="javascript:void(0)" on:click={checkboxes_select_none} class:greyed-out={!a_values_selected.length}>clear selection</a>
 	</legend>
-	{#if XC_LOAD_NOT === xc_load}
-		<p>{lang.loading_pending}</p>
-	{:else if XC_LOAD_ERROR === xc_load}
-		<p style="color:red;">{lang.loading_failed}</p>
-	{:else}
-		<Select items={g_param.values} isMulti={true} on:select={handle_select}></Select>
-		<!-- <div class="param-values" bind:this={dm_values}>
-			{#each g_param.values as g_value}
-				<label class:hidden={XC_STATE_HIDDEN === g_value.state}>
-					<input type="checkbox" name="query_maturity" id="query_maturity_{g_value.label}" value="{g_value.label}" bind:group={a_values_selected} on:change={() => dispatch('change')}>
-					{format_param_value_label(g_value)}
-				</label>
-			{/each}
-		</div> -->
-	{/if}
+	<span class="param-values">
+		{#if XC_LOAD_NOT === xc_load}
+			<p>{lang.loading_pending}</p>
+		{:else if XC_LOAD_ERROR === xc_load}
+			<p style="color:red;">{lang.loading_failed}</p>
+		{:else}
+			<Select
+				isMulti={true}
+				showIndicator={true}
+				items={g_param.values}
+				indicatorSvg={/* syntax: html */ `
+					<svg width="7" height="5" viewBox="0 0 7 5" fill="none" xmlns="http://www.w3.org/2000/svg">
+						<path d="M3.5 4.5L0.468911 0.75L6.53109 0.75L3.5 4.5Z" fill="#333333"/>
+					</svg>
+				`}
+			></Select>
+			<!-- <div class="param-values" bind:this={dm_values}>
+				{#each g_param.values as g_value}
+					<label class:hidden={XC_STATE_HIDDEN === g_value.state}>
+						<input type="checkbox" name="query_maturity" id="query_maturity_{g_value.label}" value="{g_value.label}" bind:group={a_values_selected} on:change={() => dispatch('change')}>
+						{format_param_value_label(g_value)}
+					</label>
+				{/each}
+			</div> -->
+		{/if}
+	</span>
 <!-- </fieldset> -->

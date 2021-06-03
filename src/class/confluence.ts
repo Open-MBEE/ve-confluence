@@ -10,6 +10,7 @@ import {
 import {
 	get_json,
 	post_json,
+	put_json,
 	JSONObject,
 	JSONValue,
 	Response,
@@ -152,12 +153,12 @@ async function confluence_get_json<Data extends JSONObject>(pr_path: string, gc_
 	return await get_json<Data>(pr_path, gc_get);
 }
 
-async function confluence_post_json<Data extends JSONObject>(pr_path: string, gc_post?: {body?: string, json?: JSONValue}): Promise<Response<Data>> {
+async function confluence_put_json<Data extends JSONObject>(pr_path: string, gc_post?: {body?: string, json?: JSONValue}): Promise<Response<Data>> {
 	// complete path with API
 	pr_path = `${P_API_DEFAULT}${pr_path}`;
 
 	// forward to fetch method
-	return await post_json<Data>(pr_path, gc_post);
+	return await put_json<Data>(pr_path, gc_post);
 }
 
 
@@ -434,8 +435,9 @@ export class ConfluenceDocument {
 	}
 
 	async postMetadata(gm_document: DocumentMetadata, n_version=1, s_message=''): Promise<boolean> {
-		await confluence_post_json(`/content/${this._si_cover_page}/property/${G_VE4_METADATA_KEYS.CONFLUENCE_DOCUMENT}`, {
+		await confluence_put_json(`/content/${this._si_cover_page}/property/${G_VE4_METADATA_KEYS.CONFLUENCE_DOCUMENT}`, {
 			json: {
+				key: G_VE4_METADATA_KEYS.CONFLUENCE_DOCUMENT,
 				value: gm_document,
 				version: {
 					minorEdit: true,
@@ -462,7 +464,7 @@ export class ConfluenceDocument {
 		const g_info = await this.getMetadata();
 		if(!g_info) return false;
 		const gm_document = g_info.value;
-		const h_sources = gm_document.sources;
+		const h_sources = gm_document.sources = {};
 		h_sources[si_key] = g_source;
 		return await this.postMetadata(gm_document, ++g_info.version.number);
 	}

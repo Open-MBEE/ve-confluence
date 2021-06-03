@@ -3,6 +3,7 @@ import {
 	ConfluencePage,
 	ConfluenceDocument,
 	Source,
+	DngMdkSource,
  } from './class/confluence';
 
 import G_META from './common/meta';
@@ -271,17 +272,17 @@ function render_component(g_bundle: ViewBundle, b_hide_anchor=false) {
 }
 
 const H_SOURCE_HANDLERS: Record<SourceKey, (source: Source) => void> = {
-	dng: (g_source) => {
+	dng: ((g_source: DngMdkSource) => {
 		// init SPARQL endpoint
 		G_CONTEXT.k_sparql = new SparqlEndpoint({
-			endpoint: process.env.SPARQL_ENDPOINT || 'void://',
+			endpoint: g_source.endpoint || 'void://',
 			prefixes: H_PREFIXES,
 			concurrency: 16,
 			variables: {
-				DATA_GRAPH: `<${g_source.endpoint || 'void://'}>`,
+				DATA_GRAPH: `<${g_source.graph || 'void://'}>`,
 			},
 		});
-	},
+	}) as (source: Source) => void,
 
 	helix: () => {},
 };
@@ -319,17 +320,17 @@ export async function main() {
 		return;
 	}
 
-	debugger;
-	await k_document.setDataSource('dng', {
-		key: 'dng',
-		qualifier: 'mms://cae_dng/europa-clipper/master/latest',
-		modified: (new Date()).toISOString(),
-		endpoint: 'https://ced.jpl.nasa.gov/sparql',
-		graph: 'https://opencae.jpl.nasa.gov/data.europa-clipper',
-		mopid: 'cae_dng/europa-clipper',
-		ref: 'master',
-		commit: '#latest',
-	});
+	// debugger;
+	// await k_document.setDataSource('dng', {
+	// 	key: 'dng',
+	// 	qualifier: 'mms://cae_dng/europa-clipper/master/latest',
+	// 	modified: (new Date()).toISOString(),
+	// 	endpoint: 'https://ced.jpl.nasa.gov/sparql',
+	// 	graph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/data.europa-clipper',
+	// 	mopid: 'cae_dng/europa-clipper',
+	// 	ref: 'master',
+	// 	commit: '#latest',
+	// });
 
 	// fetch document metadata
 	const gm_document = await k_document.getMetadata();

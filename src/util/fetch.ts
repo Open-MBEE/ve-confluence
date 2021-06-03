@@ -65,3 +65,7 @@ export async function get_json<Data extends JSONObject>(pr_uri: string, gc_fetch
 export async function post_json<Data extends JSONObject>(pr_uri: string, gc_fetch: FetchConfig|null=null): Promise<Response<Data>> {
     return request_json<Data>('POST', pr_uri, gc_fetch);
 }
+
+export async function put_json<Data extends JSONObject>(pr_uri: string, gc_fetch: FetchConfig|null=null): Promise<Response<Data>> {
+    return request_json<Data>('PUT', pr_uri, gc_fetch);
+}

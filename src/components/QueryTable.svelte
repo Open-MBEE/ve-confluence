@@ -233,7 +233,7 @@
 		font-weight: 500;
 	}
 
-	.table {
+	.ve-table {
 		&.expanded {
 			.config {
 				.tabs {
@@ -301,7 +301,7 @@
 		.config-body {
 			background-color: var(--ve-color-dark-background);
 			color: var(--ve-color-medium-light-text);
-			padding: 6pt 20pt 6pt 20pt;
+			padding: 6pt 20pt 10pt 20pt;
 
 			.query-type {
 				color: var(--ve-color-light-text);
@@ -312,23 +312,19 @@
 
 				select {
 					padding: 3px 6px;
+					color: var(--ve-color-dark-text);
 				}
 			}
 
 			.form {
 				margin-top: 1em;
-				display: table;
+				display: grid;
+				grid-template-columns: auto 1fr;
+				grid-template-rows: auto;
 
 				.header {
+					margin: 0;
 					font-size: 12px;
-				}
-
-				&>:global(*) {
-					display: table-row;
-
-					:global(*) {
-						display: table-cell;
-					}
 				}
 			}
 		}
@@ -365,7 +361,7 @@
 		<!-- <button on:click={toggle_param_display}>{b_display_params? 'Cancel Edits': 'Edit Parameters'}</button> -->
 	</div>
 
-	<div class="table" class:expanded={b_expand}>
+	<div class="ve-table" class:expanded={b_expand}>
 		<div class="config">
 			<span class="tabs">
 				<span class="parameters" on:click={toggle_parameters} class:active={b_expand}>
@@ -394,10 +390,10 @@
 					</select>
 				</div>
 				<div class="form">
-					<div class="header">
-						<span>Parameter</span>
-						<span>Value</span>
-					</div>
+					<!-- <div class="header"> -->
+						<span class="header">Parameter</span>
+						<span class="header">Value</span>
+					<!-- </div> -->
 					{#each Object.values(h_params) as g_param}
 						<QueryTableParam {G_CONTEXT} {g_param} on:change={render} />
 					{/each}
