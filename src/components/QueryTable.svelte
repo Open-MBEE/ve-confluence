@@ -6,6 +6,7 @@
 	import {
 		slide,
 	} from 'svelte/transition';
+	import Select from 'svelte-select';
 
     import Fa from 'svelte-fa';
     import {
@@ -13,8 +14,10 @@
         faCircleNotch,
 		faFilter,
 		faHistory,
+		faQuestionCircle,
     } from '@fortawesome/free-solid-svg-icons';
-    
+
+	import SelectItem from './SelectItem.svelte';
 
 	import {
 		build_select_query,
@@ -24,6 +27,7 @@
 	import type {
 		Param,
 	} from './QueryTableParam.svelte';
+import { spread } from 'svelte/internal';
 	
 	export let G_CONTEXT: import('../common/ve4').Ve4ComponentContext;
 	const {
@@ -72,6 +76,10 @@
 	let b_showing = false;
 	let g_source: {label:string} | null = null;
 
+	g_source = {
+		label: 'DNG Requirements',
+	};
+
 	$: dm_anchor.style.display = (b_showing && b_display_params)? 'none': 'block';
 	$: dm_anchor.style.opacity = b_loading? '0.5': '1.0';
 
@@ -106,6 +114,15 @@
 
 	let b_display_params = false;
 
+	enum INFO_MODES {
+		PREVIEW=1,
+		LOADING=2,
+	};
+
+	let xc_info_mode = INFO_MODES.PREVIEW;
+	const SX_STATUS_INFO_INIT = 'PREVIEW (0 results)';
+	let s_status_info = SX_STATUS_INFO_INIT;
+
 	function toggle_param_display() {
 		b_display_params = !b_display_params;
 		b_preview = false;
@@ -128,6 +145,8 @@
 
 
 	async function render() {
+		xc_info_mode = INFO_MODES.LOADING;
+
 		let b_filtered = false;
 		for(const g_param of Object.values(h_params)) {
 			if(g_param.selected.length) {
@@ -183,6 +202,9 @@
 
 		b_loading = false;
 		b_showing = true;
+
+		s_status_info = `PREVIEW (${a_rows.length > 20? '>20': '20'} result${1 === a_rows.length? '': 's'})`;
+		xc_info_mode = INFO_MODES.PREVIEW;
 	}
 
 	function toggle_parameters() {
@@ -196,6 +218,10 @@
 		{
 			label: 'Appendix Flight Systems Requirements',
 			value: 'afsr',
+		},
+		{
+			label: 'Appendix Subsystem Requirements',
+			value: 'asr',
 		},
 	];
 </script>
@@ -213,6 +239,11 @@
 	
 		.label {
 			flex: 1 auto;
+
+			:global(svg) {
+				transform: scale(0.8);
+				cursor: pointer;
+			}
 		}
 
 		.buttons {
@@ -310,9 +341,50 @@
 					margin-left: 0.5em;
 				}
 
-				select {
-					padding: 3px 6px;
+				// select {
+				// 	padding: 3px 6px;
+				// 	color: var(--ve-color-dark-text);
+				// }
+
+				.label {
+					vertical-align: middle;
+				}
+
+				.select {
+					vertical-align: middle;
 					color: var(--ve-color-dark-text);
+					font-size: 13px;
+					padding: 1px 2px 1px 2px;
+
+					--height: 24px;
+					--indicatorTop: 2px;
+					--indicatorWidth: 7px;
+					--indicatorHeight: 5px;
+					--itemColor: var(--ve-color-dark-text);
+
+					--itemPadding: 0 10px;
+					--itemIsActiveBG: transparent;
+					--itemIsActiveColor: var(--ve-color-dark-text);
+					--itemHoverBG: var(--ve-color-light-background);
+
+					:global(.selectContainer) {
+						display: inline-flex;
+						width: fit-content;
+						min-width: 200px;
+						vertical-align: middle;					
+					}
+
+					:global(.indicator+div:nth-child(n+3)) {
+						margin-top: -5px;
+					}
+
+					:global(.multiSelectItem_clear>svg) {
+						transform: scale(0.9);
+					}
+
+					:global(.multiSelectItem) {
+						margin: 3px 0 3px 4px;
+					}
 				}
 			}
 
@@ -353,6 +425,7 @@
 	<div class="controls">
 		<span class="label">
 			Connected Data Table {g_source? `with ${g_source.label}`: ''}
+			<Fa icon={faQuestionCircle} />
 		</span>
 		<span class="buttons">
 			<button class="ve-button-primary">Publish</button>
@@ -374,20 +447,30 @@
 				</span>
 			</span>
 			<span class="info">
-				PREVIEW (0 results)
+				{#if INFO_MODES.PREVIEW === xc_info_mode}
+					{s_status_info}
+				{:else if INFO_MODES.LOADING === xc_info_mode}
+					<Fa icon={faCircleNotch} /> LOADING PREVIEW
+				{/if}
 			</span>
 		</div>
 		{#if b_expand}
 			<div class="config-body" transition:slide={{}}>
 				<div class="query-type">
 					<span class="label">Query Type</span>
-					<select>
-						{#each a_query_types as g_query_type}
-							<option value={g_query_type.value}>
-								{g_query_type.label}
-							</option>
-						{/each}
-					</select>
+					<span class="select">
+						<Select
+							showIndicator={true}
+							selectedValue={a_query_types[0]}
+							items={a_query_types}
+							indicatorSvg={/* syntax: html */ `
+								<svg width="7" height="5" viewBox="0 0 7 5" fill="none" xmlns="http://www.w3.org/2000/svg">
+									<path d="M3.5 4.5L0.468911 0.75L6.53109 0.75L3.5 4.5Z" fill="#333333"/>
+								</svg>
+							`}
+							Item={SelectItem}
+						/>
+					</span>
 				</div>
 				<div class="form">
 					<!-- <div class="header"> -->
@@ -426,15 +509,25 @@
 					</tr>
 				</thead>
 				<tbody aria-live="polite" aria-relevant="all">
-					{#each A_DUMMY_TABLE_ROWS as g_row}
-						<tr role="row">
-							{#each A_DUMMY_TABLE_HEADERS as g_header}
-								<td class="confluenceTd">
-									<span class="ve-table-preview-cell-placeholder">&nbsp;</span>
-								</td>
-							{/each}
-						</tr>
-					{/each}
+					{#if b_loading || !g_preview.rows.length}
+						{#each A_DUMMY_TABLE_ROWS as g_row}
+							<tr role="row">
+								{#each A_DUMMY_TABLE_HEADERS as g_header}
+									<td class="confluenceTd">
+										<span class="ve-table-preview-cell-placeholder">&nbsp;</span>
+									</td>
+								{/each}
+							</tr>
+						{/each}
+					{:else}
+						{#each g_preview.rows as h_row}
+							<tr role="row">
+								{#each Object.values(h_row) as sx_cell}
+									<td class="confluenceTd">{@html sx_cell}</td>
+								{/each}
+							</tr>
+						{/each}
+					{/if}
 				</tbody>
 			</table>
 		</div>
@@ -448,7 +541,7 @@
 		{/each}
 	</div>
 {/if}
-
+<!-- 
 {#if b_preview}
 	<div class="preview">
 		<div class="info">
@@ -495,4 +588,4 @@
 			</table>
 		</div>
 	</div>
-{/if}
+{/if} -->

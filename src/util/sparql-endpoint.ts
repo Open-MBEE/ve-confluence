@@ -44,8 +44,11 @@ export class SparqlQueryHelper {
 		this._h_variables = h_variables;
 	}
 
-	var(si_key: string) {
-		if(!(si_key in this._h_variables)) throw new Error(`SPARQL substitution variable not defined: '${si_key}'`);
+	var(si_key: string, s_default: string | null=null) {
+		if(!(si_key in this._h_variables)) {
+			if(null !== s_default) return s_default;
+			throw new Error(`SPARQL substitution variable not defined: '${si_key}'`);
+		}
 		return this._h_variables[si_key];
 	}
 

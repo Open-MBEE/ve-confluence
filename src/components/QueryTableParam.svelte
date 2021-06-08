@@ -39,14 +39,9 @@
 	const XC_LOAD_ERROR = 1;
 	const XC_LOAD_YES = 2;
 
-	let dp_params = null;
-	let dm_values: HTMLElement;
 	let e_query: Error | null = null;
 
 	let xc_load = XC_LOAD_NOT;
-
-	const terse_iri = (p: string): string => `<${p}>`;
-	const terse_lit = (s: string): string => `"${s}"`;
 
 	async function load_param(g_param: Param) {
 		const a_bindings = await k_sparql.select(k => /* syntax: sparql */ `
@@ -115,19 +110,19 @@
 			return g_value;
 		})
 	}
-
-	function checkboxes_select_all() {
-		a_values_selected = g_param.values.map(g => g.label);
-		dispatch('change');
-	}
-
-	function checkboxes_select_none() {
-		a_values_selected.length = 0;
-		dispatch('change');
-	}
 	
-	function handle_select(d_event) {
-		debugger;
+	function select_value(d_event: CustomEvent<Value[]>) {
+		for(const g_value of d_event.detail) {
+			if(g_value.state) {
+				a_values_selected.push(g_value.label);
+			}
+			else {
+				const i_value = a_values_selected.indexOf(g_value.label);
+				a_values_selected.splice(i_value, 1);
+			}
+		}
+
+		dispatch('change');
 	}
 </script>
 
@@ -166,28 +161,58 @@
 
 		color: var(--ve-color-dark-text);
 		font-size: 13px;
+		padding: 1px 2px 1px 2px;
 
 		--height: 24px;
-		--indicatorTop: 0px;
+		--indicatorTop: 2px;
 		--indicatorWidth: 7px;
 		--indicatorHeight: 5px;
 		--itemColor: var(--ve-color-dark-text);
+
 		--multiItemBorderRadius: 2px;
 		--multiItemPadding: 0 6px 0 6px;
-		--multiItemMargin: 3px 0 3px 4px;
-		--multiClearTop: 2px;
+		--multiItemMargin: 2px;
 		--multiItemBG: var(--ve-color-medium-light-text);
 		--multiItemHeight: 22px;
+
+		--multiClearTop: 3px;
+		--multiClearWidth: 12px;
+		--multiClearHeight: 12px;
+		--multiClearRadius: 20%;
+		--multiClearPadding: 2px;
 		--multiClearBG: transparent;
 		--multiClearFill: var(--ve-color-dark-text);
-		--multiSelectPadding: 0;
+
+		--multiItemActiveBG: var(--ve-color-medium-text);
+		--multiItemActiveColor: var(--ve-color-light-text);
+
+		--multiClearHoverBG: var(--ve-color-light-background);
+		--multiClearHoverFill: var(--ve-color-dark-text);
+		
+		--multiLabelMargin: 0;
+
+		--multiSelectPadding: 0 0 0 2px;
+		--multiSelectInputMargin: 0 0 0 2px;
+
+		--clearSelectTop: 5px;
+		--clearSelectRight: 20px;
+		--clearSelectBottom: 5px;
+		--clearSelectWidth: 20px;
 
 		:global(.indicator+div:nth-child(n+3)) {
 			margin-top: -5px;
 		}
 
+		:global(.multiSelectItem_clear) {
+			margin-left: 3px;
+		}
+
 		:global(.multiSelectItem_clear>svg) {
 			transform: scale(0.9);
+		}
+
+		:global(.multiSelectItem) {
+			margin: 3px 0 3px 4px;
 		}
 	}
 
@@ -213,22 +238,17 @@
 		{:else}
 			<Select
 				isMulti={true}
+				isClearable={false}
 				showIndicator={true}
 				items={g_param.values}
+				placeholder="Select Attribute Value(s)"
 				indicatorSvg={/* syntax: html */ `
 					<svg width="7" height="5" viewBox="0 0 7 5" fill="none" xmlns="http://www.w3.org/2000/svg">
 						<path d="M3.5 4.5L0.468911 0.75L6.53109 0.75L3.5 4.5Z" fill="#333333"/>
-					</svg>
-				`}
+						</svg>
+						`}
+				on:select={select_value}
 			></Select>
-			<!-- <div class="param-values" bind:this={dm_values}>
-				{#each g_param.values as g_value}
-					<label class:hidden={XC_STATE_HIDDEN === g_value.state}>
-						<input type="checkbox" name="query_maturity" id="query_maturity_{g_value.label}" value="{g_value.label}" bind:group={a_values_selected} on:change={() => dispatch('change')}>
-						{format_param_value_label(g_value)}
-					</label>
-				{/each}
-			</div> -->
 		{/if}
 	</span>
 <!-- </fieldset> -->

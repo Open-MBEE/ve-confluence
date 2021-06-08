@@ -95,5 +95,6 @@ export function build_select_query(h_params: Record<string, Param>, h_fields: Re
 
 			${a_bgp.join('\n')}
 		} ${a_aggregates.length? `group by ${a_selects.join(' ')}`: ''}
+		${k.var('LIMIT', '')? `limit ${k.var('LIMIT')}`: ''}
 	`;
 }

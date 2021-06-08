@@ -94,18 +94,6 @@
     async function create_document() {
         if(k_page) {
             k_document = await ConfluenceDocument.createNew(k_page);
-
-            // // default dng data souce
-            // k_document.setDataSource('dng', {
-            //     key: 'dng',
-            //     qualifier: 'mms://cae_dng/europa-clipper/master/latest',
-            //     modified: (new Date()).toISOString(),
-            //     endpoint: 'https://ced.jpl.nasa.gov/sparql',
-            //     graph: 'https://opencae.jpl.nasa.gov/data.europa-clipper',
-            //     mopid: 'cae_dng/europa-clipper',
-            //     ref: 'master',
-            //     commit: '#latest',
-            // });
         }
     }
 </script>
@@ -187,7 +175,6 @@
                     position: absolute;
                     right: 1em;
                 }
-
             }
         }
 
@@ -250,14 +237,11 @@
                     </span>
                 {/if}
                 <span class="icon-help">
+                    <!-- help icon -->
                     <Fa
                         icon={faQuestionCircle}
                         size="2x"
                     ></Fa>
-                    <!-- help icon -->
-                    <!-- <svg width="20" height="21" viewBox="0 0 20 21" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M10 0.701111C4.48 0.701111 0 5.18111 0 10.7011C0 16.2211 4.48 20.7011 10 20.7011C15.52 20.7011 20 16.2211 20 10.7011C20 5.18111 15.52 0.701111 10 0.701111ZM11 17.7011H9V15.7011H11V17.7011ZM13.07 9.95111L12.17 10.8711C11.45 11.6011 11 12.2011 11 13.7011H9V13.2011C9 12.1011 9.45 11.1011 10.17 10.3711L11.41 9.11111C11.78 8.75111 12 8.25111 12 7.70111C12 6.60111 11.1 5.70111 10 5.70111C8.9 5.70111 8 6.60111 8 7.70111H6C6 5.49111 7.79 3.70111 10 3.70111C12.21 3.70111 14 5.49111 14 7.70111C14 8.58111 13.64 9.38111 13.07 9.95111Z" fill="white"/>
-                    </svg> -->
                 </span>
                 <span class="icon-dropdown animated rotate-expand" bind:this={dm_icon_dropdown}>
                     <!-- drop-down -->

@@ -280,6 +280,7 @@ const H_SOURCE_HANDLERS: Record<SourceKey, (source: Source) => void> = {
 			concurrency: 16,
 			variables: {
 				DATA_GRAPH: `<${g_source.graph || 'void://'}>`,
+				LIMIT: '21',
 			},
 		});
 	}) as (source: Source) => void,
