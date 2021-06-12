@@ -22,6 +22,7 @@
     }
 
     interface Source {
+        id: string,
         label: string;
         versions: SelectOption[];
         selected: SelectOption | null;
@@ -30,6 +31,7 @@
     }
 
     const G_SOURCE_DNG: Source = {
+        id: 'dng',
         label: 'DNG Requirements',
         versions: [
             {
@@ -54,6 +56,7 @@
     };
 
     const G_SOURCE_HELIX: Source = {
+        id: 'helix',
         label: 'Helix Commands',
         versions: [
             {
@@ -201,7 +204,7 @@
                     </td>
                     <td>
                         <span class="status" bind:this={g_source.status_elmt}>
-                            <i class="fas fa-circle-notch fa-spin"></i>
+                            <Fa icon={faCircleNotch} class="fa-spin" />
                             <span class="text">
                                 Connecting...
                             </span>

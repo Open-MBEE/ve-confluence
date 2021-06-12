@@ -99,7 +99,6 @@
 </script>
 
 <style lang="less">
-    @import "../../submodule/animate.less/dist/less/_mixins";
     @import "./ve";
 
     .animated {

@@ -112,6 +112,10 @@
 	}
 	
 	function select_value(d_event: CustomEvent<Value[]>) {
+		if(!d_event.detail) {
+			return;
+		}
+
 		for(const g_value of d_event.detail) {
 			if(g_value.state) {
 				a_values_selected.push(g_value.label);

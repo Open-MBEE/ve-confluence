@@ -4,8 +4,16 @@
 	} from 'svelte';
 
 	import {
+		quadOut,
+	} from 'svelte/easing';
+	import {
 		slide,
 	} from 'svelte/transition';
+	import {
+		create_in_transition,
+		create_out_transition,
+	} from 'svelte/internal';
+
 	import Select from 'svelte-select';
 
     import Fa from 'svelte-fa';
@@ -20,14 +28,13 @@
 	import SelectItem from './SelectItem.svelte';
 
 	import {
-		build_select_query,
+		select_query_from_params,
 	} from './query-table';
 
 	import QueryTableParam from './QueryTableParam.svelte';
 	import type {
 		Param,
 	} from './QueryTableParam.svelte';
-import { spread } from 'svelte/internal';
 	
 	export let G_CONTEXT: import('../common/ve4').Ve4ComponentContext;
 	const {
@@ -58,6 +65,7 @@ import { spread } from 'svelte/internal';
 	const A_DUMMY_TABLE_ROWS = [{}, {}, {}];
 
 	export let dm_anchor = document.createElement('div');
+	let dm_parameters: HTMLDivElement;
 
 	type Hash = Record<string, string>;
 	type Row = Record<string, {
@@ -165,7 +173,7 @@ import { spread } from 'svelte/internal';
 		b_loading = true;
 		b_preview = true;
 
-		const sq_select = build_select_query(h_params, {
+		const y_select = select_query_from_params(h_params, {
 			systems: {
 				key: 'Affected Systems',
 			},
@@ -179,7 +187,15 @@ import { spread } from 'svelte/internal';
 			},
 		});
 
-		const a_rows = await k_sparql.select(sq_select);
+		const a_rows = await k_sparql.select(y_select.paginate(21));
+
+		if(a_rows.length > 20) {
+			// start counting all rows
+			k_sparql.select(y_select.count()).then((a_counts) => {
+				const nl_rows_total = +a_counts[0].count.value;
+				s_status_info = `PREVIEW (20 / ${nl_rows_total} result${1 === nl_rows_total? '': 's'})`;
+			});
+		}
 
 		g_preview.columns = [
 			{label:'ID'},
@@ -209,9 +225,16 @@ import { spread } from 'svelte/internal';
 
 	function toggle_parameters() {
 		b_expand = !b_expand;
-		if(!b_expand) return;
+		if(!b_expand) {
+			return;
+		}
 
-		
+		queueMicrotask(() => {
+			create_in_transition(dm_parameters, slide, {
+				duration: 400,
+				easing: quadOut, 
+			}).start();
+		});
 	}
 
 	const a_query_types = [
@@ -431,7 +454,6 @@ import { spread } from 'svelte/internal';
 			<button class="ve-button-primary">Publish</button>
 			<button class="ve-button-secondary">Cancel</button>
 		</span>
-		<!-- <button on:click={toggle_param_display}>{b_display_params? 'Cancel Edits': 'Edit Parameters'}</button> -->
 	</div>
 
 	<div class="ve-table" class:expanded={b_expand}>
@@ -450,12 +472,13 @@ import { spread } from 'svelte/internal';
 				{#if INFO_MODES.PREVIEW === xc_info_mode}
 					{s_status_info}
 				{:else if INFO_MODES.LOADING === xc_info_mode}
-					<Fa icon={faCircleNotch} /> LOADING PREVIEW
+					<Fa icon={faCircleNotch} class="fa-spin" /> LOADING PREVIEW
 				{/if}
 			</span>
 		</div>
-		{#if b_expand}
-			<div class="config-body" transition:slide={{}}>
+		<!-- {#if b_expand} -->
+			<!-- <div class="config-body" transition:slide={{}}> -->
+			<div class="config-body" bind:this={dm_parameters} style="display:{b_expand? 'block': 'none'};">
 				<div class="query-type">
 					<span class="label">Query Type</span>
 					<span class="select">
@@ -482,7 +505,7 @@ import { spread } from 'svelte/internal';
 					{/each}
 				</div>
 			</div>
-		{/if}
+		<!-- {/if} -->
 		<div class="table-wrap">
 			<table class="wrapped confluenceTable tablesorter tablesorter-default stickyTableHeaders" role="grid" style="padding: 0px;" resolved="">
 				<colgroup>
@@ -533,59 +556,3 @@ import { spread } from 'svelte/internal';
 		</div>
 	</div>
 </div>
-
-{#if b_display_params}
-	<div class="parameters" transition:slide={{}}>
-		{#each Object.values(h_params) as g_param}
-			<QueryTableParam {G_CONTEXT} {g_param} on:change={render} />
-		{/each}
-	</div>
-{/if}
-<!-- 
-{#if b_preview}
-	<div class="preview">
-		<div class="info">
-			{#if b_loading}
-				Loading preview...
-			{:else}
-				Previewing {g_preview.rows.length} requirements that match these filters
-			{/if}
-		</div>
-		<div class="table-wrap" class:loading={b_loading} class:hidden={!b_showing}>
-			<table class="wrapped confluenceTable tablesorter tablesorter-default stickyTableHeaders" role="grid" style="padding: 0px;">
-				<colgroup>
-					{#each g_preview.columns as g_column}
-						<col>
-					{/each}
-				</colgroup>
-				<thead class="tableFloatingHeaderOriginal">
-					<tr role="row" class="tablesorter-headerRow">
-						{#each g_preview.columns as g_column}
-							<th class="confluenceTh tablesorter-header sortableHeader tablesorter-headerUnSorted" data-column="0" tabindex="0" scope="col" role="columnheader" aria-disabled="false" unselectable aria-sort="none" aria-label="ID: No sort applied, activate to apply an ascending sort" style="user-select: none;">
-								<div class="tablesorter-header-inner">{g_column.label}</div>
-							</th>
-						{/each}
-					</tr>
-				</thead>
-				<thead class="tableFloatingHeader" style="display: none;">
-					<tr role="row" class="tablesorter-headerRow">
-						{#each g_preview.columns as g_column}
-							<th class="confluenceTh tablesorter-header sortableHeader tablesorter-headerUnSorted" data-column="0" tabindex="0" scope="col" role="columnheader" aria-disabled="false" unselectable aria-sort="none" aria-label="ID: No sort applied, activate to apply an ascending sort" style="user-select: none;">
-								<div class="tablesorter-header-inner">{g_column.label}</div>
-							</th>
-						{/each}
-					</tr>
-				</thead>
-				<tbody aria-live="polite" aria-relevant="all">
-					{#each g_preview.rows as h_row}
-						<tr role="row">
-							{#each Object.values(h_row) as sx_cell}
-								<td class="confluenceTd">{@html sx_cell}</td>
-							{/each}
-						</tr>
-					{/each}
-				</tbody>
-			</table>
-		</div>
-	</div>
-{/if} -->

@@ -150,4 +150,56 @@ export class SparqlEndpoint {
 	}
 }
 
+
+interface SelectQueryDescriptor {
+	count?: string;
+	select?: string[];
+	from?: string;
+	bgp: string;
+	group?: string | null;
+}
+
+type DescriptorBuilder = (k_helper: SparqlQueryHelper) => SelectQueryDescriptor;
+type StringBuilder = (k_helper: SparqlQueryHelper) => string;
+
+function stringify_select_query_descriptor(g_desc: SelectQueryDescriptor): string {
+	let s_select = '*';
+	let s_from = '';
+	let s_tail = '';
+
+	if(g_desc.select) s_select = g_desc.select.join(' ');
+	if(g_desc.from) s_from += /* syntax: sparql */ `from ${g_desc.from}`;
+	if(g_desc.group) s_tail += /* syntax: sparql */ `group by ${g_desc.group}`;
+
+	return `
+		select ${s_select} ${s_from} {
+			${g_desc.bgp}
+		} ${s_tail}
+	`;
+}
+
+export class SelectQuery {
+	private _fk_build: DescriptorBuilder;
+
+	constructor(fk_build: DescriptorBuilder) {
+		this._fk_build = fk_build;
+	}
+
+	paginate(n_limit: number, n_offset=0): StringBuilder {
+		return (k_helper: SparqlQueryHelper) => stringify_select_query_descriptor(this._fk_build(k_helper))+` limit ${n_limit} offset ${n_offset}`;
+	}
+
+	count(): StringBuilder {
+		return (k_helper: SparqlQueryHelper) => {
+			const g_desc = this._fk_build(k_helper);
+			delete g_desc.group;
+
+			return stringify_select_query_descriptor({
+				...g_desc,
+				select: [`(count(${g_desc.count || '*'}) as ?count)`],
+			});
+		};
+	}
+}
+
 export default SparqlEndpoint;

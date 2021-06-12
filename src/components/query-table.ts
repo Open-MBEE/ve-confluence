@@ -1,4 +1,6 @@
-import type { SparqlQuery } from "../util/sparql-endpoint";
+import {
+	SelectQuery,
+} from "../util/sparql-endpoint";
 
 type Hash = Record<string, string>;
 
@@ -26,8 +28,7 @@ interface Field {
 	array?: boolean;
 }
 
-
-export function build_select_query(h_params: Record<string, Param>, h_fields: Record<string, Field>={}): SparqlQuery {
+export function select_query_from_params(h_params: Record<string, Param>, h_fields: Record<string, Field>={}): SelectQuery {
 	const a_bgp: string[] = [];
 	const h_props = {};
 
@@ -85,8 +86,11 @@ export function build_select_query(h_params: Record<string, Param>, h_fields: Re
 		`);
 	}
 
-	return k => /* syntax: sparql */ `
-		select ${a_selects.join(' ')} ${a_aggregates.join(' ')} from ${k.var('DATA_GRAPH')} {
+	return new SelectQuery(k => ({
+		count: '?artifact',
+		select: [...a_selects, ...a_aggregates],
+		from: k.var('DATA_GRAPH'),
+		bgp: /* syntax: sparql */ `
 			?artifact a oslc_rm:Requirement ;
 				dct:identifier ?identifierValue ;
 				dct:title ?titleValue ;
@@ -94,7 +98,7 @@ export function build_select_query(h_params: Record<string, Param>, h_fields: Re
 				.
 
 			${a_bgp.join('\n')}
-		} ${a_aggregates.length? `group by ${a_selects.join(' ')}`: ''}
-		${k.var('LIMIT', '')? `limit ${k.var('LIMIT')}`: ''}
-	`;
+		`,
+		group: a_aggregates.length? a_selects.join(' '): null,
+	}));
 }
