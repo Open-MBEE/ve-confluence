@@ -1,3 +1,8 @@
+import type {
+	JSONObject,
+	JSONValue,
+} from '../common/types';
+
 import G_META from '../common/meta';
 
 import {
@@ -11,8 +16,6 @@ import {
 	get_json,
 	post_json,
 	put_json,
-	JSONObject,
-	JSONValue,
 	Response,
 } from '../util/fetch';
 

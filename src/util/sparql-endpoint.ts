@@ -1,7 +1,12 @@
+import type {
+	Hash,
+	SparqlBinding,
+	SparqlBindings,
+} from '../common/types';
+
 import G_META from '../common/meta';
 import AsyncLockPool from './async-lock-pool';
 
-type Hash = Record<string, string>;
 
 export interface SparqlEndpointConfig {
 	endpoint: string;
@@ -9,31 +14,6 @@ export interface SparqlEndpointConfig {
 	concurrency?: number;
 	variables?: Hash;
 }
-
-export type Binding = {
-	type: 'uri';
-	value: string;
-} | {
-	type: 'literal';
-	value: string;
-} | {
-	type: 'literal';
-	value: string;
-	'xml:lang': string;
-} | {
-	type: 'literal';
-	value: string;
-	datatype: string;
-} | {
-	type: 'bnode';
-	value: string;
-};
-
-export interface BindingMap {
-	[variable: string]: Binding;
-}
-
-export type Bindings = Array<BindingMap>;
 
 export type SparqlQuery = string | ((k_helper: SparqlQueryHelper) => string);
 
@@ -110,7 +90,7 @@ export class SparqlEndpoint {
 	}
 
 	// submit SPARQL SELECT query
-	async select(z_select: SparqlQuery): Promise<Bindings> {
+	async select(z_select: SparqlQuery): Promise<SparqlBindings> {
 		let sq_select = z_select;
 
 		// apply helper

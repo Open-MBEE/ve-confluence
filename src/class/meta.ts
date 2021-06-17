@@ -1,9 +1,62 @@
 import type {
 	JSONValue,
     Labeled,
+    DotFragment,
+    PrimitiveValue,
+    PrimitiveObject,
 } from '../common/types';
 
-export type DotFragment = string;
+import {
+    global_objects,
+} from '../common/global-objects';
+
+import {
+    H_HARDCODED_OBJECTS,
+} from '../common/hardcoded';
+
+const G_SHAPE = {
+    document: ['DocumentObject', {
+        connection: ['Connection', {
+            sparql: ['SparqlConnection', {
+                mms: ['MmsSparqlConnection'],
+            }],
+        }],
+    }],
+    page: ['PageObject', {
+        element: ['PageElement', {
+            query_table: ['QueryTable', {
+                sparql: ['SparqlQueryTable'],
+            }],
+        }],
+    }],
+    hardcoded: ['HardcodedObject', {
+        query_headers: ['QueryHeaders', {
+            sparql: ['SparqlQueryHeaders', {
+                dng: ['DngSparqlQueryHeaders'],
+            }],
+        }],
+        query_type: ['QueryType', {
+            sparql: ['SparqlQueryType', {
+                dng: ['DngSparqlQueryType'],
+            }],
+        }],
+        query_parameter: ['QueryParameter', {
+            sparql: ['SparqlQueryParameter', {
+                dng: ['DngSparqlQueryParameter'],
+            }],
+        }],
+        query_context: ['QueryContext', {
+            sparql: ['SparqlQueryContext', {
+                dng: ['DngSparqlQueryContext'],
+            }],
+        }],
+        utility: ['Utility', {
+            function: ['Function', {
+                sort: ['SortFunction'],
+            }],
+        }],
+    }],
+} as const;
 
 export namespace VePath {
     export type Location = 'document' | 'page' | 'hardcoded';
@@ -125,97 +178,8 @@ export namespace VePath {
     export type SortFunction<
         Id extends DotFragment=DotFragment
     > = Utility<'sort', Id>;
-
-    
+   
 }
-
-
-export interface PrimitiveObject {
-	[k: string]: PrimitiveValue;
-}
-
-export type PrimitiveValue = JSONValue | Function | PrimitiveObject;
-
-type HardcodedObjectType = Record<DotFragment, PrimitiveValue>;
-type HardcodedObjectCategory = Record<DotFragment, HardcodedObjectType>;
-
-
-const H_HARDCODED_OBJECTS: Record<DotFragment, HardcodedObjectCategory> = {
-    query_parameter: {
-        sparql: {
-            dng: {
-                level: {
-                    key: 'Level',
-                    sort: (g_a: Labeled, g_b: Labeled) => g_a.label < g_b.label? -1: 1,
-                },
-                sysvac: {
-                    key: 'System VAC',
-                },
-                maturity: {
-                    key: 'Maturity',
-                },
-            },
-        },
-    },
-
-    query_type: {
-        sparql: {
-            dng: {
-                afsr: {
-                    label: 'Appendix Flight Systems Requirements',
-                },
-                asr: {
-                    label: 'Appendix Subsystem Requirements',
-                },
-            },
-        },
-    },
-
-    query_headers: {
-        sparql: {
-            dng: {
-                basic: [
-                    {
-                        label: 'ID',
-                    },
-                    {
-                        label: 'Requirement Name',
-                    },
-                    {
-                        label: 'Requirement Text',
-                    },
-                    {
-                        label: 'Key/Driver Indicator',
-                    },
-                    {
-                        label: 'Affected Systems',
-                    },
-                    {
-                        label: 'Maturity',
-                    },
-                ],
-            },
-        },
-    },
-
-    query_context: {
-        sparql: {
-            dng: {
-                prefixes: {
-
-                },
-            },
-        },
-    },
-
-    utility: {
-        function: {
-            sort: {
-                label_asc: (g_a: Labeled, g_b: Labeled) => g_a.label < g_b.label? -1: 1,
-            },
-        },
-    },
-};
 
 
 function describe_path_attempt(a_frags: string[], i_frag: number) {
@@ -310,6 +274,7 @@ export function resolve_meta_object_sync<
     return access<ValueType>(H_HARDCODED_OBJECTS, a_frags);
 }
 
+
 export async function resolve_meta_object<
     ValueType extends PrimitiveValue,
     VePathType extends VePath.Full=VePath.Full
@@ -324,11 +289,23 @@ export async function resolve_meta_object<
 
     switch(si_storage) {
         case 'document': {
-            break;
+            const gm_document = (await global_objects()).gm_document;
+
+            if(!gm_document) {
+                throw new Error(`Cannot access document metadata`);
+            }
+
+            return access<ValueType>(gm_document, a_frags);
         }
 
         case 'page': {
-            break;
+            const gm_page = (await global_objects()).gm_page;
+
+            if(!gm_page) {
+                throw new Error(`Cannot access page metadata`);
+            }
+
+            return access<ValueType>(gm_page, a_frags);
         }
 
         case 'hardcoded': {
@@ -339,6 +316,4 @@ export async function resolve_meta_object<
             throw new Error(`Unmapped VePath storage parameter '${si_storage}'`);
         }
     }
-
-    throw new Error(`Code route not reachable`);
 }

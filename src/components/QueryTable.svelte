@@ -33,11 +33,22 @@
 	import type {
 		Param,
 	} from './QueryTableParam.svelte';
+
+	import type {
+		QueryTable,
+	} from '../model/QueryTable';
 	
 	export let G_CONTEXT: import('../common/ve4').Ve4ComponentContext;
 	const {
 		k_sparql,
 	} = G_CONTEXT;
+
+	export let k_query_table: QueryTable;
+	(async() => {
+		const k_connection = await k_query_table.getConnection();
+		const g_version = await k_connection.getVersion();
+		new Date(g_version.dateTime);
+	})();
 
 	const A_DUMMY_TABLE_HEADERS = [
 		{
