@@ -249,8 +249,8 @@
 				indicatorSvg={/* syntax: html */ `
 					<svg width="7" height="5" viewBox="0 0 7 5" fill="none" xmlns="http://www.w3.org/2000/svg">
 						<path d="M3.5 4.5L0.468911 0.75L6.53109 0.75L3.5 4.5Z" fill="#333333"/>
-						</svg>
-						`}
+					</svg>
+				`}
 				on:select={select_value}
 			></Select>
 		{/if}

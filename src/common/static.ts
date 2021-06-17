@@ -47,3 +47,4 @@ export const G_VE4_METADATA_KEYS: Ve4MetadataKeyStruct = {
     CONFLUENCE_PAGE: 've4_confluence_page',
     CONFLUENCE_DOCUMENT: 've4_confluence_document',
 };
+

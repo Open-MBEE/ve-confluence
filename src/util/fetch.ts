@@ -3,7 +3,11 @@ import {
 	GretchResponse,
 } from 'gretchen';
 
-type Hash = Record<string, string>;
+import type {
+	Hash,
+	JSONObject,
+	JSONValue,
+} from '../common/types';
 
 export interface FetchConfig {
 	headers?: Hash;
@@ -16,12 +20,6 @@ type HttpError = {
 	code: number;
 	errors: string[];
 }
-
-export interface JSONObject {
-	[k: string]: JSONValue;
-}
-
-export type JSONValue = string | number | boolean | null | JSONValue[] | JSONObject;
 
 export type Response<Data> = GretchResponse<Data, HttpError>;
 

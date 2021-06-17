@@ -11,14 +11,12 @@
 	} from 'svelte/transition';
 	import {
 		create_in_transition,
-		create_out_transition,
 	} from 'svelte/internal';
 
 	import Select from 'svelte-select';
 
     import Fa from 'svelte-fa';
     import {
-        faCheckCircle,
         faCircleNotch,
 		faFilter,
 		faHistory,
@@ -65,6 +63,7 @@
 	const A_DUMMY_TABLE_ROWS = [{}, {}, {}];
 
 	export let dm_anchor = document.createElement('div');
+	let s_display_version = '...';
 	let dm_parameters: HTMLDivElement;
 
 	type Hash = Record<string, string>;
@@ -95,8 +94,6 @@
 		columns: [],
 		rows: [],
 	};
-
-	let b_preview = false;
 
 	export let h_params: Record<string, Param> = {
 		// level: {
@@ -131,13 +128,6 @@
 	const SX_STATUS_INFO_INIT = 'PREVIEW (0 results)';
 	let s_status_info = SX_STATUS_INFO_INIT;
 
-	function toggle_param_display() {
-		b_display_params = !b_display_params;
-		b_preview = false;
-		b_loading = false;
-		b_showing = false;
-	}
-
 	const escape_html = (s: string) => s.replace(/</g, '&lt;');
 
 	const unordered_list = (si_key: string) => (g: Row) => `<ul>${(g[si_key]?.value || '').split('\0').map(s => `<li>${escape_html(s)}</li>`).join('')}</ul>`;
@@ -165,13 +155,11 @@
 
 		if(!b_filtered) {
 			b_loading = false;
-			b_preview = false;
 			b_showing = false;
 			return;
 		}
 
 		b_loading = true;
-		b_preview = true;
 
 		const y_select = select_query_from_params(h_params, {
 			systems: {
@@ -247,6 +235,14 @@
 			value: 'asr',
 		},
 	];
+
+	function publish_table() {
+		
+	}
+
+	function reset_table() {
+		
+	}
 </script>
 
 <style lang="less">
@@ -451,8 +447,8 @@
 			<Fa icon={faQuestionCircle} />
 		</span>
 		<span class="buttons">
-			<button class="ve-button-primary">Publish</button>
-			<button class="ve-button-secondary">Cancel</button>
+			<button class="ve-button-primary" on:click={publish_table}>Publish</button>
+			<button class="ve-button-secondary" on:click={reset_table}>Cancel</button>
 		</span>
 	</div>
 
@@ -465,7 +461,7 @@
 				</span>
 				<span class="version">
 					<Fa icon={faHistory} size="xs" />
-					Version: March 20, 2021
+					Version: {s_display_version}
 				</span>
 			</span>
 			<span class="info">
