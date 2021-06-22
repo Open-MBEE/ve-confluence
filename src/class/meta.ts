@@ -30,22 +30,22 @@ const G_SHAPE = {
         }],
     }],
     hardcoded: ['HardcodedObject', {
-        query_headers: ['QueryHeaders', {
-            sparql: ['SparqlQueryHeaders', {
-                dng: ['DngSparqlQueryHeaders'],
+        queryField: ['QueryField', {
+            sparql: ['SparqlQueryFieeld', {
+                dng: ['DngSparqlQueryField'],
             }],
         }],
-        query_type: ['QueryType', {
+        queryType: ['QueryType', {
             sparql: ['SparqlQueryType', {
                 dng: ['DngSparqlQueryType'],
             }],
         }],
-        query_parameter: ['QueryParameter', {
+        queryParameter: ['QueryParameter', {
             sparql: ['SparqlQueryParameter', {
                 dng: ['DngSparqlQueryParameter'],
             }],
         }],
-        query_context: ['QueryContext', {
+        queryContext: ['QueryContext', {
             sparql: ['SparqlQueryContext', {
                 dng: ['DngSparqlQueryContext'],
             }],
@@ -100,27 +100,27 @@ export namespace VePath {
     > = Full<'hardcoded', Category, Type, Group, Id>;
 
 
-    export type QueryHeaders<
+    export type QueryField<
         Type extends DotFragment=DotFragment,
         Group extends DotFragment=DotFragment,
         Id extends DotFragment=DotFragment
-    > = HardcodedObject<'query_headers', Type, Group, Id>;
+    > = HardcodedObject<'queryField', Type, Group, Id>;
     
-    export type SparqlQueryHeaders<
+    export type SparqlQueryField<
         Group extends DotFragment=DotFragment,
         Id extends DotFragment=DotFragment
-    > = QueryHeaders<'sparql', Group, Id>;
+    > = QueryField<'sparql', Group, Id>;
 
-    export type DngSparqlQueryHeaders<
+    export type DngSparqlQueryField<
         Id extends DotFragment=DotFragment
-    > = SparqlQueryHeaders<'dng', Id>;
+    > = SparqlQueryField<'dng', Id>;
 
 
     export type QueryType<
         Type extends DotFragment=DotFragment,
         Group extends DotFragment=DotFragment,
         Id extends DotFragment=DotFragment
-    > = HardcodedObject<'query_type', Type, Group, Id>;
+    > = HardcodedObject<'queryType', Type, Group, Id>;
     
     export type SparqlQueryType<
         Group extends DotFragment=DotFragment,
@@ -136,7 +136,7 @@ export namespace VePath {
         Type extends DotFragment=DotFragment,
         Group extends DotFragment=DotFragment,
         Id extends DotFragment=DotFragment
-    > = HardcodedObject<'query_parameter', Type, Group, Id>;
+    > = HardcodedObject<'queryParameter', Type, Group, Id>;
     
     export type SparqlQueryParameter<
         Group extends DotFragment=DotFragment,
@@ -147,12 +147,28 @@ export namespace VePath {
         Id extends DotFragment=DotFragment
     > = SparqlQueryParameter<'dng', Id>;
 
+    
+    export type QueryCode<
+        Type extends DotFragment=DotFragment,
+        Group extends DotFragment=DotFragment,
+        Id extends DotFragment=DotFragment
+    > = HardcodedObject<'queryCode', Type, Group, Id>;
+    
+    export type SparqlQueryCode<
+        Group extends DotFragment=DotFragment,
+        Id extends DotFragment=DotFragment
+    > = QueryCode<'sparql', Group, Id>;
+
+    export type DngSparqlQueryCode<
+        Id extends DotFragment=DotFragment
+    > = SparqlQueryCode<'dng', Id>;
+
 
     export type QueryContext<
         Type extends DotFragment=DotFragment,
         Group extends DotFragment=DotFragment,
         Id extends DotFragment=DotFragment
-    > = HardcodedObject<'query_context', Type, Group, Id>;
+    > = HardcodedObject<'queryContext', Type, Group, Id>;
     
     export type SparqlQueryContext<
         Group extends DotFragment=DotFragment,
@@ -177,7 +193,7 @@ export namespace VePath {
     
     export type SortFunction<
         Id extends DotFragment=DotFragment
-    > = Utility<'sort', Id>;
+    > = Function<'sort', Id>;
    
 }
 
@@ -252,6 +268,13 @@ function access<Type extends PrimitiveValue>(h_map: PrimitiveObject, a_frags: st
     }
 
     throw new Error(`Code route not reachable`);
+}
+
+export function meta_object_options_sync<ValueType extends PrimitiveValue>(sp_path: string): Record<VePath.Full, PrimitiveValue> {
+    return Object.entries(resolve_meta_object_sync<Record<string, ValueType>>(sp_path)).reduce((h_out, [si_key, w_value]) => ({
+        ...h_out,
+        [`${sp_path}.${si_key}`]: w_value,
+    }));
 }
 
 export function resolve_meta_object_sync<

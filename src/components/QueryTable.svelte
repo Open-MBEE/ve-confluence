@@ -25,11 +25,8 @@
 
 	import SelectItem from './SelectItem.svelte';
 
-	import {
-		select_query_from_params,
-	} from './query-table';
-
 	import QueryTableParam from './QueryTableParam.svelte';
+	
 	import type {
 		Param,
 	} from './QueryTableParam.svelte';
@@ -37,6 +34,11 @@
 	import type {
 		QueryTable,
 	} from '../model/QueryTable';
+
+	import type {
+		Connection,
+		ModelVersionDescriptor,
+	} from '../model/Connection';
 	
 	export let G_CONTEXT: import('../common/ve4').Ve4ComponentContext;
 	const {
@@ -50,26 +52,33 @@
 		new Date(g_version.dateTime);
 	})();
 
-	const A_DUMMY_TABLE_HEADERS = [
-		{
-			label: 'ID',
-		},
-		{
-			label: 'Requirement Name',
-		},
-		{
-			label: 'Requirement Text',
-		},
-		{
-			label: 'Key/Driver Indicator',
-		},
-		{
-			label: 'Affected Systems',
-		},
-		{
-			label: 'Maturity',
-		},
-	];
+
+	let k_connection: Connection;
+	let g_version: ModelVersionDescriptor;
+	$: {
+		(async() => {
+			// get query table's connection
+			const k_connection_new = await k_query_table.getConnection();
+
+			// new connection; refresh version
+			if(k_connection !== k_connection_new) {
+				// cache new connection
+				k_connection = k_connection_new;
+
+				// pending version information
+				s_display_version = '...';
+
+				// get model version descriptor from connection
+				g_version = await k_connection.getVersion();
+
+				// parse datetime string
+				const dt_version = new Date(g_version.dateTime);
+
+				// update display version
+				s_display_version = `${dt_version.toDateString()} @${dt_version.toLocaleTimeString()}`;
+			}
+		})();
+	}
 
 	const A_DUMMY_TABLE_ROWS = [{}, {}, {}];
 
@@ -106,28 +115,6 @@
 		rows: [],
 	};
 
-	export let h_params: Record<string, Param> = {
-		// level: {
-		// 	key: 'Level',
-		// 	sort: (g_a: {label: string}, g_b: {label: string}) => g_a.label < g_b.label? -1: 1,
-		// 	filter: '',
-		// 	values: [],
-		// 	selected: ['L3'],
-		// },
-		sysvac: {
-			key: 'System VAC',
-			filter: '',
-			values: [],
-			selected: [],
-		},
-		maturity: {
-			key: 'Maturity',
-			filter: '',
-			values: [],
-			selected: [],
-		},
-	};
-
 	let b_display_params = false;
 
 	enum INFO_MODES {
@@ -157,8 +144,9 @@
 		xc_info_mode = INFO_MODES.LOADING;
 
 		let b_filtered = false;
-		for(const g_param of Object.values(h_params)) {
-			if(g_param.selected.length) {
+		const a_params = await k_query_table.getParameters()
+		for(const g_param of a_params) {
+			if(k_query_table.parameterValuesList(g_param.key).size) {
 				b_filtered = true;
 				break;
 			}
@@ -172,25 +160,17 @@
 
 		b_loading = true;
 
-		const y_select = select_query_from_params(h_params, {
-			systems: {
-				key: 'Affected Systems',
-			},
-			maturity: {
-				key: 'Maturity',
-			},
-			keydriver: {
-				key: 'Key/Driver [S]',
-				label: 'Key/Driver',
-				array: true,
-			},
-		});
+		const k_connection = await k_query_table.getConnection();
 
-		const a_rows = await k_sparql.select(y_select.paginate(21));
+		const k_query = await k_query_table.queryBuilder();
+
+		const a_rows = await k_connection.execute(k_query.paginate(21)());
+
+		// const a_rows = await k_sparql.select(y_select.paginate(21));
 
 		if(a_rows.length > 20) {
 			// start counting all rows
-			k_sparql.select(y_select.count()).then((a_counts) => {
+			k_sparql.select(k_query.count()).then((a_counts) => {
 				const nl_rows_total = +a_counts[0].count.value;
 				s_status_info = `PREVIEW (20 / ${nl_rows_total} result${1 === nl_rows_total? '': 's'})`;
 			});
@@ -236,16 +216,17 @@
 		});
 	}
 
-	const a_query_types = [
-		{
-			label: 'Appendix Flight Systems Requirements',
-			value: 'afsr',
-		},
-		{
-			label: 'Appendix Subsystem Requirements',
-			value: 'asr',
-		},
-	];
+
+	// const a_query_types = [
+	// 	{
+	// 		label: 'Appendix Flight Systems Requirements',
+	// 		value: 'afsr',
+	// 	},
+	// 	{
+	// 		label: 'Appendix Subsystem Requirements',
+	// 		value: 'asr',
+	// 	},
+	// ];
 
 	function publish_table() {
 		
@@ -516,13 +497,13 @@
 		<div class="table-wrap">
 			<table class="wrapped confluenceTable tablesorter tablesorter-default stickyTableHeaders" role="grid" style="padding: 0px;" resolved="">
 				<colgroup>
-					{#each A_DUMMY_TABLE_HEADERS as g_header, i_header}
+					{#each k_query_table.headers as g_header, i_header}
 						<col>
 					{/each}
 				</colgroup>
 				<thead class="tableFloatingHeaderOriginal">
 					<tr role="row" class="tablesorter-headerRow">
-						{#each A_DUMMY_TABLE_HEADERS as g_header, i_header}
+						{#each k_query_table.headers as g_header, i_header}
 							<th class="confluenceTh tablesorter-header sortableHeader tablesorter-headerUnSorted" data-column="{i_header}" tabindex="0" scope="col" role="columnheader" aria-disabled="false" unselectable="on" aria-sort="none" aria-label="{g_header.label}: No sort applied, activate to apply an ascending sort" style="user-select: none;">
 								<div class="tablesorter-header-inner">{g_header.label}</div>
 							</th>
@@ -531,7 +512,7 @@
 				</thead>
 				<thead class="tableFloatingHeader" style="display: none;">
 					<tr role="row" class="tablesorter-headerRow">
-						{#each A_DUMMY_TABLE_HEADERS as g_header, i_header}
+						{#each k_query_table.headers as g_header, i_header}
 							<th class="confluenceTh tablesorter-header sortableHeader tablesorter-headerUnSorted" data-column="{i_header}" tabindex="0" scope="col" role="columnheader" aria-disabled="false" unselectable="on" aria-sort="none" aria-label="{g_header.label}: No sort applied, activate to apply an ascending sort" style="user-select: none;">
 								<div class="tablesorter-header-inner">{g_header.label}</div>
 							</th>
@@ -542,7 +523,7 @@
 					{#if b_loading || !g_preview.rows.length}
 						{#each A_DUMMY_TABLE_ROWS as g_row}
 							<tr role="row">
-								{#each A_DUMMY_TABLE_HEADERS as g_header}
+								{#each k_query_table.headers as g_header}
 									<td class="confluenceTd">
 										<span class="ve-table-preview-cell-placeholder">&nbsp;</span>
 									</td>

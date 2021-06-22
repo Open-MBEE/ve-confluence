@@ -6,6 +6,7 @@ import type {
 
 import G_META from '../common/meta';
 import AsyncLockPool from './async-lock-pool';
+import { ConnectionQuery } from '../model/QueryTable';
 
 
 export interface SparqlEndpointConfig {
@@ -158,7 +159,7 @@ function stringify_select_query_descriptor(g_desc: SelectQueryDescriptor): strin
 	`;
 }
 
-export class SelectQuery {
+export class SparqlSelectQuery implements ConnectionQuery {
 	private _fk_build: DescriptorBuilder;
 
 	constructor(fk_build: DescriptorBuilder) {

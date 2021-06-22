@@ -16,8 +16,8 @@ import SparqlEndpoint from '../util/sparql-endpoint';
 
 import {
     Serializable,
-    PresentationElement,
-    PresentationElementClass,
+    VeOrm,
+    VeOrmClass,
 } from './Serializable';
 
 
@@ -35,7 +35,7 @@ export namespace Connection {
     }
 }
 
-export abstract class Connection<Serialized extends Connection.Serialized=Connection.Serialized> extends PresentationElement<Serialized> {
+export abstract class Connection<Serialized extends Connection.Serialized=Connection.Serialized> extends VeOrm<Serialized> {
     get endpoint(): UrlString {
         return this._gc_serialized.endpoint;
     }
@@ -60,7 +60,9 @@ export abstract class SparqlConnection<Serialized extends SparqlConnection.Seria
     protected _k_endpoint: SparqlEndpoint = <SparqlEndpoint><unknown>null;
     protected _h_prefixes?: Hash;
 
-    init() {
+    async init() {
+        await super.init();
+
         this._k_endpoint = new SparqlEndpoint({
             endpoint: this.endpoint,
             prefixes: this.prefixes,
@@ -137,5 +139,5 @@ export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Se
     }
 }
 
-const MmsSparqlConnection_Assertion: PresentationElementClass<MmsSparqlConnection.Serialized> = MmsSparqlConnection;
+const MmsSparqlConnection_Assertion: VeOrmClass<MmsSparqlConnection.Serialized> = MmsSparqlConnection;
 

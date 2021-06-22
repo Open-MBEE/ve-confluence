@@ -15,6 +15,24 @@ export interface PrimitiveObject {
 
 export type PrimitiveValue = JSONValue | Function | PrimitiveObject;
 
+export interface TypedObject<TypeValue extends string=string> extends JSONObject {
+	type: TypeValue;
+}
+
+export interface KeyedObject extends JSONObject {
+    key: string;
+}
+
+export interface LabeledObject extends JSONObject {
+    label: string;
+}
+
+export type TypedKeyedObject<TypeValue extends string=string> = TypedObject<TypeValue> & KeyedObject;
+export type TypedLabeledObject<TypeValue extends string=string> = TypedObject<TypeValue> & LabeledObject;
+export type KeyedLabeledObject = KeyedObject & LabeledObject;
+
+export type TypedKeyedLabeledObject<TypeValue extends string=string> = TypedObject<TypeValue> & KeyedObject & LabeledObject;
+
 
 export type SparqlString = string;
 
@@ -38,8 +56,11 @@ export type SparqlBinding = {
 };
 
 
-export interface SparqlQueryResult {
-
+export interface QueryResult {
+	type: string;
+	value: string;
+	datatype?: string;
+	'xml:lang'?: string;
 }
 
 export interface SparqlBindingMap {
