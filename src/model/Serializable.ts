@@ -1,22 +1,28 @@
+import type { ObjectStore } from '../class/object-store';
 import type {
-	JSONObject, TypedObject,
+	JSONObject, TypedObject, TypedPrimitive,
 } from '../common/types';
 
 
 export interface Serializable extends TypedObject {}
+export interface Primitive extends TypedPrimitive {}
 
-export interface Context {}
+export interface Context {
+    store: ObjectStore;
+}
 
-export abstract class VeOrm<Serialized extends Serializable> {
+export abstract class VeOdm<Serialized extends Serializable | Primitive> {
     private _b_ready = false;
     private _a_awaits: (() => void)[] = [];
 
     protected _gc_serialized: Serialized;
     protected _g_context: Context;
+    protected _k_store: ObjectStore;
 
     constructor(gc_serialized: Serialized, g_context: Context) {
         this._gc_serialized = gc_serialized;
         this._g_context = g_context;
+        this._k_store = g_context.store;
 
         this.init().then(() => {
             this._b_ready = true;
@@ -56,6 +62,6 @@ export abstract class VeOrm<Serialized extends Serializable> {
 }
 
 export interface VeOrmClass<Serialized extends Serializable> {
-    new(gc_serialized: Serialized, g_context: Context): VeOrm<Serialized>;
+    new(gc_serialized: Serialized, g_context: Context): VeOdm<Serialized>;
 }
 

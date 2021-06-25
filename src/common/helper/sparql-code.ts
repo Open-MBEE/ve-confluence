@@ -1,4 +1,4 @@
-import type { SparqlQueryTable } from "../../model/QueryTable";
+import type { MmsSparqlQueryTable, SparqlQueryTable } from "../../model/QueryTable";
 import {
     SparqlSelectQuery,
 } from "../../util/sparql-endpoint";
@@ -18,7 +18,7 @@ function attr(h_props: Hash, si_attr: string, s_attr_key: string, b_many=false) 
 }
 
 // export function build_select_query_from_params(h_params: Record<string, QueryParam>, h_fields: Record<string, Field>={}): SelectQuery {
-export async function build_select_query_from_params(this: SparqlQueryTable): Promise<SparqlSelectQuery> {
+export async function build_dng_select_query_from_params(this: MmsSparqlQueryTable): Promise<SparqlSelectQuery> {
 	const a_bgp: string[] = [];
 	const h_props = {};
 
@@ -51,7 +51,7 @@ export async function build_select_query_from_params(this: SparqlQueryTable): Pr
     }
 
 	// each field
-	for(const {key:si_param, label:s_header, value:s_value, hasMany:b_many} of k_table.fields) {
+	for(const {key:si_param, label:s_header, value:s_value, hasMany:b_many} of this.fields) {
 		// attr already captured from filter; select value variable and skip it
 		if(si_param in h_props) {
 			a_selects.push(`?${si_param}Value`);
@@ -75,10 +75,12 @@ export async function build_select_query_from_params(this: SparqlQueryTable): Pr
 		`);
 	}
 
-	return new SparqlSelectQuery(k => ({
+    const k_connection = await this.getConnection();
+
+	return new SparqlSelectQuery({
 		count: '?artifact',
 		select: [...a_selects, ...a_aggregates],
-		from: k.var('DATA_GRAPH'),
+		from: k_connection.modelGraph,
 		bgp: /* syntax: sparql */ `
 			?artifact a oslc_rm:Requirement ;
 				dct:identifier ?identifierValue ;
@@ -89,6 +91,6 @@ export async function build_select_query_from_params(this: SparqlQueryTable): Pr
 			${a_bgp.join('\n')}
 		`,
 		group: a_aggregates.length? a_selects.join(' '): null,
-	}));
+	});
 }
 

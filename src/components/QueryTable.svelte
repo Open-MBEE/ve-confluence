@@ -26,10 +26,6 @@
 	import SelectItem from './SelectItem.svelte';
 
 	import QueryTableParam from './QueryTableParam.svelte';
-	
-	import type {
-		Param,
-	} from './QueryTableParam.svelte';
 
 	import type {
 		QueryTable,
@@ -55,30 +51,29 @@
 
 	let k_connection: Connection;
 	let g_version: ModelVersionDescriptor;
-	$: {
-		(async() => {
-			// get query table's connection
-			const k_connection_new = await k_query_table.getConnection();
 
-			// new connection; refresh version
-			if(k_connection !== k_connection_new) {
-				// cache new connection
-				k_connection = k_connection_new;
+	onMount(async() => {
+		// get query table's connection
+		const k_connection_new = await k_query_table.getConnection();
 
-				// pending version information
-				s_display_version = '...';
+		// new connection; refresh version
+		if(k_connection !== k_connection_new) {
+			// cache new connection
+			k_connection = k_connection_new;
 
-				// get model version descriptor from connection
-				g_version = await k_connection.getVersion();
+			// pending version information
+			s_display_version = '...';
 
-				// parse datetime string
-				const dt_version = new Date(g_version.dateTime);
+			// get model version descriptor from connection
+			g_version = await k_connection.getVersion();
 
-				// update display version
-				s_display_version = `${dt_version.toDateString()} @${dt_version.toLocaleTimeString()}`;
-			}
-		})();
-	}
+			// parse datetime string
+			const dt_version = new Date(g_version.dateTime);
+
+			// update display version
+			s_display_version = `${dt_version.toDateString()} @${dt_version.toLocaleTimeString()}`;
+		}
+	});
 
 	const A_DUMMY_TABLE_ROWS = [{}, {}, {}];
 
@@ -92,7 +87,6 @@
 	}>;
 
 	interface Preview {
-		columns: Array<{label: string}>;
 		rows: Array<Hash>;
 	}
 
@@ -111,7 +105,6 @@
 	$: dm_anchor.style.opacity = b_loading? '0.5': '1.0';
 
 	let g_preview: Preview = {
-		columns: [],
 		rows: [],
 	};
 
@@ -125,19 +118,6 @@
 	let xc_info_mode = INFO_MODES.PREVIEW;
 	const SX_STATUS_INFO_INIT = 'PREVIEW (0 results)';
 	let s_status_info = SX_STATUS_INFO_INIT;
-
-	const escape_html = (s: string) => s.replace(/</g, '&lt;');
-
-	const unordered_list = (si_key: string) => (g: Row) => `<ul>${(g[si_key]?.value || '').split('\0').map(s => `<li>${escape_html(s)}</li>`).join('')}</ul>`;
-
-	const H_FIELDS: Record<string, (g: Row) => string> = {
-		id: g => escape_html(g.identifierValue.value),
-		name: g => `<a href="${g.artifact.value}">${escape_html(g.titleValue.value)}</a>`,
-		text: g => g.primaryTextValue.value,
-		keydriver: unordered_list('keydriverValue'),
-		systems: g => escape_html(g.systemsValue?.value || ''),
-		maturity: g => g.maturityValue?.value || '',
-	};
 
 
 	async function render() {
@@ -164,9 +144,7 @@
 
 		const k_query = await k_query_table.queryBuilder();
 
-		const a_rows = await k_connection.execute(k_query.paginate(21)());
-
-		// const a_rows = await k_sparql.select(y_select.paginate(21));
+		const a_rows = await k_connection.execute(k_query.paginate(21));
 
 		if(a_rows.length > 20) {
 			// start counting all rows
@@ -176,20 +154,11 @@
 			});
 		}
 
-		g_preview.columns = [
-			{label:'ID'},
-			{label:'Requirement Name'},
-			{label:'Requirement Text'},
-			{label:'Key/Driver Indicator'},
-			{label:'Affected Systems'},
-			{label:'Maturity'},
-		];
-
 		g_preview.rows = a_rows.map(g_row => {
 			const h_out: Record<string, string> = {};
 
-			for(const [si_field, f_field] of Object.entries(H_FIELDS)) {
-				h_out[si_field] = f_field(g_row);
+			for(const k_field of k_query_table.fields) {
+				h_out[k_field.key] = k_field.cell(g_row);
 			}
 
 			return h_out;
@@ -215,18 +184,6 @@
 			}).start();
 		});
 	}
-
-
-	// const a_query_types = [
-	// 	{
-	// 		label: 'Appendix Flight Systems Requirements',
-	// 		value: 'afsr',
-	// 	},
-	// 	{
-	// 		label: 'Appendix Subsystem Requirements',
-	// 		value: 'asr',
-	// 	},
-	// ];
 
 	function publish_table() {
 		
@@ -420,7 +377,8 @@
 				width: 100%;
 
 				.ve-table-preview-cell-placeholder {
-					background-color: #e5e5e5;
+					// background-color: #e5e5e5;
+					background-color: transparent;
 					vertical-align: middle;
 					height: 1em;
 					display: inline-block;
@@ -464,57 +422,55 @@
 				{/if}
 			</span>
 		</div>
-		<!-- {#if b_expand} -->
-			<!-- <div class="config-body" transition:slide={{}}> -->
-			<div class="config-body" bind:this={dm_parameters} style="display:{b_expand? 'block': 'none'};">
-				<div class="query-type">
-					<span class="label">Query Type</span>
-					<span class="select">
-						<Select
-							showIndicator={true}
-							selectedValue={a_query_types[0]}
-							items={a_query_types}
-							indicatorSvg={/* syntax: html */ `
-								<svg width="7" height="5" viewBox="0 0 7 5" fill="none" xmlns="http://www.w3.org/2000/svg">
-									<path d="M3.5 4.5L0.468911 0.75L6.53109 0.75L3.5 4.5Z" fill="#333333"/>
-								</svg>
-							`}
-							Item={SelectItem}
-						/>
-					</span>
-				</div>
-				<div class="form">
-					<!-- <div class="header"> -->
-						<span class="header">Parameter</span>
-						<span class="header">Value</span>
-					<!-- </div> -->
-					{#each Object.values(h_params) as g_param}
-						<QueryTableParam {G_CONTEXT} {g_param} on:change={render} />
-					{/each}
-				</div>
+
+		<div class="config-body" bind:this={dm_parameters} style="display:{b_expand? 'block': 'none'};">
+			<div class="query-type">
+				<span class="label">Query Type</span>
+				<span class="select">
+					<Select
+						showIndicator={true}
+						selectedValue={k_query_table.queryType}
+						items={Object.values(k_query_table.queryTypeOptions)}
+						indicatorSvg={/* syntax: html */ `
+							<svg width="7" height="5" viewBox="0 0 7 5" fill="none" xmlns="http://www.w3.org/2000/svg">
+								<path d="M3.5 4.5L0.468911 0.75L6.53109 0.75L3.5 4.5Z" fill="#333333"/>
+							</svg>
+						`}
+						Item={SelectItem}
+					/>
+				</span>
 			</div>
-		<!-- {/if} -->
+			<div class="form">
+				<span class="header">Parameter</span>
+				<span class="header">Value</span>
+				{#await k_query_table.getParameters() then a_params}
+					{#each a_params as k_param}
+						<QueryTableParam {k_query_table} {k_param} k_values={k_query_table.parameterValuesList(k_param.key)} on:change={render} />
+					{/each}
+				{/await}
+			</div>
+		</div>
 		<div class="table-wrap">
 			<table class="wrapped confluenceTable tablesorter tablesorter-default stickyTableHeaders" role="grid" style="padding: 0px;" resolved="">
 				<colgroup>
-					{#each k_query_table.headers as g_header, i_header}
+					{#each k_query_table.fields as g_field}
 						<col>
 					{/each}
 				</colgroup>
 				<thead class="tableFloatingHeaderOriginal">
 					<tr role="row" class="tablesorter-headerRow">
-						{#each k_query_table.headers as g_header, i_header}
-							<th class="confluenceTh tablesorter-header sortableHeader tablesorter-headerUnSorted" data-column="{i_header}" tabindex="0" scope="col" role="columnheader" aria-disabled="false" unselectable="on" aria-sort="none" aria-label="{g_header.label}: No sort applied, activate to apply an ascending sort" style="user-select: none;">
-								<div class="tablesorter-header-inner">{g_header.label}</div>
+						{#each k_query_table.fields as g_field, i_field}
+							<th class="confluenceTh tablesorter-header sortableHeader tablesorter-headerUnSorted" data-column="{i_field}" tabindex="0" scope="col" role="columnheader" aria-disabled="false" unselectable="on" aria-sort="none" aria-label="{g_field.label}: No sort applied, activate to apply an ascending sort" style="user-select: none;">
+								<div class="tablesorter-header-inner">{g_field.label}</div>
 							</th>
 						{/each}
 					</tr>
 				</thead>
 				<thead class="tableFloatingHeader" style="display: none;">
 					<tr role="row" class="tablesorter-headerRow">
-						{#each k_query_table.headers as g_header, i_header}
-							<th class="confluenceTh tablesorter-header sortableHeader tablesorter-headerUnSorted" data-column="{i_header}" tabindex="0" scope="col" role="columnheader" aria-disabled="false" unselectable="on" aria-sort="none" aria-label="{g_header.label}: No sort applied, activate to apply an ascending sort" style="user-select: none;">
-								<div class="tablesorter-header-inner">{g_header.label}</div>
+						{#each k_query_table.fields as g_field, i_header}
+							<th class="confluenceTh tablesorter-header sortableHeader tablesorter-headerUnSorted" data-column="{i_header}" tabindex="0" scope="col" role="columnheader" aria-disabled="false" unselectable="on" aria-sort="none" aria-label="{g_field.label}: No sort applied, activate to apply an ascending sort" style="user-select: none;">
+								<div class="tablesorter-header-inner">{g_field.label}</div>
 							</th>
 						{/each}
 					</tr>
@@ -523,7 +479,7 @@
 					{#if b_loading || !g_preview.rows.length}
 						{#each A_DUMMY_TABLE_ROWS as g_row}
 							<tr role="row">
-								{#each k_query_table.headers as g_header}
+								{#each k_query_table.fields as g_field}
 									<td class="confluenceTd">
 										<span class="ve-table-preview-cell-placeholder">&nbsp;</span>
 									</td>

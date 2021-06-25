@@ -30,6 +30,7 @@
 	// } = G_CONTEXT;
 
     import { Tabs, TabList, TabPanel, Tab } from 'svelte-tabs';
+import { create } from 'gretchen';
 
     let b_ready = false;
     let b_read_only = false;
@@ -94,6 +95,12 @@
     async function create_document() {
         if(k_page) {
             k_document = await ConfluenceDocument.createNew(k_page);
+        }
+    }
+
+    async function reset_document() {
+        if(k_page) {
+            k_document = await ConfluenceDocument.createNew(k_page, true);
         }
     }
 </script>
@@ -261,6 +268,7 @@
                         <TabPanel>
                             <div class="tab-body">
                                 <p>New updates are available every Friday at 10:00 PM</p>
+                                <button on:click={reset_document}>Reset this document's metadata</button>
                                 <DatasetsTable {G_CONTEXT}></DatasetsTable>
                             </div>
                         </TabPanel>

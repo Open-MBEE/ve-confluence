@@ -79,6 +79,7 @@ export const H_PREFIXES: Record<string, string> = {
 	dng_user: 'https://cae-jazz.jpl.nasa.gov/jts/users/',
 
 	// MMS RDF
+	'mms': 'https://opencae.jpl.nasa.gov/mms/rdf/ontology/',
 	'mms-ontology': 'https://opencae.jpl.nasa.gov/mms/rdf/ontology/',
 	'mms-graph': 'https://opencae.jpl.nasa.gov/mms/rdf/graph/',
 	'mms-property': 'https://opencae.jpl.nasa.gov/mms/rdf/property/',

@@ -1,12 +1,13 @@
 import type {
 	Hash,
-	SparqlBinding,
 	SparqlBindings,
 } from '../common/types';
 
-import G_META from '../common/meta';
+import type {
+	ConnectionQuery,
+} from '../model/QueryTable';
+
 import AsyncLockPool from './async-lock-pool';
-import { ConnectionQuery } from '../model/QueryTable';
 
 
 export interface SparqlEndpointConfig {
@@ -140,9 +141,6 @@ interface SelectQueryDescriptor {
 	group?: string | null;
 }
 
-type DescriptorBuilder = (k_helper: SparqlQueryHelper) => SelectQueryDescriptor;
-type StringBuilder = (k_helper: SparqlQueryHelper) => string;
-
 function stringify_select_query_descriptor(g_desc: SelectQueryDescriptor): string {
 	let s_select = '*';
 	let s_from = '';
@@ -160,26 +158,48 @@ function stringify_select_query_descriptor(g_desc: SelectQueryDescriptor): strin
 }
 
 export class SparqlSelectQuery implements ConnectionQuery {
-	private _fk_build: DescriptorBuilder;
+	protected _gc_query: SelectQueryDescriptor;
 
-	constructor(fk_build: DescriptorBuilder) {
-		this._fk_build = fk_build;
+	constructor(gc_query: SelectQueryDescriptor) {
+		this._gc_query = gc_query;
 	}
 
-	paginate(n_limit: number, n_offset=0): StringBuilder {
-		return (k_helper: SparqlQueryHelper) => stringify_select_query_descriptor(this._fk_build(k_helper))+` limit ${n_limit} offset ${n_offset}`;
+	paginate(n_limit: number, n_offset=0): string {
+		return stringify_select_query_descriptor(this._gc_query)+` limit ${n_limit} offset ${n_offset}`;
 	}
 
-	count(): StringBuilder {
-		return (k_helper: SparqlQueryHelper) => {
-			const g_desc = this._fk_build(k_helper);
-			delete g_desc.group;
+	count(): string {
+		const g_desc = {...this._gc_query};
+		delete g_desc.group;
 
-			return stringify_select_query_descriptor({
-				...g_desc,
-				select: [`(count(${g_desc.count || '*'}) as ?count)`],
-			});
-		};
+		return stringify_select_query_descriptor({
+			...g_desc,
+			select: [`(count(${g_desc.count || '*'}) as ?count)`],
+		});
+	}
+}
+
+export namespace Sparql {
+	export function literal(s_value: string, s_lang_or_datatype?: string): string {
+		// post modifier
+		let s_post = '';
+		if(s_lang_or_datatype) {
+			// language tag
+			if(s_lang_or_datatype.startsWith('@')) {
+				s_post = s_lang_or_datatype;
+			}
+			// datatype
+			else {
+				s_post = `^^${s_lang_or_datatype}`;
+			}
+		}
+
+		return '"""'+s_value.replace(/"/g, '\\"')+'"""'+s_post;
+	}
+
+	export function iri(p_iri: string): string {
+		// prevent injection attacks
+		return p_iri.replace(/\s+/g, '+').replace(/>/g, '_');
 	}
 }
 

@@ -4,27 +4,43 @@ export type Hash = Record<string, string>;
 export type UrlString = `${'http' | 'https'}://${string}`;
 
 export interface JSONObject {
-	[k: string]: JSONValue;
+	[k: string]: JSONValue | undefined;
 }
 
-export type JSONValue = string | number | boolean | null | JSONValue[] | JSONObject;
+export type JSONValue = string | number | boolean | null | JSONValue[] | JSONObject | undefined;
 
 export interface PrimitiveObject {
-	[k: string]: PrimitiveValue;
+	[k: string]: PrimitiveValue | PrimitiveValue[];
 }
 
-export type PrimitiveValue = JSONValue | Function | PrimitiveObject;
+export type PrimitiveValue = JSONValue | Function | PrimitiveObject | PrimitiveValue[];
 
-export interface TypedObject<TypeValue extends string=string> extends JSONObject {
+export interface TypedObject<TypeValue extends string=string> extends Omit<JSONObject, 'type'> {
 	type: TypeValue;
 }
 
-export interface KeyedObject extends JSONObject {
+export interface TypedPrimitive<TypeValue extends string=string> extends Omit<PrimitiveObject, 'type'> {
+	type: TypeValue;
+}
+
+export interface KeyedObject extends Omit<JSONObject, 'key'> {
     key: string;
 }
 
-export interface LabeledObject extends JSONObject {
+export interface LabeledObject extends Omit<JSONObject, 'label'> {
     label: string;
+}
+
+export interface KeyedPrimitive extends Omit<PrimitiveObject, 'key'> {
+    key: string;
+}
+
+export interface LabeledPrimitive extends Omit<PrimitiveObject, 'label'> {
+    label: string;
+}
+
+export interface ValuedObject {
+	value: string;
 }
 
 export type TypedKeyedObject<TypeValue extends string=string> = TypedObject<TypeValue> & KeyedObject;
@@ -32,6 +48,9 @@ export type TypedLabeledObject<TypeValue extends string=string> = TypedObject<Ty
 export type KeyedLabeledObject = KeyedObject & LabeledObject;
 
 export type TypedKeyedLabeledObject<TypeValue extends string=string> = TypedObject<TypeValue> & KeyedObject & LabeledObject;
+
+export type TypedKeyedPrimitive<TypeValue extends string=string> = TypedPrimitive<TypeValue> & KeyedPrimitive;
+export type TypedKeyedLabeledPrimitive<TypeValue extends string=string> = TypedKeyedPrimitive<TypeValue> & LabeledPrimitive;
 
 
 export type SparqlString = string;
@@ -62,6 +81,8 @@ export interface QueryResult {
 	datatype?: string;
 	'xml:lang'?: string;
 }
+
+export type QueryRow = Record<string, QueryResult>;
 
 export interface SparqlBindingMap {
 	[variable: string]: SparqlBinding;

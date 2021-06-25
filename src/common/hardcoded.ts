@@ -5,6 +5,7 @@ import type {
     Labeled,
     TypedObject,
     KeyedObject,
+    QueryRow,
 } from '../common/types';
 
 import type {
@@ -14,16 +15,17 @@ import type {
 } from '../model/QueryTable';
 
 import {
-    build_select_query_from_params,
+    build_dng_select_query_from_params,
 } from './helper/sparql-code';
 
 import H_PREFIXES from './prefixes';
 
-type HardcodedGroup<ValueType extends PrimitiveValue=PrimitiveValue> = Record<DotFragment, ValueType>;
-type HardcodedObjectType<ValueType extends PrimitiveValue=PrimitiveValue> = Record<DotFragment, HardcodedGroup<ValueType>>;
-type HardcodedObjectCategory<ValueType extends PrimitiveValue=PrimitiveValue> = Record<DotFragment, HardcodedObjectType<ValueType>>;
+export type HardcodedGroup<ValueType extends PrimitiveValue=PrimitiveValue> = Record<DotFragment, ValueType>;
+export type HardcodedObjectType<ValueType extends PrimitiveValue=PrimitiveValue> = Record<DotFragment, HardcodedGroup<ValueType>>;
+export type HardcodedObjectCategory<ValueType extends PrimitiveValue=PrimitiveValue> = Record<DotFragment, HardcodedObjectType<ValueType>>;
+export type HardcodedObjectRoot<ValueType extends PrimitiveValue=PrimitiveValue> = Record<DotFragment, HardcodedObjectCategory<ValueType>>;
 
-function auto_type(h_tree: Record<DotFragment, HardcodedObjectCategory>): Record<DotFragment, HardcodedObjectCategory<TypedObject | PrimitiveValue>> {
+function auto_type(h_tree: Record<DotFragment, HardcodedObjectCategory>): HardcodedObjectRoot<TypedObject | PrimitiveValue> {
     for(const si_category in h_tree) {
         const h_types = h_tree[si_category];
 
@@ -38,7 +40,7 @@ function auto_type(h_tree: Record<DotFragment, HardcodedObjectCategory>): Record
 
                     if('object' === typeof z_value && !Array.isArray(z_value)) {
                         h_ids[si_id] = {
-                            type: si_type[0].toUpperCase()+si_type.slice(1),
+                            type: si_category[0].toUpperCase()+si_category.slice(1),
                             ...z_value,
                         };
                     }
@@ -85,7 +87,12 @@ function auto_key<
 }
 
 
-export const H_HARDCODED_OBJECTS: Record<DotFragment, HardcodedObjectCategory> = auto_type({
+const escape_html = (s: string) => s.replace(/</g, '&lt;');
+
+const unordered_list = (si_key: string) => (g: QueryRow) => `<ul>${(g[si_key]?.value || '').split('\0').map(s => `<li>${escape_html(s)}</li>`).join('')}</ul>`;
+
+
+export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
     queryParameter: auto_key<QueryParam.Serialized>({
         sparql: {
             dng: {
@@ -155,36 +162,42 @@ export const H_HARDCODED_OBJECTS: Record<DotFragment, HardcodedObjectCategory> =
                     source: 'native',
                     value: null,
                     hasMany: false,
+                    cell: (g: QueryRow) => escape_html(g.identifierValue.value),
                 },
                 requirementName: {
                     label: 'Requirement Name',
                     source: 'native',
                     value: null,
                     hasMany: false,
+                    cell: (g: QueryRow) => `<a href="${g.artifact.value}">${escape_html(g.titleValue.value)}</a>`,
                 },
                 requirementText: {
                     label: 'Requirement Text',
                     source: 'native',
                     value: null,
                     hasMany: false,
+                    cell: (g: QueryRow) => g.primaryTextValue.value,
                 },
                 keyDriver: {
                     label: 'Key/Driver Indicator',
                     source: 'attribute',
                     value: 'Key/Driver [S]',
                     hasMany: true,
+                    cell: unordered_list('keydriverValue'),
                 },
                 affectedSystems: {
                     label: 'Affected Systems',
                     source: 'attribute',
                     value: null,
                     hasMany: true,
+                    cell: (g: QueryRow) => escape_html(g.systemsValue?.value || ''),
                 },
                 maturity: {
                     label: 'Maturity',
                     source: 'attribute',
                     value: null,
                     hasMany: false,
+                    cell: (g: QueryRow) => g.maturityValue?.value || '',
                 },
             },
         },
@@ -193,7 +206,7 @@ export const H_HARDCODED_OBJECTS: Record<DotFragment, HardcodedObjectCategory> =
     queryBuilder: {
         sparql: {
             dng: {
-                basicParams: build_select_query_from_params,
+                basicParams: build_dng_select_query_from_params,
             },
         },
     },
@@ -201,7 +214,9 @@ export const H_HARDCODED_OBJECTS: Record<DotFragment, HardcodedObjectCategory> =
     queryContext: {
         sparql: {
             dng: {
-                prefixes: H_PREFIXES,
+                common: {
+                    prefixes: H_PREFIXES,
+                },
             },
         },
     },

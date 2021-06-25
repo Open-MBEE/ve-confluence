@@ -1,6 +1,4 @@
 import type {
-	JSONValue,
-    Labeled,
     DotFragment,
     PrimitiveValue,
     PrimitiveObject,
@@ -11,8 +9,10 @@ import {
 } from '../common/global-objects';
 
 import {
+    HardcodedObjectRoot,
     H_HARDCODED_OBJECTS,
 } from '../common/hardcoded';
+import type { ConfluenceDocument, ConfluencePage } from './confluence';
 
 const G_SHAPE = {
     document: ['DocumentObject', {
@@ -99,6 +99,25 @@ export namespace VePath {
         Id extends DotFragment=DotFragment
     > = Full<'hardcoded', Category, Type, Group, Id>;
 
+    
+    
+    export type QueryFieldGroup<
+        Type extends DotFragment=DotFragment,
+        Group extends DotFragment=DotFragment,
+        Id extends DotFragment=DotFragment
+    > = HardcodedObject<'queryFieldGroup', Type, Group, Id>;
+    
+    export type SparqlQueryFieldGroup<
+        Group extends DotFragment=DotFragment,
+        Id extends DotFragment=DotFragment
+    > = QueryFieldGroup<'sparql', Group, Id>;
+
+    export type DngSparqlQueryFieldGroup<
+        Id extends DotFragment=DotFragment
+    > = SparqlQueryFieldGroup<'dng', Id>;
+
+
+
 
     export type QueryField<
         Type extends DotFragment=DotFragment,
@@ -173,11 +192,11 @@ export namespace VePath {
     export type SparqlQueryContext<
         Group extends DotFragment=DotFragment,
         Id extends DotFragment=DotFragment
-    > = QueryParameter<'sparql', Group, Id>;
+    > = QueryContext<'sparql', Group, Id>;
 
     export type DngSparqlQueryContext<
         Id extends DotFragment=DotFragment
-    > = SparqlQueryParameter<'dng', Id>;
+    > = SparqlQueryContext<'dng', Id>;
 
 
     export type Utility<
@@ -208,135 +227,158 @@ function describe_path_attempt(a_frags: string[], i_frag: number) {
     return `${s_current}[.${s_rest}]`;
 }
 
-function access<Type extends PrimitiveValue>(h_map: PrimitiveObject, a_frags: string[]): Type {
-    const nl_frags = a_frags.length;
 
-    // empty path
-    if(!nl_frags) {
-        throw new TypeError(`Cannot access object using empty path frags`);
+export class ObjectStore {
+    protected _k_page: ConfluencePage;
+    protected _k_document: ConfluenceDocument;
+    protected _h_hardcoded: HardcodedObjectRoot;
+
+    constructor(k_page: ConfluencePage, k_document: ConfluenceDocument, h_hardcoded: HardcodedObjectRoot) {
+        this._k_page = k_page;
+        this._k_document = k_document;
+        this._h_hardcoded = h_hardcoded;
     }
 
-    // node for traversing
-    let z_node = h_map;
+    private _access<Type extends PrimitiveValue>(h_map: PrimitiveObject, a_frags: string[]): Type {
+        const nl_frags = a_frags.length;
 
-    // each frag
-    for(let i_frag=0; i_frag<nl_frags; i_frag++) {
-        const s_frag = a_frags[i_frag];
-        const b_terminal = i_frag === nl_frags-1;
+        // empty path
+        if(!nl_frags) {
+            throw new TypeError(`Cannot access object using empty path frags`);
+        }
 
-        // access thing
-        const z_thing = z_node[s_frag];
+        // node for traversing
+        let z_node = h_map;
 
-        // deduce type
-        const s_type = typeof z_thing;
-        switch(s_type) {
-            // undefined
-            case 'undefined': {
-                throw new Error(`Cannot access thing '${describe_path_attempt(a_frags, i_frag)}' since it is undefined`);
+        // each frag
+        for(let i_frag=0; i_frag<nl_frags; i_frag++) {
+            const s_frag = a_frags[i_frag];
+
+            // access thing
+            const z_thing = z_node[s_frag];
+
+            // terminal
+            if(i_frag === nl_frags - 1) {
+                return z_thing as Type;
             }
 
-            // object
-            case 'object': {
-                // null
-                if(null === z_thing) {
-                    // not terminal
-                    if(!b_terminal) {
+            // deduce type
+            const s_type = typeof z_thing;
+            switch(s_type) {
+                // undefined
+                case 'undefined': {
+                    debugger;
+                    throw new Error(`Cannot access thing '${describe_path_attempt(a_frags, i_frag)}' since it is undefined`);
+                }
+
+                // object
+                case 'object': {
+                    // null
+                    if(null === z_thing) {
                         throw new Error(`While accessing '${describe_path_attempt(a_frags, i_frag)}'; encountered null part-way thru`);
                     }
-                    // terminal
+                    // array or dict; traverse
                     else {
-                        return z_thing as Type;
+                        z_node = z_thing as PrimitiveObject;
+                        continue;
                     }
                 }
-                // array or dict; traverse
-                else {
-                    z_node = z_thing as PrimitiveObject;
-                    continue;
-                }
-            }
 
-            // primitive
-            default: {
-                if(!b_terminal) {
+                // primitive
+                default: {
                     throw new Error(`While accessing '${describe_path_attempt(a_frags, i_frag)}'; encountered primitive value "${z_thing}" part-way thru`);
                 }
-                else {
-                    return z_thing as Type;
-                }
             }
         }
+
+        throw new Error(`Code route not reachable`);
     }
 
-    throw new Error(`Code route not reachable`);
-}
+    idPartSync(sp_path: string): string {
+        const a_parts = sp_path.split('#');
 
-export function meta_object_options_sync<ValueType extends PrimitiveValue>(sp_path: string): Record<VePath.Full, PrimitiveValue> {
-    return Object.entries(resolve_meta_object_sync<Record<string, ValueType>>(sp_path)).reduce((h_out, [si_key, w_value]) => ({
-        ...h_out,
-        [`${sp_path}.${si_key}`]: w_value,
-    }));
-}
+        if(2 !== a_parts.length) {
+            throw new TypeError(`Invalid path string: '${sp_path}'; no storage parameter`);
+        }
+        
+        const [, s_frags] = a_parts as [VePath.Location, string];
+        const a_frags = s_frags.split('.') as DotFragment[];
 
-export function resolve_meta_object_sync<
-    ValueType extends PrimitiveValue,
-    VePathType extends VePath.HardcodedObject=VePath.HardcodedObject
->(sp_path: string): ValueType {
-    const a_parts = sp_path.split('#');
-
-    if(2 !== a_parts.length) {
-        throw new TypeError(`Invalid path string: '${sp_path}'; no storage parameter`);
-    }
-    
-    const [si_storage, s_frags] = a_parts as [VePath.Location, string];
-    const a_frags = s_frags.split('.') as DotFragment[];
-
-    if(si_storage !== 'hardcoded') {
-        throw new Error(`Cannot synchronously access non-hardcoded storage type '${si_storage}'`);
+        return a_frags[3];
     }
 
-    return access<ValueType>(H_HARDCODED_OBJECTS, a_frags);
-}
-
-
-export async function resolve_meta_object<
-    ValueType extends PrimitiveValue,
-    VePathType extends VePath.Full=VePath.Full
->(sp_path: string): Promise<ValueType> {
-    const a_parts = sp_path.split('#');
-    if(2 !== a_parts.length) {
-        throw new TypeError(`Invalid path string: '${sp_path}'; no storage parameter`);
+    optionsSync<ValueType extends PrimitiveValue>(sp_path: string): Record<VePath.Full, PrimitiveValue> {
+        return Object.entries(this.resolveSync<Record<string, ValueType>>(sp_path)).reduce((h_out, [si_key, w_value]) => ({
+            ...h_out,
+            [`${sp_path}.${si_key}`]: w_value,
+        }));
     }
 
-    const [si_storage, s_frags] = a_parts as [VePath.Location, string];
-    const a_frags = s_frags.split('.') as DotFragment[];
+    resolveSync<ValueType extends PrimitiveValue, VePathType extends VePath.HardcodedObject=VePath.HardcodedObject>(sp_path: string): ValueType {
+        const a_parts = sp_path.split('#');
 
-    switch(si_storage) {
-        case 'document': {
-            const gm_document = (await global_objects()).gm_document;
+        if(2 !== a_parts.length) {
+            throw new TypeError(`Invalid path string: '${sp_path}'; no storage parameter`);
+        }
+        
+        const [si_storage, s_frags] = a_parts as [VePath.Location, string];
+        const a_frags = s_frags.split('.') as DotFragment[];
 
-            if(!gm_document) {
-                throw new Error(`Cannot access document metadata`);
+        if(si_storage !== 'hardcoded') {
+            throw new Error(`Cannot synchronously access non-hardcoded storage type '${si_storage}'`);
+        }
+
+        return this._access<ValueType>(H_HARDCODED_OBJECTS, a_frags);
+    }
+
+
+    async resolve<ValueType extends PrimitiveValue, VePathType extends VePath.Full=VePath.Full>(sp_path: string): Promise<ValueType> {
+        const a_parts = sp_path.split('#');
+        if(2 !== a_parts.length) {
+            throw new TypeError(`Invalid path string: '${sp_path}'; no storage parameter`);
+        }
+
+        const [si_storage, s_frags] = a_parts as [VePath.Location, string];
+        const a_frags = s_frags.split('.') as DotFragment[];
+
+        let k_target: ConfluencePage | ConfluenceDocument;
+
+        switch(si_storage) {
+            case 'page': {
+                k_target = this._k_page;
+                break;
             }
 
-            return access<ValueType>(gm_document, a_frags);
-        }
-
-        case 'page': {
-            const gm_page = (await global_objects()).gm_page;
-
-            if(!gm_page) {
-                throw new Error(`Cannot access page metadata`);
+            case 'document': {
+                k_target = this._k_document;
+                break;
             }
 
-            return access<ValueType>(gm_page, a_frags);
+            case 'hardcoded': {
+                return this._access<ValueType>(H_HARDCODED_OBJECTS, a_frags);
+            }
+
+            default: {
+                throw new Error(`Unmapped VePath storage parameter '${si_storage}'`);
+            }
         }
 
-        case 'hardcoded': {
-            return access<ValueType>(H_HARDCODED_OBJECTS, a_frags);
+        // fetch ve4 data
+        const g_ve4 = await k_target.getMetadata();
+
+        // no metadata; error
+        if(!g_ve4) {
+            throw new Error(`${si_storage[0].toUpperCase()+si_storage.slice(1)} exists but no metadata`);
         }
 
-        default: {
-            throw new Error(`Unmapped VePath storage parameter '${si_storage}'`);
+        // fetch metadata
+        const g_metadata = g_ve4.value || null;
+
+        if(!g_metadata) {
+            throw new Error(`Cannot access ${si_storage} metadata`);
         }
+
+        return this._access<ValueType>(g_metadata, a_frags);
     }
+
 }

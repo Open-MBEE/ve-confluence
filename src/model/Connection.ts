@@ -1,22 +1,20 @@
-import {
-    resolve_meta_object,
-    resolve_meta_object_sync,
+import type {
     VePath,
-} from '../class/meta';
+} from '../class/object-store';
 
 import type {
     UrlString,
     Hash,
     JSONObject,
     SparqlString,
-    SparqlBindings,
+    QueryRow,
 } from '../common/types';
 
 import SparqlEndpoint from '../util/sparql-endpoint';
 
 import {
     Serializable,
-    VeOrm,
+    VeOdm,
     VeOrmClass,
 } from './Serializable';
 
@@ -35,12 +33,14 @@ export namespace Connection {
     }
 }
 
-export abstract class Connection<Serialized extends Connection.Serialized=Connection.Serialized> extends VeOrm<Serialized> {
+export abstract class Connection<Serialized extends Connection.Serialized=Connection.Serialized> extends VeOdm<Serialized> {
     get endpoint(): UrlString {
         return this._gc_serialized.endpoint;
     }
 
     abstract getVersion(): Promise<ModelVersionDescriptor>;
+
+    abstract execute(sq_query: string): Promise<QueryRow[]>;
 }
 
 
@@ -70,7 +70,7 @@ export abstract class SparqlConnection<Serialized extends SparqlConnection.Seria
     }
 
     get context(): SparqlQueryContext {
-        return resolve_meta_object_sync<SparqlQueryContext>(this._gc_serialized.contextPath);
+        return this._k_store.resolveSync<SparqlQueryContext>(this._gc_serialized.contextPath);
     }
 
     get prefixes(): Hash {
@@ -80,7 +80,7 @@ export abstract class SparqlConnection<Serialized extends SparqlConnection.Seria
 
 
 export namespace MmsSparqlConnection {
-    export interface Serialized extends Connection.Serialized {
+    export interface Serialized extends SparqlConnection.Serialized {
         type: 'MmsSparqlConnection';
         endpoint: UrlString;
         modelGraph: UrlString;
@@ -102,7 +102,7 @@ export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Se
         const a_rows = await this.execute(`
             select ?commit ?commitDateTime from <${this.metadataGraph}> {
                 ?snapshot a mms:Snapshot ;
-                    mms:graph <${this.modelGraph}>
+                    mms:graph <${this.modelGraph}> ;
                     mms:materializes/mms:commit ?commit ;
                     .
                 
@@ -116,7 +116,11 @@ export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Se
         if(!a_rows.length) {
             // run diagnostic queries
 
-            return null;
+            return {
+                id: 'null',
+                label: 'Unknown date/time',
+                dateTime: 'Unknown date/time',
+            };
         }
         // matched
         else {
@@ -134,7 +138,7 @@ export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Se
     }
 
 
-    async execute(sq_query: SparqlString): Promise<SparqlBindings> {
+    async execute(sq_query: SparqlString): Promise<QueryRow[]> {
         return await this._k_endpoint.select(sq_query);
     }
 }

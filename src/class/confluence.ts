@@ -20,6 +20,7 @@ import {
 } from '../util/fetch';
 
 import XHTMLDocument from './xhtml-document';
+import type { Connection, MmsSparqlConnection } from '../model/Connection';
 
 
 const P_API_DEFAULT = '/rest/api';
@@ -29,15 +30,20 @@ type Hash = Record<string, string>;
 export type CXHTML = `${string}`;
 
 export interface PageMetadata extends JSONObject {
+	type: 'Page';
 	schema: '1.0';
-	type: 'page';
+
 }
 
 export interface DocumentMetadata extends JSONObject {
+	type: 'Document';
 	schema: '1.0';
-	type: 'document';
-	sources: {
-		[key in SourceKey]?: Source;
+	connection?: {
+		sparql?: {
+			mms?: {
+				dng?: MmsSparqlConnection.Serialized;
+			};
+		};
 	};
 }
 
@@ -313,7 +319,8 @@ export class ConfluencePage {
 	}
 
 	async getMetadata(b_force=false): Promise<ConfluenceApi.Info | null> {
-		return normalize_metadata<Ve4MetadataKeyPage, PageMetadata>((await this._info(b_force))?.metadata.properties[G_VE4_METADATA_KEYS.CONFLUENCE_PAGE]);
+		const g_info = await this._info(b_force);
+		return normalize_metadata<Ve4MetadataKeyPage, PageMetadata>(g_info?.metadata.properties[G_VE4_METADATA_KEYS.CONFLUENCE_PAGE]);
 	}
 
 	async getVersionNumber(b_force=false): Promise<ConfluenceApi.PageVersionNumber> {
@@ -397,19 +404,32 @@ export class ConfluenceDocument {
 		return new ConfluenceDocument(k_page.pageId, k_page.pageTitle);
 	}
 
-	static async createNew(k_page: ConfluencePage) {
-		if(await k_page.isDocumentMember()) {
+	static async createNew(k_page: ConfluencePage, b_bypass=false) {
+		if(!b_bypass && await k_page.isDocumentMember()) {
 			throw new Error(`Cannot create document from page which is already member of a document`);
 		}
 
 		const k_document = ConfluenceDocument.fromPage(k_page);
 		const gm_document: DocumentMetadata = {
-			type: 'document',
+			type: 'Document',
 			schema: '1.0',
-			sources: {},
+			connection: {
+				sparql: {
+					mms: {
+						dng: {
+							type: "MmsSparqlConnection",
+							endpoint: "https://ced.jpl.nasa.gov/sparql",
+							modelGraph: "https://opencae.jpl.nasa.gov/mms/rdf/graph/data.europa-clipper",
+							metadataGraph: "https://opencae.jpl.nasa.gov/mms/rdf/graph/metadata.clipper",
+							contextPath: "hardcoded#queryContext.sparql.dng.common",
+						},
+					},
+				},
+			},
 		};
 
-		await k_document.postMetadata(gm_document);
+		const n_version = (await k_document.getMetadata())?.version.number || 0;
+		await k_document.postMetadata(gm_document, n_version + 1);
 
 		return k_document;
 	}
@@ -457,18 +477,18 @@ export class ConfluenceDocument {
 		return !!(await this.getMetadata(b_force))?.value;
 	}
 
-	async getDataSource<SourceType extends Source>(si_key: SourceKey, b_force=false): Promise<SourceType | null> {
-		const h_sources = (await this.getMetadata(b_force))?.value.sources;
-		if(!h_sources) return null;
-		return (h_sources[si_key] as SourceType) || null;
-	}
+	// async getDataSource<SourceType extends Source>(si_key: SourceKey, b_force=false): Promise<SourceType | null> {
+	// 	const h_sources = (await this.getMetadata(b_force))?.value.sources;
+	// 	if(!h_sources) return null;
+	// 	return (h_sources[si_key] as SourceType) || null;
+	// }
 
-	async setDataSource<SourceType extends Source>(si_key: SourceKey, g_source: SourceType): Promise<boolean> {
-		const g_info = await this.getMetadata();
-		if(!g_info) return false;
-		const gm_document = g_info.value;
-		const h_sources = gm_document.sources = {};
-		h_sources[si_key] = g_source;
-		return await this.postMetadata(gm_document, ++g_info.version.number);
-	}
+	// async setDataSource<SourceType extends Source>(si_key: SourceKey, g_source: SourceType): Promise<boolean> {
+	// 	const g_info = await this.getMetadata();
+	// 	if(!g_info) return false;
+	// 	const gm_document = g_info.value;
+	// 	const h_sources = gm_document.sources = {};
+	// 	h_sources[si_key] = g_source;
+	// 	return await this.postMetadata(gm_document, ++g_info.version.number);
+	// }
 }

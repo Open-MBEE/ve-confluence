@@ -34,6 +34,9 @@ import type XHTMLDocument from './class/xhtml-document';
 
 import type { Ve4ComponentContext } from './common/ve4';
 import type { SourceKey } from './class/source';
+import { MmsSparqlQueryTable } from './model/QueryTable';
+import { ObjectStore } from './class/object-store';
+import { H_HARDCODED_OBJECTS } from './common/hardcoded';
 
 
 // write static css
@@ -144,6 +147,8 @@ const A_DIRECTIVE_CORRELATIONS: CorrelationDescriptor[] = [
 	},
 ];
 
+let K_OBJECT_STORE: ObjectStore;
+
 const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 	'Insert Block View': () => ({
 		component: InsertBlockView,
@@ -156,6 +161,22 @@ const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 	// }),
 	'CAE CED Table Element': () => ({
 		component: QueryTable,
+		props: {
+			k_query_table: new MmsSparqlQueryTable({
+				type: 'MmsSparqlQueryTable',
+				group: 'dng',
+				queryTypePath: 'hardcoded#queryType.sparql.dng.afsr',
+				connectionPath: 'document#connection.sparql.mms.dng',
+				fieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basic',
+				parameterValues: {},
+				parameterPaths: [
+					'hardcoded#queryParameter.sparql.dng.sysvac',
+					'hardcoded#queryParameter.sparql.dng.maturity',
+				],
+			}, {
+				store: K_OBJECT_STORE,
+			}),
+		},
 	}),
 };
 
@@ -288,6 +309,7 @@ const H_SOURCE_HANDLERS: Record<SourceKey, (source: Source) => void> = {
 	helix: () => {},
 };
 
+
 export async function main() {
 	new ControlBar({
 		target: dm_main.parentElement as HTMLElement,
@@ -321,17 +343,8 @@ export async function main() {
 		return;
 	}
 
-	// debugger;
-	// await k_document.setDataSource('dng', {
-	// 	key: 'dng',
-	// 	qualifier: 'mms://cae_dng/europa-clipper/master/latest',
-	// 	modified: (new Date()).toISOString(),
-	// 	endpoint: 'https://ced.jpl.nasa.gov/sparql',
-	// 	graph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/data.europa-clipper',
-	// 	mopid: 'cae_dng/europa-clipper',
-	// 	ref: 'master',
-	// 	commit: '#latest',
-	// });
+	// initialize object store
+	K_OBJECT_STORE = new ObjectStore(k_page, k_document, H_HARDCODED_OBJECTS);
 
 	// fetch document metadata
 	const gm_document = await k_document.getMetadata();
@@ -339,16 +352,6 @@ export async function main() {
 	// no metadata; error
 	if(!gm_document) {
 		throw new Error(`Document exists but no metadata`);
-	}
-
-	const a_sources = gm_document.value.sources;
-	const h_sources: Record<string, Source> = {};
-	for(const [si_key, g_source] of Object.entries(a_sources)) {
-		if(!(si_key in H_SOURCE_HANDLERS)) {
-			throw new Error(`No source handler found for ${si_key}`);
-		}
-
-		H_SOURCE_HANDLERS[si_key as SourceKey](g_source as Source);
 	}
 
 	// each page directive
