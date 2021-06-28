@@ -310,7 +310,6 @@ export class ObjectStore {
 
     optionsSync<ValueType extends Serializable | Primitive, ClassType extends VeOdm<ValueType>>(sp_path: string, dc_class: {new(gc:ValueType, g:Context): ClassType}, g_context: Context): Record<VePath.Full, ClassType> {
         const h_options = this.resolveSync<Record<string, ValueType>>(sp_path);
-        debugger;
         return Object.entries(h_options).reduce((h_out, [si_key, w_value]) => ({
             ...h_out,
             [`${sp_path}.${si_key}`]: new dc_class(w_value, g_context),

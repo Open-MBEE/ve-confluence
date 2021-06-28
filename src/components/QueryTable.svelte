@@ -28,7 +28,7 @@
 	import QueryTableParam from './QueryTableParam.svelte';
 
 	import type {
-		QueryTable,
+		QueryTable, QueryType,
 	} from '../model/QueryTable';
 
 	import type {
@@ -192,12 +192,8 @@
 		
 	}
 
-	{
-		const w_value = k_query_table.queryType;
-		const a_options = Object.values(k_query_table.queryTypeOptions)
-		debugger;
-		console.dir(w_value);
-		console.dir(a_options);
+	function select_query_type(dv_select: CustomEvent<QueryType>) {
+		k_query_table.setQueryType(dv_select.detail);
 	}
 </script>
 
@@ -436,14 +432,15 @@
 				<span class="select">
 					<Select
 						showIndicator={true}
-						selectedValue={k_query_table.queryType}
-						items={Object.values(k_query_table.queryTypeOptions)}
+						selectedValue={k_query_table.queryType.toItem()}
+						items={Object.values(k_query_table.queryTypeOptions).map(k => k.toItem())}
 						indicatorSvg={/* syntax: html */ `
 							<svg width="7" height="5" viewBox="0 0 7 5" fill="none" xmlns="http://www.w3.org/2000/svg">
 								<path d="M3.5 4.5L0.468911 0.75L6.53109 0.75L3.5 4.5Z" fill="#333333"/>
 							</svg>
 						`}
 						Item={SelectItem}
+						on:select={select_query_type}
 					/>
 				</span>
 			</div>

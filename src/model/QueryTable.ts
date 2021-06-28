@@ -13,6 +13,7 @@ import type {
     TypedKeyedPrimitive,
     JSONObject,
     TypedPrimitive,
+    LabeledValuedObject,
 } from '../common/types';
 
 import type {
@@ -185,6 +186,13 @@ export class QueryType extends VeOdmKeyedLabeled<QueryType.Serialized> {
     get value(): string {
         return this.key;
     }
+
+    toItem(): LabeledValuedObject {
+        return {
+            value: this.value,
+            label: this.label,
+        };
+    }
 }
 
 export namespace QueryTable {
@@ -216,6 +224,8 @@ export abstract class QueryTable<
     abstract getConnection(): Promise<Connection>;
 
     abstract get queryType(): QueryType;
+
+    abstract setQueryType(g_query_type: LabeledValuedObject): void;
 
     abstract get queryTypeOptions(): Record<string, QueryType>;
 
@@ -285,13 +295,12 @@ export namespace SparqlQueryTable {
 
 
 export abstract class SparqlQueryTable<Serialized extends SparqlQueryTable.Serialized=SparqlQueryTable.Serialized> extends QueryTable<'sparql', Serialized> {
-    protected _h_options: Record<VePath.SparqlQueryType, QueryType> = {};
-    protected _k_query_type: QueryType = null as unknown as QueryType;
+    protected _h_options!: Record<VePath.SparqlQueryType, QueryType>;
+    protected _k_query_type!: QueryType;
 
     abstract getConnection(): Promise<SparqlConnection>;
 
     initSync(): void {
-        debugger;
         const h_options: Record<string, QueryType> = this._h_options = this._k_store.optionsSync<QueryType.Serialized, QueryType>(`hardcoded#queryType.sparql.${this._gc_serialized.group}`, QueryType, this._g_context);
         this._k_query_type = h_options[this._gc_serialized.queryTypePath];
         return super.initSync();
@@ -299,6 +308,24 @@ export abstract class SparqlQueryTable<Serialized extends SparqlQueryTable.Seria
 
     get queryType(): QueryType {
         return this._k_query_type;
+    }
+
+    setQueryType(g_query_type: LabeledValuedObject) {
+        const {
+            value: si_value,
+            label: s_label,
+        } = g_query_type;
+
+        const h_options: Record<string, QueryType> = this._h_options;
+        for(const sp_test in h_options) {
+            const k_test = h_options[sp_test];
+            if(si_value === k_test.value && s_label === k_test.label) {
+                this._gc_serialized.queryTypePath = sp_test as VePath.SparqlQueryType;
+                return;
+            }
+        }
+
+        throw new Error(`Unable to set .queryType property on QueryTable instance since ${JSON.stringify(g_query_type)} did not match any known queryType options`);
     }
 
     get queryTypeOptions(): Record<VePath.SparqlQueryType, QueryType> {

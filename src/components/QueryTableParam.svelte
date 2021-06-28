@@ -97,9 +97,9 @@
 		return s_label;
 	}
 
-	function select_value(d_event: CustomEvent<Option[]>) {
-		if(d_event.detail) {
-			for(const g_value of d_event.detail) {
+	function select_value(dv_select: CustomEvent<Option[]>) {
+		if(dv_select.detail) {
+			for(const g_value of dv_select.detail) {
 				if(g_value.state) {
 					k_values.add(g_value);
 				}
@@ -112,7 +112,7 @@
 		dispatch('change');
 	}
 
-	function handle_clear(d_event: CustomEvent<Option[]>) {
+	function handle_clear(dv_select: CustomEvent<Option[]>) {
 		k_values.clear();
 	}
 </script>

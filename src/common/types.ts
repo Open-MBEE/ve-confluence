@@ -47,6 +47,8 @@ export type TypedKeyedObject<TypeValue extends string=string> = TypedObject<Type
 export type TypedLabeledObject<TypeValue extends string=string> = TypedObject<TypeValue> & LabeledObject;
 export type KeyedLabeledObject = KeyedObject & LabeledObject;
 
+export type LabeledValuedObject = LabeledObject & ValuedObject;
+
 export type TypedKeyedLabeledObject<TypeValue extends string=string> = TypedObject<TypeValue> & KeyedObject & LabeledObject;
 
 export type TypedKeyedPrimitive<TypeValue extends string=string> = TypedPrimitive<TypeValue> & KeyedPrimitive;
