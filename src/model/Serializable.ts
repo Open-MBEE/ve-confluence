@@ -1,6 +1,6 @@
 import type { ObjectStore } from '../class/object-store';
 import type {
-	JSONObject, TypedObject, TypedPrimitive,
+	JSONObject, LabeledObject, LabeledPrimitive, TypedKeyedLabeledObject, TypedKeyedLabeledPrimitive, TypedKeyedObject, TypedKeyedPrimitive, TypedLabeledObject, TypedLabeledPrimitive, TypedObject, TypedPrimitive,
 } from '../common/types';
 
 
@@ -24,6 +24,8 @@ export abstract class VeOdm<Serialized extends Serializable | Primitive> {
         this._g_context = g_context;
         this._k_store = g_context.store;
 
+        this.initSync();
+
         this.init().then(() => {
             this._b_ready = true;
             for(const fk_resolve of this._a_awaits) {
@@ -45,14 +47,16 @@ export abstract class VeOdm<Serialized extends Serializable | Primitive> {
 
     async init(): Promise<void> {}
 
+    initSync(): void{}
+
     get type() {
         return this._gc_serialized.type;
     }
 
-    // protected create<CreationSerialized extends Serializable>(
-    //     dc_class: {new(gc_serialized: CreationSerialized, g_context: Context): PresentationElement<CreationSerialized>},
+    // protected _create<CreationSerialized extends Serializable>(
+    //     dc_class: {new(gc_serialized: CreationSerialized, g_context: Context): VeOdm<CreationSerialized>},
     //     gc_serialized: CreationSerialized,
-    // ): PresentationElement<CreationSerialized> {
+    // ): VeOdm<CreationSerialized> {
     //     return new dc_class(gc_serialized, this._g_context);
     // }
 
@@ -61,7 +65,29 @@ export abstract class VeOdm<Serialized extends Serializable | Primitive> {
     }
 }
 
-export interface VeOrmClass<Serialized extends Serializable> {
+export abstract class VeOdmLabeled<Serialized extends TypedLabeledObject | TypedLabeledPrimitive> extends VeOdm<Serialized> {
+    get label(): string {
+        return this._gc_serialized.label;
+    }
+}
+
+export abstract class VeOdmKeyed<Serialized extends TypedKeyedObject | TypedKeyedPrimitive> extends VeOdm<Serialized> {
+    get key(): string {
+        return this._gc_serialized.key;
+    }
+}
+
+export abstract class VeOdmKeyedLabeled<Serialized extends TypedKeyedLabeledObject | TypedKeyedLabeledPrimitive> extends VeOdm<Serialized> {
+    get label(): string {
+        return this._gc_serialized.label;
+    }
+
+    get key(): string {
+        return this._gc_serialized.key;
+    }
+}
+
+export interface VeOrmClass<Serialized extends Serializable | Primitive> {
     new(gc_serialized: Serialized, g_context: Context): VeOdm<Serialized>;
 }
 

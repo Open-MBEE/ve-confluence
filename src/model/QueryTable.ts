@@ -22,6 +22,9 @@ import type {
 import {
     Serializable,
     VeOdm,
+    VeOdmKeyed,
+    VeOdmKeyedLabeled,
+    VeOdmLabeled,
     VeOrmClass,
 } from './Serializable';
 
@@ -107,11 +110,7 @@ export namespace QueryParam {
     }
 }
 
-export class QueryParam extends VeOdm<QueryParam.Serialized> {
-    get key(): string {
-        return this._gc_serialized.key;
-    }
-
+export class QueryParam extends VeOdmKeyed<QueryParam.Serialized> {
     get value(): string {
         return this._gc_serialized.value;
     }
@@ -149,13 +148,9 @@ export namespace QueryField {
     }
 }
 
-export class QueryField extends VeOdm<QueryField.Serialized> {
+export class QueryField extends VeOdmKeyed<QueryField.Serialized> {
     get source(): string {
         return this._gc_serialized.source;
-    }
-
-    get key(): string {
-        return this._gc_serialized.key;
     }
 
     get value(): string {
@@ -176,8 +171,19 @@ export class QueryField extends VeOdm<QueryField.Serialized> {
 }
 
 export namespace QueryType {
-    export interface Serialized extends TypedLabeledObject<'QueryType'> {
+    export interface Serialized extends TypedKeyedLabeledObject<'QueryType'> {
         queryBuilderPath: VePath.QueryBuilder;
+    }
+}
+
+export class QueryType extends VeOdmKeyedLabeled<QueryType.Serialized> {
+    get queryBuilder(): QueryBuilder {
+        const gc_builder = this._k_store.resolveSync<QueryBuilder.Serialized>(this._gc_serialized.queryBuilderPath);
+        return new QueryBuilder(gc_builder, this._g_context);
+    }
+
+    get value(): string {
+        return this.key;
     }
 }
 
@@ -209,9 +215,9 @@ export abstract class QueryTable<
 
     abstract getConnection(): Promise<Connection>;
 
-    abstract get queryType(): QueryType.Serialized;
+    abstract get queryType(): QueryType;
 
-    abstract get queryTypeOptions(): Record<string, QueryType.Serialized>;
+    abstract get queryTypeOptions(): Record<string, QueryType>;
 
     abstract get fields(): QueryField[];
 
@@ -245,8 +251,7 @@ export abstract class QueryTable<
     }
 
     fetchQueryBuilder(): Promise<ConnectionQuery> {
-        const gc_builder = this._k_store.resolveSync<QueryBuilder.Serialized>(this.queryType.queryBuilderPath);
-        return gc_builder.function.call(this);
+        return this.queryType.queryBuilder.function.call(this);
     }
 }
 
@@ -278,15 +283,26 @@ export namespace SparqlQueryTable {
     }
 }
 
+
 export abstract class SparqlQueryTable<Serialized extends SparqlQueryTable.Serialized=SparqlQueryTable.Serialized> extends QueryTable<'sparql', Serialized> {
+    protected _h_options: Record<VePath.SparqlQueryType, QueryType> = {};
+    protected _k_query_type: QueryType = null as unknown as QueryType;
+
     abstract getConnection(): Promise<SparqlConnection>;
 
-    get queryType(): QueryType.Serialized {
-        return this._k_store.resolveSync<QueryType.Serialized>(this._gc_serialized.queryTypePath);
+    initSync(): void {
+        debugger;
+        const h_options: Record<string, QueryType> = this._h_options = this._k_store.optionsSync<QueryType.Serialized, QueryType>(`hardcoded#queryType.sparql.${this._gc_serialized.group}`, QueryType, this._g_context);
+        this._k_query_type = h_options[this._gc_serialized.queryTypePath];
+        return super.initSync();
     }
 
-    get queryTypeOptions(): Record<string, QueryType.Serialized> {
-        return this._k_store.optionsSync<QueryType.Serialized>(`hardcoded#queryType.sparql.${this._gc_serialized.group}`);
+    get queryType(): QueryType {
+        return this._k_query_type;
+    }
+
+    get queryTypeOptions(): Record<VePath.SparqlQueryType, QueryType> {
+        return this._h_options;
     }
     
     get fields(): QueryField[] {

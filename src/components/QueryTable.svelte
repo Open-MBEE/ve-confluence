@@ -119,7 +119,6 @@
 	const SX_STATUS_INFO_INIT = 'PREVIEW (0 results)';
 	let s_status_info = SX_STATUS_INFO_INIT;
 
-
 	async function render() {
 		xc_info_mode = INFO_MODES.LOADING;
 
@@ -150,7 +149,7 @@
 			// start counting all rows
 			k_connection.execute(k_query.count()).then((a_counts) => {
 				const nl_rows_total = +a_counts[0].count.value;
-				s_status_info = `PREVIEW (20 / ${nl_rows_total} result${1 === nl_rows_total? '': 's'})`;
+				s_status_info = `PREVIEW (${nl_rows_total > 20? '20': nl_rows_total} / ${nl_rows_total} result${1 === nl_rows_total? '': 's'})`;
 			});
 		}
 
@@ -167,7 +166,7 @@
 		b_loading = false;
 		b_showing = true;
 
-		s_status_info = `PREVIEW (${a_rows.length > 20? '>20': '20'} result${1 === a_rows.length? '': 's'})`;
+		s_status_info = `PREVIEW (${a_rows.length > 20? '>20': a_rows.length} result${1 === a_rows.length? '': 's'})`;
 		xc_info_mode = INFO_MODES.PREVIEW;
 	}
 
@@ -191,6 +190,14 @@
 
 	function reset_table() {
 		
+	}
+
+	{
+		const w_value = k_query_table.queryType;
+		const a_options = Object.values(k_query_table.queryTypeOptions)
+		debugger;
+		console.dir(w_value);
+		console.dir(a_options);
 	}
 </script>
 

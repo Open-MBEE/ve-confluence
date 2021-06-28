@@ -13,6 +13,7 @@ import {
     H_HARDCODED_OBJECTS,
 } from '../common/hardcoded';
 import type { ConfluenceDocument, ConfluencePage } from './confluence';
+import type { Context, Primitive, Serializable, VeOdm } from '../model/Serializable';
 
 const G_SHAPE = {
     document: ['DocumentObject', {
@@ -307,11 +308,13 @@ export class ObjectStore {
         return a_frags[3];
     }
 
-    optionsSync<ValueType extends PrimitiveValue>(sp_path: string): Record<VePath.Full, PrimitiveValue> {
-        return Object.entries(this.resolveSync<Record<string, ValueType>>(sp_path)).reduce((h_out, [si_key, w_value]) => ({
+    optionsSync<ValueType extends Serializable | Primitive, ClassType extends VeOdm<ValueType>>(sp_path: string, dc_class: {new(gc:ValueType, g:Context): ClassType}, g_context: Context): Record<VePath.Full, ClassType> {
+        const h_options = this.resolveSync<Record<string, ValueType>>(sp_path);
+        debugger;
+        return Object.entries(h_options).reduce((h_out, [si_key, w_value]) => ({
             ...h_out,
-            [`${sp_path}.${si_key}`]: w_value,
-        }));
+            [`${sp_path}.${si_key}`]: new dc_class(w_value, g_context),
+        }), {});
     }
 
     resolveSync<ValueType extends PrimitiveValue, VePathType extends VePath.HardcodedObject=VePath.HardcodedObject>(sp_path: string): ValueType {
