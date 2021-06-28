@@ -142,13 +142,13 @@
 
 		const k_connection = await k_query_table.getConnection();
 
-		const k_query = await k_query_table.queryBuilder();
+		const k_query = await k_query_table.fetchQueryBuilder();
 
 		const a_rows = await k_connection.execute(k_query.paginate(21));
 
 		if(a_rows.length > 20) {
 			// start counting all rows
-			k_sparql.select(k_query.count()).then((a_counts) => {
+			k_connection.execute(k_query.count()).then((a_counts) => {
 				const nl_rows_total = +a_counts[0].count.value;
 				s_status_info = `PREVIEW (20 / ${nl_rows_total} result${1 === nl_rows_total? '': 's'})`;
 			});
@@ -453,24 +453,24 @@
 		<div class="table-wrap">
 			<table class="wrapped confluenceTable tablesorter tablesorter-default stickyTableHeaders" role="grid" style="padding: 0px;" resolved="">
 				<colgroup>
-					{#each k_query_table.fields as g_field}
+					{#each k_query_table.fields as k_field}
 						<col>
 					{/each}
 				</colgroup>
 				<thead class="tableFloatingHeaderOriginal">
 					<tr role="row" class="tablesorter-headerRow">
-						{#each k_query_table.fields as g_field, i_field}
-							<th class="confluenceTh tablesorter-header sortableHeader tablesorter-headerUnSorted" data-column="{i_field}" tabindex="0" scope="col" role="columnheader" aria-disabled="false" unselectable="on" aria-sort="none" aria-label="{g_field.label}: No sort applied, activate to apply an ascending sort" style="user-select: none;">
-								<div class="tablesorter-header-inner">{g_field.label}</div>
+						{#each k_query_table.fields as k_field, i_field}
+							<th class="confluenceTh tablesorter-header sortableHeader tablesorter-headerUnSorted" data-column="{i_field}" tabindex="0" scope="col" role="columnheader" aria-disabled="false" unselectable="on" aria-sort="none" aria-label="{k_field.label}: No sort applied, activate to apply an ascending sort" style="user-select: none;">
+								<div class="tablesorter-header-inner">{k_field.label}</div>
 							</th>
 						{/each}
 					</tr>
 				</thead>
 				<thead class="tableFloatingHeader" style="display: none;">
 					<tr role="row" class="tablesorter-headerRow">
-						{#each k_query_table.fields as g_field, i_header}
-							<th class="confluenceTh tablesorter-header sortableHeader tablesorter-headerUnSorted" data-column="{i_header}" tabindex="0" scope="col" role="columnheader" aria-disabled="false" unselectable="on" aria-sort="none" aria-label="{g_field.label}: No sort applied, activate to apply an ascending sort" style="user-select: none;">
-								<div class="tablesorter-header-inner">{g_field.label}</div>
+						{#each k_query_table.fields as k_field, i_header}
+							<th class="confluenceTh tablesorter-header sortableHeader tablesorter-headerUnSorted" data-column="{i_header}" tabindex="0" scope="col" role="columnheader" aria-disabled="false" unselectable="on" aria-sort="none" aria-label="{k_field.label}: No sort applied, activate to apply an ascending sort" style="user-select: none;">
+								<div class="tablesorter-header-inner">{k_field.label}</div>
 							</th>
 						{/each}
 					</tr>
@@ -479,7 +479,7 @@
 					{#if b_loading || !g_preview.rows.length}
 						{#each A_DUMMY_TABLE_ROWS as g_row}
 							<tr role="row">
-								{#each k_query_table.fields as g_field}
+								{#each k_query_table.fields as k_field}
 									<td class="confluenceTd">
 										<span class="ve-table-preview-cell-placeholder">&nbsp;</span>
 									</td>

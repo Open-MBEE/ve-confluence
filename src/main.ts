@@ -311,6 +311,10 @@ const H_SOURCE_HANDLERS: Record<SourceKey, (source: Source) => void> = {
 
 
 export async function main() {
+	if('object' !== typeof lang?.basic) {
+		throw new Error(`ERROR: No lang file defined! Did you forget to set the environment variables when building?`);
+	}
+
 	new ControlBar({
 		target: dm_main.parentElement as HTMLElement,
 		anchor: dm_main,

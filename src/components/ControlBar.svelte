@@ -30,7 +30,7 @@
 	// } = G_CONTEXT;
 
     import { Tabs, TabList, TabPanel, Tab } from 'svelte-tabs';
-import { create } from 'gretchen';
+    import { create } from 'gretchen';
 
     let b_ready = false;
     let b_read_only = false;

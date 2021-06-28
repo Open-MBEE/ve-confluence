@@ -11,6 +11,8 @@ import type {
     ValuedObject,
     TypedKeyedLabeledPrimitive,
     TypedKeyedPrimitive,
+    JSONObject,
+    TypedPrimitive,
 } from '../common/types';
 
 import type {
@@ -28,6 +30,7 @@ import {
     SparqlConnection,
     MmsSparqlConnection,
 } from './Connection';
+import { SparqlSelectQuery } from '../util/sparql-endpoint';
 
 
 export namespace QueryParamValue {
@@ -131,24 +134,50 @@ export namespace QueryFieldGroup {
 }
 
 export class QueryFieldGroup extends VeOdm<QueryFieldGroup.Serialized> {
-    get fields(): QueryField.Serialized[] {
-        return this._gc_serialized.queryFieldsPaths.map(sp => this._k_store.resolveSync(sp));
+    get fields(): QueryField[] {
+        return this._gc_serialized.queryFieldsPaths.map(sp => new QueryField(this._k_store.resolveSync(sp), this._g_context));
     }
 }
 
 export namespace QueryField {
-    export interface Serialized extends TypedKeyedLabeledPrimitive<'QueryField'> {
+    export interface Serialized extends TypedKeyedPrimitive<'QueryField'> {
         value: string;
+        label?: string;
         source: 'native' | 'attribute';
         hasMany: boolean;
         cell: (g_row: QueryRow) => string;
     }
 }
 
+export class QueryField extends VeOdm<QueryField.Serialized> {
+    get source(): string {
+        return this._gc_serialized.source;
+    }
+
+    get key(): string {
+        return this._gc_serialized.key;
+    }
+
+    get value(): string {
+        return this._gc_serialized.value;
+    }
+
+    get label(): string {
+        return this._gc_serialized.label || this.key;
+    }
+
+    get hasMany(): boolean {
+        return this._gc_serialized.hasMany;
+    }
+
+    get cell(): (g_row: QueryRow) => string {
+        return this._gc_serialized.cell;
+    }
+}
 
 export namespace QueryType {
     export interface Serialized extends TypedLabeledObject<'QueryType'> {
-        code: SparqlString;
+        queryBuilderPath: VePath.QueryBuilder;
     }
 }
 
@@ -184,7 +213,7 @@ export abstract class QueryTable<
 
     abstract get queryTypeOptions(): Record<string, QueryType.Serialized>;
 
-    abstract get fields(): QueryField.Serialized[];
+    abstract get fields(): QueryField[];
 
     async getParameters(): Promise<QueryParam[]> {
         return Promise.all(this._gc_serialized.parameterPaths.map(async(sp_parameter) => {
@@ -214,12 +243,29 @@ export abstract class QueryTable<
         // return values list
         return this._h_param_values_lists[si_param];
     }
+
+    fetchQueryBuilder(): Promise<ConnectionQuery> {
+        const gc_builder = this._k_store.resolveSync<QueryBuilder.Serialized>(this.queryType.queryBuilderPath);
+        return gc_builder.function.call(this);
+    }
 }
 
 export interface ConnectionQuery {
     paginate(n_limit: number, n_offset?: number): string;
 
     count(): string;
+}
+
+export namespace QueryBuilder {
+    export interface Serialized extends TypedPrimitive<'QueryBuilder'> {
+        function: (this: QueryTable) => Promise<ConnectionQuery>;
+    }
+}
+
+export class QueryBuilder extends VeOdm<QueryBuilder.Serialized> {
+    get function(): (this: QueryTable) => Promise<ConnectionQuery> {
+        return this._gc_serialized.function;
+    }
 }
 
 export namespace SparqlQueryTable {
@@ -243,7 +289,7 @@ export abstract class SparqlQueryTable<Serialized extends SparqlQueryTable.Seria
         return this._k_store.optionsSync<QueryType.Serialized>(`hardcoded#queryType.sparql.${this._gc_serialized.group}`);
     }
     
-    get fields(): QueryField.Serialized[] {
+    get fields(): QueryField[] {
         const gc_field_group = this._k_store.resolveSync<QueryFieldGroup.Serialized>(this._gc_serialized.fieldGroupPath);
         return (new QueryFieldGroup(gc_field_group, this._g_context)).fields;
     }

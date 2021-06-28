@@ -167,20 +167,20 @@ export namespace VePath {
     > = SparqlQueryParameter<'dng', Id>;
 
     
-    export type QueryCode<
+    export type QueryBuilder<
         Type extends DotFragment=DotFragment,
         Group extends DotFragment=DotFragment,
         Id extends DotFragment=DotFragment
-    > = HardcodedObject<'queryCode', Type, Group, Id>;
+    > = HardcodedObject<'queryBuilder', Type, Group, Id>;
     
-    export type SparqlQueryCode<
+    export type SparqlQueryBuilder<
         Group extends DotFragment=DotFragment,
         Id extends DotFragment=DotFragment
-    > = QueryCode<'sparql', Group, Id>;
+    > = QueryBuilder<'sparql', Group, Id>;
 
-    export type DngSparqlQueryCode<
+    export type DngSparqlQueryBuilder<
         Id extends DotFragment=DotFragment
-    > = SparqlQueryCode<'dng', Id>;
+    > = SparqlQueryBuilder<'dng', Id>;
 
 
     export type QueryContext<

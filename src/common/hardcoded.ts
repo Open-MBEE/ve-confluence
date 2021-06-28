@@ -122,7 +122,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
                         'hardcoded#queryParameter.sparql.dng.maturity',
                     ],
                     queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basic',
-                    queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.flightSystemRequirements',
+                    queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.basicParams',
                 },
                 asr: {
                     label: 'Appendix Subsystem Requirements',
@@ -131,7 +131,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
                         'hardcoded#queryParameter.sparql.dng.maturity',
                     ],
                     queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basic',
-                    queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.flightSystemRequirements',
+                    queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.basicParams',
                 },
             },
         },
@@ -158,44 +158,44 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
         sparql: {
             dng: {
                 id: {
-                    label: 'ID',
+                    value: 'ID',
+                    label: null,  // inherit from value
                     source: 'native',
-                    value: null,
                     hasMany: false,
                     cell: (g: QueryRow) => escape_html(g.identifierValue.value),
                 },
                 requirementName: {
-                    label: 'Requirement Name',
+                    value: 'Requirement Name',
+                    label: null,  // inherit from value
                     source: 'native',
-                    value: null,
                     hasMany: false,
                     cell: (g: QueryRow) => `<a href="${g.artifact.value}">${escape_html(g.titleValue.value)}</a>`,
                 },
                 requirementText: {
-                    label: 'Requirement Text',
+                    value: 'Requirement Text',
+                    label: null,  // inherit from value
                     source: 'native',
-                    value: null,
                     hasMany: false,
                     cell: (g: QueryRow) => g.primaryTextValue.value,
                 },
                 keyDriver: {
+                    value: 'Key/Driver [S]',
                     label: 'Key/Driver Indicator',
                     source: 'attribute',
-                    value: 'Key/Driver [S]',
                     hasMany: true,
                     cell: unordered_list('keydriverValue'),
                 },
                 affectedSystems: {
-                    label: 'Affected Systems',
+                    value: 'Affected Systems',
+                    label: null,  // inherit from value
                     source: 'attribute',
-                    value: null,
                     hasMany: true,
                     cell: (g: QueryRow) => escape_html(g.systemsValue?.value || ''),
                 },
                 maturity: {
-                    label: 'Maturity',
+                    value: 'Maturity',
+                    label: null,  // inherit from value
                     source: 'attribute',
-                    value: null,
                     hasMany: false,
                     cell: (g: QueryRow) => g.maturityValue?.value || '',
                 },
@@ -206,7 +206,9 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
     queryBuilder: {
         sparql: {
             dng: {
-                basicParams: build_dng_select_query_from_params,
+                basicParams: {
+                    function: build_dng_select_query_from_params,
+                },
             },
         },
     },

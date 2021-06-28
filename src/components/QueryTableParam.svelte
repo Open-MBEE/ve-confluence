@@ -56,8 +56,8 @@
 				}
 				group by ?value order by desc(?count)
 			`);
-debugger;
-			let a_options = a_rows.map(({value:g_value, count:g_count}) => ({
+
+			a_options = a_rows.map(({value:g_value, count:g_count}) => ({
 				label: g_value.value,
 				value: g_value.value,
 				count: +(g_count.value),
@@ -98,20 +98,22 @@ debugger;
 	}
 
 	function select_value(d_event: CustomEvent<Option[]>) {
-		if(!d_event.detail) {
-			return;
-		}
-
-		for(const g_value of d_event.detail) {
-			if(g_value.state) {
-				k_values.add(g_value);
-			}
-			else {
-				k_values.delete(g_value);
+		if(d_event.detail) {
+			for(const g_value of d_event.detail) {
+				if(g_value.state) {
+					k_values.add(g_value);
+				}
+				else {
+					k_values.delete(g_value);
+				}
 			}
 		}
 
 		dispatch('change');
+	}
+
+	function handle_clear(d_event: CustomEvent<Option[]>) {
+		k_values.clear();
 	}
 </script>
 
@@ -225,6 +227,7 @@ debugger;
 				</svg>
 			`}
 			on:select={select_value}
+			on:clear={handle_clear}
 		></Select>
 	{/if}
 </span>

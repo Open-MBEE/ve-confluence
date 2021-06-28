@@ -9,6 +9,7 @@ const terse_lit = (s: string) => `"${s.replace(/[\r\n]+/g, '').replace(/"/g, '\\
 function attr(h_props: Hash, si_attr: string, s_attr_key: string, b_many=false) {
 	const sx_prop = h_props[si_attr] = `?_${si_attr}`;
 
+	if(!s_attr_key) debugger;
 	return `
 		${sx_prop} a rdf:Property ;
 			rdfs:label ${terse_lit(s_attr_key)} .
@@ -80,7 +81,7 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 	return new SparqlSelectQuery({
 		count: '?artifact',
 		select: [...a_selects, ...a_aggregates],
-		from: k_connection.modelGraph,
+		from: `<${k_connection.modelGraph}>`,
 		bgp: /* syntax: sparql */ `
 			?artifact a oslc_rm:Requirement ;
 				dct:identifier ?identifierValue ;
