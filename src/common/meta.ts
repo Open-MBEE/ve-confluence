@@ -7,7 +7,7 @@ interface MetaMap {
 	attachment_source_content_id: string;
 	auto_start: `${boolean}`;
 	base_url: string;
-	browse_page_tree_mode: string;  // "view";
+	browse_page_tree_mode: string; // "view";
 	build_number: `${number}`;
 	can_attach_files: `${boolean}`;
 	can_remove_page: `${boolean}`;
@@ -22,7 +22,7 @@ interface MetaMap {
 	confluence_prefs_editor_disable_autoformat: `${boolean}`;
 	connection_timeout: `${number}`;
 	content_id: string;
-	content_type: string;  // "page";
+	content_type: string; // "page";
 	context_path: string;
 	create_issue_metadata_show_discovery: `${boolean}`;
 	current_user_avatar_uri_reference: string;
@@ -33,13 +33,13 @@ interface MetaMap {
 	draft_id: string;
 	draft_save_interval: `${number}`;
 	draft_share_id: string;
-	draft_type: string;  // "page";
-	edit_mode: string;  // "collaborative";
-	editor_mode: string;  // "richtext";
+	draft_type: string; // "page";
+	edit_mode: string; // "collaborative";
+	editor_mode: string; // "richtext";
 	editor_plugin_resource_prefix: string;
 	enabled_dark_features: string;
 	existing_draft_id: string;
-	form_name: string;  // "inlinecommentform";
+	form_name: string; // "inlinecommentform";
 	from_page_title: string;
 	global_settings_attachment_max_size: `${number}`;
 	global_settings_quick_search_enabled: `${boolean}`;
@@ -78,11 +78,11 @@ interface MetaMap {
 	sync_revision_source: string;
 	synchrony_app_id: string;
 	synchrony_base_url: string;
-	synchrony_connection_order: string;  // "primary";
-	synchrony_connection_type: string;  // "synchrony-direct";
+	synchrony_connection_order: string; // "primary";
+	synchrony_connection_type: string; // "synchrony-direct";
 	synchrony_expiry: `${number}`;
 	synchrony_token: string;
-	team_calendars_display_time_format: string;  // "displayTimeFormat12";
+	team_calendars_display_time_format: string; // "displayTimeFormat12";
 	use_inline_tasks: `${boolean}`;
 	use_keyboard_shortcuts: `${boolean}`;
 	use_watch: `${boolean}`;
@@ -99,10 +99,10 @@ declare global {
 	const AJS: {
 		Meta: {
 			getAllAsMap(): Record<string, string>;
-		}
-	}
-	
-    interface Window {
+		};
+	};
+
+	interface Window {
 		jQuery: typeof jQuery;
 		$: typeof jQuery;
 	}
@@ -110,17 +110,18 @@ declare global {
 	interface JQuery {
 		tipsy(): any;
 	}
-};
+}
 
 /**
-* Confluence-provided 'Meta' object
-*/
-export const G_META: MetaMap = Object.entries(AJS.Meta.getAllAsMap())
-	.reduce((h_out, [si_key, s_value]) => ({
+ * Confluence-provided 'Meta' object
+ */
+export const G_META: MetaMap = Object.entries(AJS.Meta.getAllAsMap()).reduce(
+	(h_out, [si_key, s_value]) => ({
 		...h_out,
 		[si_key]: s_value,
 		[si_key.replace(/-/g, '_')]: s_value,
-	}), {}) as MetaMap;
+	}),
+	{},
+) as MetaMap;
 
 export default G_META;
-

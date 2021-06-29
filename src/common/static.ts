@@ -1,5 +1,5 @@
 interface Process {
-    env: Record<string, string>;
+	env: Record<string, string>;
 }
 
 type Lang = Record<string, Record<string, string>>;
@@ -36,15 +36,16 @@ export const static_js = '';
 export type Ve4MetadataKeyConfluencePage = 've4_confluence_page';
 export type Ve4MetadataKeyConfluenceDocument = 've4_confluence_document';
 
-export type Ve4MetadataKey = Ve4MetadataKeyConfluencePage | Ve4MetadataKeyConfluenceDocument;
+export type Ve4MetadataKey =
+	| Ve4MetadataKeyConfluencePage
+	| Ve4MetadataKeyConfluenceDocument;
 
 export type Ve4MetadataKeyStruct = {
-    CONFLUENCE_PAGE: Ve4MetadataKeyConfluencePage;
-    CONFLUENCE_DOCUMENT: Ve4MetadataKeyConfluenceDocument;
+	CONFLUENCE_PAGE: Ve4MetadataKeyConfluencePage;
+	CONFLUENCE_DOCUMENT: Ve4MetadataKeyConfluenceDocument;
 };
 
 export const G_VE4_METADATA_KEYS: Ve4MetadataKeyStruct = {
-    CONFLUENCE_PAGE: 've4_confluence_page',
-    CONFLUENCE_DOCUMENT: 've4_confluence_document',
+	CONFLUENCE_PAGE: 've4_confluence_page',
+	CONFLUENCE_DOCUMENT: 've4_confluence_document',
 };
-

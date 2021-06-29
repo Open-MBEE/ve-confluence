@@ -1,33 +1,32 @@
 import xpath, { SelectedValue } from 'xpath';
 import xmldom from 'xmldom';
 
-const {
-	DOMParser,
-	XMLSerializer,
-} = xmldom;
+const { DOMParser, XMLSerializer } = xmldom;
 
 type Hash = Record<string, string>;
 
 // prefix to use for all generated view IDs
-const SI_VIEW_PREFIX = 've4'
+const SI_VIEW_PREFIX = 've4';
 
 // unique namespaces prefix
-const P_URN_NS = 'urn:confluence-prefix:'
+const P_URN_NS = 'urn:confluence-prefix:';
 
 // set of prefixes to support when parsing XHTML strings from Confluence
-const AS_PREFIXES = new Set([
-	'ac',
-	'ri',
-]);
+const AS_PREFIXES = new Set(['ac', 'ri']);
 
 // dict of namespaces to support from prefixes
-const H_NAMESPACES = [...AS_PREFIXES].reduce((h_out, si_ns) => ({
-	...h_out,
-	[si_ns]: `${P_URN_NS}${si_ns}`,
-}), {});
+const H_NAMESPACES = [...AS_PREFIXES].reduce(
+	(h_out, si_ns) => ({
+		...h_out,
+		[si_ns]: `${P_URN_NS}${si_ns}`,
+	}),
+	{},
+);
 
 // prepare XHTML namespace declaration string
-const SX_NAMESPACES = [...AS_PREFIXES].map(si_ns => `xmlns:${si_ns}="${P_URN_NS}${si_ns}"`).join(' ');
+const SX_NAMESPACES = [...AS_PREFIXES]
+	.map((si_ns) => `xmlns:${si_ns}="${P_URN_NS}${si_ns}"`)
+	.join(' ');
 
 // for excluding elements that are within active directives
 const SX_PARAMETER_ID = `ac:parameter[@ac:name="id"][starts-with(text(),"${SI_VIEW_PREFIX}-")]`;
@@ -35,7 +34,6 @@ const SX_EXCLUDE_ACTIVE_DIRECTIVES = `[not(ancestor::ac:structured-macro[@ac:nam
 
 // css style for active directives
 const SX_STYLE_DIRECTIVE = 'background-color:lemonchiffon;';
-
 
 const select_ns = xpath.useNamespaces({
 	...H_NAMESPACES,
@@ -52,39 +50,45 @@ export class XHTMLDocument {
 	constructor(sx_doc: string) {
 		this._sx_doc = sx_doc;
 
-		this._y_doc = (new DOMParser())
-			.parseFromString(`<xml ${SX_NAMESPACES}>${sx_doc}</xml>`);
+		this._y_doc = new DOMParser().parseFromString(
+			`<xml ${SX_NAMESPACES}>${sx_doc}</xml>`,
+		);
 	}
 
-	select<T extends SelectedValue=SelectedValue>(sx_xpath: string): T[] {
+	select<T extends SelectedValue = SelectedValue>(sx_xpath: string): T[] {
 		return select(sx_xpath, this._y_doc) as T[];
 	}
 
-	select1<T extends SelectedValue=SelectedValue>(sx_xpath: string): T {
+	select1<T extends SelectedValue = SelectedValue>(sx_xpath: string): T {
 		return select(sx_xpath, this._y_doc, true)[0] as T;
 	}
 
 	toString(): string {
 		const y_serializer = new XMLSerializer();
 
-		return y_serializer.serializeToString(this._y_doc)
+		return y_serializer
+			.serializeToString(this._y_doc)
 			.replace(/^\s*<xml[^>]*>\s*|\s*<\/xml>\s*$/, '');
 	}
 
 	builder(): (s_tag: string, h_attrs?: Hash, a_children?: Node[]) => Node {
 		const y_doc = this._y_doc;
 
-		return function(s_tag: string, h_attrs: Record<string, string>={}, a_children: Node[]=[]): Node {
+		return function (
+			s_tag: string,
+			h_attrs: Record<string, string> = {},
+			a_children: Node[] = [],
+		): Node {
 			const ym_node = y_doc.createElement(s_tag);
 
-			for(const si_attr in h_attrs) {
+			for (const si_attr in h_attrs) {
 				ym_node.setAttribute(si_attr, h_attrs[si_attr]);
 			}
 
-			for(const z_child of a_children) {
+			for (const z_child of a_children) {
 				let ym_child = z_child;
 
-				if('string' === typeof z_child) {
+				if ('string' === typeof z_child) {
 					ym_child = y_doc.createTextNode(z_child);
 				}
 
@@ -95,6 +99,5 @@ export class XHTMLDocument {
 		};
 	}
 }
-
 
 export default XHTMLDocument;
