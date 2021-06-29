@@ -1,6 +1,6 @@
 import type {
-	JSONObject,
-	JSONValue,
+	JsonObject,
+	JsonValue,
 } from '../common/types';
 
 import G_META from '../common/meta';
@@ -15,10 +15,11 @@ import {
 import {
 	get_json,
 	put_json,
-	Response, 
+	Response,
 } from '../util/fetch';
 
 import XHTMLDocument from './xhtml-document';
+
 import type {MmsSparqlConnection} from '../model/Connection';
 
 const P_API_DEFAULT = '/rest/api';
@@ -27,12 +28,12 @@ type Hash = Record<string, string>;
 
 export type CXHTML = `${string}`;
 
-export interface PageMetadata extends JSONObject {
+export interface PageMetadata extends JsonObject {
 	type: 'Page';
 	schema: '1.0';
 }
 
-export interface DocumentMetadata extends JSONObject {
+export interface DocumentMetadata extends JsonObject {
 	type: 'Document';
 	schema: '1.0';
 	connection?: {
@@ -59,15 +60,7 @@ export type DocumentMetadataBundle = {
 
 type MetadataBundle = PageMetadataBundle | DocumentMetadataBundle;
 
-type SourceKeyDoorsNg = 'dng';
-const SI_SOURCE_DOOORS_NG: SourceKeyDoorsNg = 'dng';
-
-type SourceKeyHelix = 'helix';
-const SI_SOURCE_HELIX: SourceKeyHelix = 'helix';
-
-type SourceKey = SourceKeyDoorsNg | SourceKeyHelix;
-
-interface CommonSource extends JSONObject {
+interface CommonSource extends JsonObject {
 	readonly key: SourceKey;
 	readonly qualifier: string;
 }
@@ -96,7 +89,7 @@ export namespace ConfluenceApi {
 
 	export type PageVersionNumber = number;
 
-	export interface Version extends JSONObject {
+	export interface Version extends JsonObject {
 		when: string;
 		message: string;
 		number: PageVersionNumber;
@@ -104,7 +97,7 @@ export namespace ConfluenceApi {
 		hidden: boolean;
 	}
 
-	export interface BasicPage extends JSONObject {
+	export interface BasicPage extends JsonObject {
 		id: PageId;
 		type: 'page' | string;
 		status: string;
@@ -123,7 +116,7 @@ export namespace ConfluenceApi {
 
 	export type Info<
 		Key extends Ve4MetadataKey = Ve4MetadataKeyPage,
-		MetadataType extends JSONValue = PageMetadata,
+		MetadataType extends JsonValue = PageMetadata,
 	> = {
 		id: PageId;
 		key: Key;
@@ -133,8 +126,8 @@ export namespace ConfluenceApi {
 
 	export interface ContentResponse<
 		PageType extends BasicPage = BasicPage,
-		MetadataWrapper extends JSONObject = {},
-	> extends JSONObject {
+		MetadataWrapper extends JsonObject = {},  // eslint-disable-line @typescript-eslint/ban-types
+	> extends JsonObject {
 		results: ContentResult<PageType, MetadataWrapper>[];
 		start: number;
 		limit: number;
@@ -144,7 +137,7 @@ export namespace ConfluenceApi {
 
 	export type ContentResult<
 		PageType extends BasicPage = BasicPage,
-		MetadataWrapper extends JSONObject = {},
+		MetadataWrapper extends JsonObject = {},  // eslint-disable-line @typescript-eslint/ban-types
 	> = PageType & {
 		metadata: {
 			properties: MetadataWrapper & {
@@ -158,18 +151,20 @@ export namespace ConfluenceApi {
 type BasicPageWithAncestorsType = ConfluenceApi.BasicPage & {
 	ancestors: ConfluenceApi.BasicPage[];
 };
+
 type PageInfo = ConfluenceApi.ContentResult<
-BasicPageWithAncestorsType,
-PageMetadataBundle
+	BasicPageWithAncestorsType,
+	PageMetadataBundle
 >;
+
 type PageContent = ConfluenceApi.ContentResult<ConfluenceApi.PageWithContent>;
 
 type DocumentInfo = ConfluenceApi.ContentResult<
-BasicPageWithAncestorsType,
-DocumentMetadataBundle
+	BasicPageWithAncestorsType,
+	DocumentMetadataBundle
 >;
 
-async function confluence_get_json<Data extends JSONObject>(
+async function confluence_get_json<Data extends JsonObject>(
 	pr_path: string,
 	gc_get?: {search?: Hash;}
 ): Promise<Response<Data>> {
@@ -180,9 +175,9 @@ async function confluence_get_json<Data extends JSONObject>(
 	return await get_json<Data>(pr_path, gc_get);
 }
 
-async function confluence_put_json<Data extends JSONObject>(
+async function confluence_put_json<Data extends JsonObject>(
 	pr_path: string,
-	gc_post?: {body?: string; json?: JSONValue;}
+	gc_post?: {body?: string; json?: JsonValue;}
 ): Promise<Response<Data>> {
 	// complete path with API
 	pr_path = `${P_API_DEFAULT}${pr_path}`;
@@ -211,7 +206,7 @@ async function fetch_page_properties<
 		},
 	});
 
-	if (g_res.error) {
+	if(g_res.error) {
 		debugger;
 		console.error(`Unhandled HTTP error response: ${g_res.error}`);
 		return null;
@@ -220,7 +215,7 @@ async function fetch_page_properties<
 	const a_results = g_res.data.results;
 
 	// no ve4 metadata
-	if (!a_results.length) return null;
+	if(!a_results.length) return null;
 
 	//
 	return a_results[0];
@@ -231,10 +226,10 @@ function normalize_metadata<
 	MetadataType extends Metadata,
 >(g_metadata?: ConfluenceApi.Info<Key, MetadataType>) {
 	// no ve4 metadata
-	if (!g_metadata) return null;
+	if(!g_metadata) return null;
 
 	// check schema version
-	switch (g_metadata.value.schema) {
+	switch(g_metadata.value.schema) {
 		// OK (latest)
 		case '1.0': {
 			break;
@@ -242,9 +237,7 @@ function normalize_metadata<
 
 		// unrecognized version; metadata is corrupt
 		default: {
-			throw new Error(
-				`Unrecognized VE4 schema version: ${g_metadata.value.schema}`
-			);
+			throw new Error(`Unrecognized VE4 schema version: ${g_metadata.value.schema as string}`);
 		}
 	}
 
@@ -255,7 +248,7 @@ function normalize_metadata<
 const H_CACHE_PAGES: Record<string, ConfluencePage> = {};
 
 export class ConfluencePage {
-	static async fromCurrentPage() {
+	static async fromCurrentPage(): Promise<ConfluencePage> {
 		const k_page = new ConfluencePage(G_META.page_id, G_META.page_title);
 		const dm_modified = document.querySelector(
 			'a.last-modified'
@@ -274,14 +267,14 @@ export class ConfluencePage {
 		const n_remote = await k_page.getVersionNumber();
 
 		// versions are out-of-sync
-		if (n_local !== n_remote) {
+		if(n_local !== n_remote) {
 			throw new Error(`Page is out of sync. Please reload`);
 		}
 
 		return k_page;
 	}
 
-	static fromBasicPageInfo(g_info: ConfluenceApi.BasicPage) {
+	static fromBasicPageInfo(g_info: ConfluenceApi.BasicPage): ConfluencePage {
 		return new ConfluencePage(g_info.id, g_info.title);
 	}
 
@@ -306,7 +299,7 @@ export class ConfluencePage {
 		const si_args = `${si_page}:${s_page_title}`;
 
 		// use cached page rather than waiting for async fetch call
-		if (si_args in H_CACHE_PAGES) return H_CACHE_PAGES[si_args];
+		if(si_args in H_CACHE_PAGES) return H_CACHE_PAGES[si_args];
 
 		// construct new page
 		this._si_page = si_page;
@@ -325,16 +318,16 @@ export class ConfluencePage {
 	}
 
 	private async _content(b_force = false): Promise<PageContent | null> {
-		if (this._b_cached_content && !b_force) return this._g_content;
+		if(this._b_cached_content && !b_force) return this._g_content;
 
-		const d_res = await confluence_get_json<PageContent>(
-			`/content/${this._si_page}`,
-			{search: {expand: ['version', 'body.storage'].join(',')}}
-		);
+		const d_res = await confluence_get_json<PageContent>(`/content/${this._si_page}`, {
+			search: {expand:['version', 'body.storage'].join(',')},
+		});
 
-		if (d_res.error) {
+		if(d_res.error) {
 			throw d_res.error;
-		} else {
+		}
+		else {
 			this._b_cached_content = true;
 		}
 
@@ -342,7 +335,7 @@ export class ConfluencePage {
 	}
 
 	private async _info(b_force = false): Promise<PageInfo | null> {
-		if (this._b_cached_info && !b_force) return this._g_info;
+		if(this._b_cached_info && !b_force) return this._g_info;
 
 		const g_info = await fetch_page_properties(this._s_page_title);
 
@@ -389,9 +382,9 @@ export class ConfluencePage {
 		value: XHTMLDocument;
 	}> {
 		const {
-			versionNumber: n_version, value: sx_value,
-		} =
-			await this.getContentAsString();
+			versionNumber: n_version,
+			value: sx_value,
+		} = await this.getContentAsString();
 
 		return {
 			versionNumber: n_version,
@@ -399,10 +392,7 @@ export class ConfluencePage {
 		};
 	}
 
-	async postContent(
-		n_version: ConfluenceApi.PageVersionNumber,
-		s_content: CXHTML
-	): Promise<ConfluenceApi.PageVersionNumber> {
+	async postContent(n_version: ConfluenceApi.PageVersionNumber, s_content: CXHTML): Promise<ConfluenceApi.PageVersionNumber> {
 		return 0;
 	}
 
@@ -415,25 +405,25 @@ export class ConfluencePage {
 
 	async getDocument(b_force = false): Promise<ConfluenceDocument | null> {
 		// already cached and not forced; return answer
-		if (this._b_cached_document && !b_force) return this._k_document;
+		if(this._b_cached_document && !b_force) return this._k_document;
 
 		// fetch ancestry
 		const a_ancestry = await this.getAncestry();
 
 		// this is cover page; cache and return it
-		if (await this.isDocumentCoverPage()) {
+		if(await this.isDocumentCoverPage()) {
 			this._b_cached_document = true;
 			return (this._k_document = ConfluenceDocument.fromPage(this));
 		}
 
 		// traverse ancestry
 		let k_node: ConfluencePage = this;
-		for (const g_ancestor of a_ancestry) {
+		for(const g_ancestor of a_ancestry) {
 			// make page from ancestor basic page info
 			k_node = ConfluencePage.fromBasicPageInfo(g_ancestor);
 
 			// test for cover page; cache and return document
-			if (await k_node.isDocumentCoverPage()) {
+			if(await k_node.isDocumentCoverPage()) {
 				this._b_cached_document = true;
 				return (this._k_document = ConfluenceDocument.fromPage(k_node));
 			}
@@ -444,25 +434,17 @@ export class ConfluencePage {
 	}
 
 	async isDocumentMember(): Promise<boolean> {
-		return null !== (await this.getDocument());
+		return null !== await this.getDocument();
 	}
 }
 
 export class ConfluenceDocument {
-	private readonly _si_cover_page: ConfluenceApi.PageId;
-
-	private readonly _s_cover_page_title: string;
-
-	private _b_cached_info = false;
-
-	private _g_info: DocumentInfo | null = null;
-
-	static fromPage(k_page: ConfluencePage) {
+	static fromPage(k_page: ConfluencePage): ConfluenceDocument {
 		return new ConfluenceDocument(k_page.pageId, k_page.pageTitle);
 	}
 
-	static async createNew(k_page: ConfluencePage, b_bypass = false) {
-		if (!b_bypass && (await k_page.isDocumentMember())) {
+	static async createNew(k_page: ConfluencePage, b_bypass = false): Promise<ConfluenceDocument> {
+		if(!b_bypass && await k_page.isDocumentMember()) {
 			throw new Error(
 				`Cannot create document from page which is already member of a document`
 			);
@@ -478,12 +460,9 @@ export class ConfluenceDocument {
 						dng: {
 							type: 'MmsSparqlConnection',
 							endpoint: 'https://ced.jpl.nasa.gov/sparql',
-							modelGraph:
-								'https://opencae.jpl.nasa.gov/mms/rdf/graph/data.europa-clipper',
-							metadataGraph:
-								'https://opencae.jpl.nasa.gov/mms/rdf/graph/metadata.clipper',
-							contextPath:
-								'hardcoded#queryContext.sparql.dng.common',
+							modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/data.europa-clipper',
+							metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/metadata.clipper',
+							contextPath: 'hardcoded#queryContext.sparql.dng.common',
 						},
 					},
 				},
@@ -496,12 +475,30 @@ export class ConfluenceDocument {
 		return k_document;
 	}
 
+	private readonly _si_cover_page: ConfluenceApi.PageId;
+
+	private readonly _s_cover_page_title: string;
+
+	private _b_cached_info = false;
+
+	private _g_info: DocumentInfo | null = null;
+
 	constructor(
 		si_cover_page: ConfluenceApi.PageId,
 		s_cover_page_title: string
 	) {
 		this._si_cover_page = si_cover_page;
 		this._s_cover_page_title = s_cover_page_title;
+	}
+
+	private async _info(b_force = false): Promise<DocumentInfo | null> {
+		if(this._b_cached_info && !b_force) return this._g_info;
+		this._b_cached_info = true;
+		return (this._g_info
+			= await fetch_page_properties<DocumentMetadataBundle>(
+				this._s_cover_page_title,
+				G_VE4_METADATA_KEYS.CONFLUENCE_DOCUMENT
+			));
 	}
 
 	get coverPageId(): ConfluenceApi.PageId {
@@ -513,16 +510,6 @@ export class ConfluenceDocument {
 			this._si_cover_page,
 			this._s_cover_page_title
 		);
-	}
-
-	private async _info(b_force = false): Promise<DocumentInfo | null> {
-		if (this._b_cached_info && !b_force) return this._g_info;
-		this._b_cached_info = true;
-		return (this._g_info =
-			await fetch_page_properties<DocumentMetadataBundle>(
-				this._s_cover_page_title,
-				G_VE4_METADATA_KEYS.CONFLUENCE_DOCUMENT
-			));
 	}
 
 	async getMetadata(

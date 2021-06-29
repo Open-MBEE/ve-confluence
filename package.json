@@ -21,6 +21,7 @@
     "@typescript-eslint/parser": "^4.28.1",
     "eslint": "^7.29.0",
     "eslint-plugin-modules-newline": "^0.0.6",
+    "eslint-plugin-node": "^11.1.0",
     "js-yaml": "^4.1.0",
     "less": "^4.1.1",
     "rollup": "^2.52.3",
@@ -45,5 +46,8 @@
     "svelte-tabs": "^1.1.0",
     "xmldom": "^0.6.0",
     "xpath": "0.0.32"
+  },
+  "engines": {
+    "node": ">=14.0"
   }
 }

@@ -1,8 +1,6 @@
-import type { ObjectStore } from '../class/object-store';
+import type {ObjectStore} from '../class/object-store';
+
 import type {
-	JSONObject,
-	LabeledObject,
-	LabeledPrimitive,
 	TypedKeyedLabeledObject,
 	TypedKeyedLabeledPrimitive,
 	TypedKeyedObject,
@@ -13,8 +11,8 @@ import type {
 	TypedPrimitive,
 } from '../common/types';
 
-export interface Serializable extends TypedObject {}
-export interface Primitive extends TypedPrimitive {}
+export type Serializable = TypedObject;
+export type Primitive = TypedPrimitive;
 
 export interface Context {
 	store: ObjectStore;
@@ -35,17 +33,26 @@ export abstract class VeOdm<Serialized extends Serializable | Primitive> {
 
 		this.initSync();
 
-		this.init().then(() => {
-			this._b_ready = true;
-			for (const fk_resolve of this._a_awaits) {
-				fk_resolve();
-			}
-			this._a_awaits.length = 0;
-		});
+		this.init()
+			.then(() => {
+				this._b_ready = true;
+				for(const fk_resolve of this._a_awaits) {
+					fk_resolve();
+				}
+				this._a_awaits.length = 0;
+			})
+			.catch(() => {
+				let s_serialized = '(unable to stringify - see Error details)';
+				try {
+					s_serialized = JSON.stringify(gc_serialized);
+				}
+				catch(e_stringify) {}
+				throw new Error(`ERROR: While asynchronously initializing ${this.constructor.name} with ${s_serialized}`);
+			});
 	}
 
 	ready(): Promise<void> {
-		if (!this._b_ready) {
+		if(!this._b_ready) {
 			return new Promise((fk_resolve) => {
 				this._a_awaits.push(fk_resolve);
 			});
@@ -54,11 +61,13 @@ export abstract class VeOdm<Serialized extends Serializable | Primitive> {
 		return Promise.resolve();
 	}
 
+	// eslint-disable-next-line class-methods-use-this,@typescript-eslint/no-empty-function
 	async init(): Promise<void> {}
 
+	// eslint-disable-next-line class-methods-use-this,@typescript-eslint/no-empty-function
 	initSync(): void {}
 
-	get type() {
+	get type(): string {
 		return this._gc_serialized.type;
 	}
 

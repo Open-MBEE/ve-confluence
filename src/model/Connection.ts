@@ -3,7 +3,7 @@ import type {VePath} from '../class/object-store';
 import type {
 	UrlString,
 	Hash,
-	JSONObject,
+	JsonObject,
 	SparqlString,
 	QueryRow,
 } from '../common/types';
@@ -41,7 +41,7 @@ export abstract class Connection<
 	abstract execute(sq_query: string): Promise<QueryRow[]>;
 }
 
-export interface SparqlQueryContext extends JSONObject {
+export interface SparqlQueryContext extends JsonObject {
 	prefixes: Hash;
 }
 
@@ -101,22 +101,21 @@ export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Se
 
 	async getVersion(): Promise<ModelVersionDescriptor> {
 		const a_rows = await this.execute(`
-            select ?commit ?commitDateTime from <${this.metadataGraph}> {
-                ?snapshot a mms:Snapshot ;
-                    mms:graph <${this.modelGraph}> ;
-                    mms:materializes/mms:commit ?commit ;
-                    .
-                
-                ?commit a mms:Commit ;
-                    mms:submitted ?dateTime ;
-                    .
-            }
-        `);
+			select ?commit ?commitDateTime from <${this.metadataGraph}> {
+				?snapshot a mms:Snapshot ;
+					mms:graph <${this.modelGraph}> ;
+					mms:materializes/mms:commit ?commit ;
+					.
+
+				?commit a mms:Commit ;
+					mms:submitted ?dateTime ;
+					.
+			}
+		`);
 
 		// failed to match pattern
-		if (!a_rows.length) {
-			// run diagnostic queries
-
+		if(!a_rows.length) {
+			// TODO: run diagnostic queries
 			return {
 				id: 'null',
 				label: 'Unknown date/time',
@@ -126,8 +125,8 @@ export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Se
 		// matched
 		else {
 			const {
-				commit: {value: p_commit},
-				commitDateTime: {value: s_datetime},
+				commit: {value:p_commit},
+				commitDateTime: {value:s_datetime},
 			} = a_rows[0];
 
 			return {

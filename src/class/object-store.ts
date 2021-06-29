@@ -4,9 +4,8 @@ import type {
 	PrimitiveObject,
 } from '../common/types';
 
-import {
+import type {
 	HardcodedObjectRoot,
-	H_HARDCODED_OBJECTS,
 } from '../common/hardcoded';
 
 import type {
@@ -30,7 +29,7 @@ const G_SHAPE = {
 				{
 					sparql: [
 						'SparqlConnection',
-						{mms: ['MmsSparqlConnection']},
+						{mms:['MmsSparqlConnection']},
 					],
 				},
 			],
@@ -44,7 +43,7 @@ const G_SHAPE = {
 				{
 					query_table: [
 						'QueryTable',
-						{sparql: ['SparqlQueryTable']},
+						{sparql:['SparqlQueryTable']},
 					],
 				},
 			],
@@ -58,7 +57,7 @@ const G_SHAPE = {
 				{
 					sparql: [
 						'SparqlQueryFieeld',
-						{dng: ['DngSparqlQueryField']},
+						{dng:['DngSparqlQueryField']},
 					],
 				},
 			],
@@ -67,7 +66,7 @@ const G_SHAPE = {
 				{
 					sparql: [
 						'SparqlQueryType',
-						{dng: ['DngSparqlQueryType']},
+						{dng:['DngSparqlQueryType']},
 					],
 				},
 			],
@@ -76,7 +75,7 @@ const G_SHAPE = {
 				{
 					sparql: [
 						'SparqlQueryParameter',
-						{dng: ['DngSparqlQueryParameter']},
+						{dng:['DngSparqlQueryParameter']},
 					],
 				},
 			],
@@ -85,7 +84,7 @@ const G_SHAPE = {
 				{
 					sparql: [
 						'SparqlQueryContext',
-						{dng: ['DngSparqlQueryContext']},
+						{dng:['DngSparqlQueryContext']},
 					],
 				},
 			],
@@ -94,7 +93,7 @@ const G_SHAPE = {
 				{
 					function: [
 						'Function',
-						{sort: ['SortFunction']},
+						{sort:['SortFunction']},
 					],
 				},
 			],
@@ -241,12 +240,71 @@ export namespace VePath {
 
 function describe_path_attempt(a_frags: string[], i_frag: number) {
 	const nl_frags = a_frags.length;
-	if (i_frag === nl_frags - 1) return a_frags.join('.');
+	if(i_frag === nl_frags - 1) return a_frags.join('.');
 
 	const s_current = a_frags.slice(0, i_frag + 1).join('.');
 	const s_rest = a_frags.slice(i_frag + 1).join('.');
 
 	return `${s_current}[.${s_rest}]`;
+}
+
+function access<Type extends PrimitiveValue>(
+	h_map: PrimitiveObject,
+	a_frags: string[]
+): Type {
+	const nl_frags = a_frags.length;
+
+	// empty path
+	if(!nl_frags) {
+		throw new TypeError(`Cannot access object using empty path frags`);
+	}
+
+	// node for traversing
+	let z_node = h_map;
+
+	// each frag
+	for(let i_frag = 0; i_frag < nl_frags; i_frag++) {
+		const s_frag = a_frags[i_frag];
+
+		// access thing
+		const z_thing = z_node[s_frag];
+
+		// terminal
+		if(i_frag === nl_frags - 1) {
+			return z_thing as Type;
+		}
+
+		// deduce type
+		const s_type = typeof z_thing;
+		switch(s_type) {
+			// undefined
+			case 'undefined': {
+				debugger;
+				throw new Error(`Cannot access thing '${describe_path_attempt(a_frags, i_frag)}' since it is undefined`);
+			}
+
+			// object
+			case 'object': {
+				// null
+				if(null === z_thing) {
+					throw new Error(`While accessing '${describe_path_attempt(a_frags, i_frag)}'; encountered null part-way thru`);
+				}
+				// array or dict; traverse
+				else {
+					z_node = z_thing as PrimitiveObject;
+					continue;
+				}
+			}
+
+			// primitive
+			default: {
+				// eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+				throw new Error(`While accessing '${describe_path_attempt(a_frags, i_frag)}'; encountered primitive value "${z_thing}" part-way thru`);
+			}
+		}
+	}
+
+	throw new Error(`Code route not reachable`);
 }
 
 export class ObjectStore {
@@ -264,90 +322,17 @@ export class ObjectStore {
 		this._h_hardcoded = h_hardcoded;
 	}
 
-	private _access<Type extends PrimitiveValue>(
-		h_map: PrimitiveObject,
-		a_frags: string[]
-	): Type {
-		const nl_frags = a_frags.length;
 
-		// empty path
-		if (!nl_frags) {
-			throw new TypeError(`Cannot access object using empty path frags`);
-		}
-
-		// node for traversing
-		let z_node = h_map;
-
-		// each frag
-		for (let i_frag = 0; i_frag < nl_frags; i_frag++) {
-			const s_frag = a_frags[i_frag];
-
-			// access thing
-			const z_thing = z_node[s_frag];
-
-			// terminal
-			if (i_frag === nl_frags - 1) {
-				return z_thing as Type;
-			}
-
-			// deduce type
-			const s_type = typeof z_thing;
-			switch (s_type) {
-				// undefined
-				case 'undefined': {
-					debugger;
-					throw new Error(
-						`Cannot access thing '${describe_path_attempt(
-							a_frags,
-							i_frag
-						)}' since it is undefined`
-					);
-				}
-
-				// object
-				case 'object': {
-					// null
-					if (null === z_thing) {
-						throw new Error(
-							`While accessing '${describe_path_attempt(
-								a_frags,
-								i_frag
-							)}'; encountered null part-way thru`
-						);
-					}
-					// array or dict; traverse
-					else {
-						z_node = z_thing as PrimitiveObject;
-						continue;
-					}
-				}
-
-				// primitive
-				default: {
-					throw new Error(
-						`While accessing '${describe_path_attempt(
-							a_frags,
-							i_frag
-						)}'; encountered primitive value "${z_thing}" part-way thru`
-					);
-				}
-			}
-		}
-
-		throw new Error(`Code route not reachable`);
-	}
-
+	// eslint-disable-next-line class-methods-use-this
 	idPartSync(sp_path: string): string {
 		const a_parts = sp_path.split('#');
 
-		if (2 !== a_parts.length) {
-			throw new TypeError(
-				`Invalid path string: '${sp_path}'; no storage parameter`
-			);
+		if(2 !== a_parts.length) {
+			throw new TypeError(`Invalid path string: '${sp_path}'; no storage parameter`);
 		}
 
 		const [, s_frags] = a_parts as [VePath.Location, string];
-		const a_frags = s_frags.split('.') ;
+		const a_frags = s_frags.split('.');
 
 		return a_frags[3];
 	}
@@ -376,22 +361,18 @@ export class ObjectStore {
 	>(sp_path: string): ValueType {
 		const a_parts = sp_path.split('#');
 
-		if (2 !== a_parts.length) {
-			throw new TypeError(
-				`Invalid path string: '${sp_path}'; no storage parameter`
-			);
+		if(2 !== a_parts.length) {
+			throw new TypeError(`Invalid path string: '${sp_path}'; no storage parameter`);
 		}
 
 		const [si_storage, s_frags] = a_parts as [VePath.Location, string];
-		const a_frags = s_frags.split('.') ;
+		const a_frags = s_frags.split('.');
 
-		if (si_storage !== 'hardcoded') {
-			throw new Error(
-				`Cannot synchronously access non-hardcoded storage type '${si_storage}'`
-			);
+		if('hardcoded' !== si_storage) {
+			throw new Error(`Cannot synchronously access non-hardcoded storage type '${si_storage}'`);
 		}
 
-		return this._access<ValueType>(H_HARDCODED_OBJECTS, a_frags);
+		return access<ValueType>(this._h_hardcoded, a_frags);
 	}
 
 	async resolve<
@@ -399,18 +380,16 @@ export class ObjectStore {
 		VePathType extends VePath.Full = VePath.Full,
 	>(sp_path: string): Promise<ValueType> {
 		const a_parts = sp_path.split('#');
-		if (2 !== a_parts.length) {
-			throw new TypeError(
-				`Invalid path string: '${sp_path}'; no storage parameter`
-			);
+		if(2 !== a_parts.length) {
+			throw new TypeError(`Invalid path string: '${sp_path}'; no storage parameter`);
 		}
 
 		const [si_storage, s_frags] = a_parts as [VePath.Location, string];
-		const a_frags = s_frags.split('.') ;
+		const a_frags = s_frags.split('.');
 
 		let k_target: ConfluencePage | ConfluenceDocument;
 
-		switch (si_storage) {
+		switch(si_storage) {
 			case 'page': {
 				k_target = this._k_page;
 				break;
@@ -422,7 +401,7 @@ export class ObjectStore {
 			}
 
 			case 'hardcoded': {
-				return this._access<ValueType>(H_HARDCODED_OBJECTS, a_frags);
+				return access<ValueType>(this._h_hardcoded, a_frags);
 			}
 
 			default: {
@@ -434,21 +413,17 @@ export class ObjectStore {
 		const g_ve4 = await k_target.getMetadata();
 
 		// no metadata; error
-		if (!g_ve4) {
-			throw new Error(
-				`${
-					si_storage[0].toUpperCase() + si_storage.slice(1)
-				} exists but no metadata`
-			);
+		if(!g_ve4) {
+			throw new Error(`${si_storage[0].toUpperCase() + si_storage.slice(1)} exists but no metadata`);
 		}
 
 		// fetch metadata
 		const g_metadata = g_ve4.value || null;
 
-		if (!g_metadata) {
+		if(!g_metadata) {
 			throw new Error(`Cannot access ${si_storage} metadata`);
 		}
 
-		return this._access<ValueType>(g_metadata, a_frags);
+		return access<ValueType>(g_metadata, a_frags);
 	}
 }

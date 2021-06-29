@@ -23,29 +23,22 @@ export type HardcodedObjectType<ValueType extends PrimitiveValue = PrimitiveValu
 export type HardcodedObjectCategory<ValueType extends PrimitiveValue = PrimitiveValue> = Record<DotFragment, HardcodedObjectType<ValueType>>;
 export type HardcodedObjectRoot<ValueType extends PrimitiveValue = PrimitiveValue> = Record<DotFragment, HardcodedObjectCategory<ValueType>>;
 
-function auto_type(
-	h_tree: Record<DotFragment, HardcodedObjectCategory>
-): HardcodedObjectRoot<TypedObject | PrimitiveValue> {
-	for (const si_category in h_tree) {
+function auto_type(h_tree: Record<DotFragment, HardcodedObjectCategory>): HardcodedObjectRoot<TypedObject | PrimitiveValue> {
+	for(const si_category in h_tree) {
 		const h_types = h_tree[si_category];
 
-		for (const si_type in h_types) {
+		for(const si_type in h_types) {
 			const h_groups = h_types[si_type];
 
-			for (const si_group in h_groups) {
+			for(const si_group in h_groups) {
 				const h_ids = h_groups[si_group];
 
-				for (const si_id in h_ids) {
+				for(const si_id in h_ids) {
 					const z_value = h_ids[si_id];
 
-					if (
-						'object' === typeof z_value &&
-						!Array.isArray(z_value)
-					) {
+					if('object' === typeof z_value && !Array.isArray(z_value)) {
 						h_ids[si_id] = {
-							type:
-								si_category[0].toUpperCase() +
-								si_category.slice(1),
+							type: si_category[0].toUpperCase()+si_category.slice(1),
 							...z_value,
 						};
 					}
@@ -58,25 +51,25 @@ function auto_type(
 }
 
 type AddsKey<ValueType extends PrimitiveValue> = Record<
-    DotFragment,
-    HardcodedObjectType<Omit<ValueType, 'type'> & {key: string;}>
+	DotFragment,
+	HardcodedObjectType<Omit<ValueType, 'type'> & {key: string;}>
 >;
 
 type NoTypeOrKey<ValueType extends PrimitiveObject> = Record<
-    DotFragment,
-    HardcodedObjectType<Omit<ValueType, 'type' | 'key'>>
+	DotFragment,
+	HardcodedObjectType<Omit<ValueType, 'type' | 'key'>>
 >;
 
 function auto_key<ValueType extends PrimitiveObject>(
 	h_subtree: NoTypeOrKey<ValueType>
 ): AddsKey<ValueType> {
-	for (const si_type in h_subtree) {
+	for(const si_type in h_subtree) {
 		const h_group = h_subtree[si_type];
 
-		for (const si_group in h_group) {
+		for(const si_group in h_group) {
 			const h_ids = h_group[si_group];
 
-			for (const si_key in h_ids) {
+			for(const si_key in h_ids) {
 				const g_value = h_ids[si_key];
 
 				(g_value as unknown as KeyedObject).key = si_key;
@@ -89,11 +82,12 @@ function auto_key<ValueType extends PrimitiveObject>(
 
 const escape_html = (s: string) => s.replace(/</g, '&lt;');
 
-const unordered_list = (si_key: string) => (g: QueryRow) =>
-	`<ul>${(g[si_key]?.value || '')
+const unordered_list = (si_key: string) => (g: QueryRow) => /* syntax: html */ `
+	<ul>${(g[si_key]?.value || '')
 		.split('\0')
-		.map((s) => `<li>${escape_html(s)}</li>`)
-		.join('')}</ul>`;
+		.map(s => `<li>${escape_html(s)}</li>`)
+		.join('')}</ul>
+`;
 
 export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 	queryParameter: auto_key<QueryParam.Serialized>({
@@ -124,10 +118,8 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 						'hardcoded#queryParameter.sparql.dng.sysvac',
 						'hardcoded#queryParameter.sparql.dng.maturity',
 					],
-					queryFieldGroupPath:
-						'hardcoded#queryFieldGroup.sparql.dng.basic',
-					queryBuilderPath:
-						'hardcoded#queryBuilder.sparql.dng.basicParams',
+					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basic',
+					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.basicParams',
 				},
 				asr: {
 					label: 'Appendix Subsystem Requirements',
@@ -135,10 +127,8 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 						'hardcoded#queryParameter.sparql.dng.sysvac',
 						'hardcoded#queryParameter.sparql.dng.maturity',
 					],
-					queryFieldGroupPath:
-						'hardcoded#queryFieldGroup.sparql.dng.basic',
-					queryBuilderPath:
-						'hardcoded#queryBuilder.sparql.dng.basicParams',
+					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basic',
+					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.basicParams',
 				},
 			},
 		},
@@ -176,10 +166,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					label: null, // inherit from value
 					source: 'native',
 					hasMany: false,
-					cell: (g: QueryRow) =>
-						`<a href="${g.artifact.value}">${escape_html(
-							g.titleValue.value
-						)}</a>`,
+					cell: (g: QueryRow) => /* syntax: html */ `<a href="${g.artifact.value}">${escape_html(g.titleValue.value)}</a>`,
 				},
 				requirementText: {
 					value: 'Requirement Text',
@@ -200,8 +187,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					label: null, // inherit from value
 					source: 'attribute',
 					hasMany: true,
-					cell: (g: QueryRow) =>
-						escape_html(g.systemsValue?.value || ''),
+					cell: (g: QueryRow) => escape_html(g.systemsValue?.value || ''),
 				},
 				maturity: {
 					value: 'Maturity',
@@ -214,30 +200,9 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 		},
 	}),
 
-	queryBuilder: {sparql: {dng: {basicParams: {function: build_dng_select_query_from_params}}}},
+	queryBuilder: {sparql:{dng:{basicParams:{function:build_dng_select_query_from_params}}}},
 
-	queryContext: {sparql: {dng: {common: {prefixes: H_PREFIXES}}}},
+	queryContext: {sparql:{dng:{common:{prefixes:H_PREFIXES}}}},
 
-	utility: {
-		function: {
-			sort: {
-				label_asc: (g_a: Labeled, g_b: Labeled) =>
-					g_a.label < g_b.label ? -1 : 1,
-			},
-		},
-	},
+	utility: {function:{sort:{label_asc:(g_a: Labeled, g_b: Labeled) => g_a.label < g_b.label ? -1 : 1}}},
 });
-
-// const SparqlPatterns = {
-//     predicate: (st_predicate: string): string => `$thing ${st_predicate} ?this .`,
-//     dng_labeled_attribute: (st_predicate: string): string => {
-//         const sx_prop = `?_${si_attr}`;
-
-//         return `
-//             ${sx_prop} a rdf:Property ;
-//                 rdfs:label ${terse_lit(s_key)} .
-
-//             $thing ${sx_prop} [rdfs:label ?${si_attr}Value] .
-//         `;
-//     },
-// };

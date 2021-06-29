@@ -11,24 +11,24 @@ export const lang: Lang = null as unknown as Lang;
 export let static_css = '';
 
 static_css += /* syntax: css */ `
-    :root {
-        --ve-font-size-header-1: 28px;
-        --ve-font-size-header-2: 16px;
-        --ve-font-size-body-content: 14px;
-        --ve-font-size-table-header: 12px;
+	:root {
+		--ve-font-size-header-1: 28px;
+		--ve-font-size-header-2: 16px;
+		--ve-font-size-body-content: 14px;
+		--ve-font-size-table-header: 12px;
 
-        --ve-color-light-background: #F5F5F5;
-        --ve-color-dark-background: #404040;
-        --ve-color-dark-text: #333333;
-        --ve-color-medium-text: #8D8D8D;
-        --ve-color-medium-light-text: #D0D0D0;
-        --ve-color-light-text: #FFFFFF;
-        --ve-color-accent-light: #2C7E8F;
-        --ve-color-accent-dark: #205C68;
-        --ve-color-accent-dark-border: #102E34
-        --ve-color-button-light: #EDEDED;
-        --ve-color-error-red: #FF6060;
-    }
+		--ve-color-light-background: #F5F5F5;
+		--ve-color-dark-background: #404040;
+		--ve-color-dark-text: #333333;
+		--ve-color-medium-text: #8D8D8D;
+		--ve-color-medium-light-text: #D0D0D0;
+		--ve-color-light-text: #FFFFFF;
+		--ve-color-accent-light: #2C7E8F;
+		--ve-color-accent-dark: #205C68;
+		--ve-color-accent-dark-border: #102E34
+		--ve-color-button-light: #EDEDED;
+		--ve-color-error-red: #FF6060;
+	}
 `;
 
 export const static_js = '';

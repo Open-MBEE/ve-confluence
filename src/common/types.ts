@@ -2,17 +2,17 @@ export type Hash = Record<string, string>;
 
 export type UrlString = `${'http' | 'https'}://${string}`;
 
-export interface JSONObject {
-	[k: string]: JSONValue | undefined;
+export interface JsonObject {
+	[k: string]: JsonValue | undefined;
 }
 
-export type JSONValue =
+export type JsonValue =
 	| string
 	| number
 	| boolean
 	| null
-	| JSONValue[]
-	| JSONObject
+	| JsonValue[]
+	| JsonObject
 	| undefined;
 
 export interface PrimitiveObject {
@@ -20,13 +20,13 @@ export interface PrimitiveObject {
 }
 
 export type PrimitiveValue =
-	| JSONValue
+	| JsonValue
 	| Function  // eslint-disable-line @typescript-eslint/ban-types
 	| PrimitiveObject
 	| PrimitiveValue[];
 
 export interface TypedObject<TypeValue extends string = string>
-	extends Omit<JSONObject, 'type'> {
+	extends Omit<JsonObject, 'type'> {
 	type: TypeValue;
 }
 
@@ -35,11 +35,11 @@ export interface TypedPrimitive<TypeValue extends string = string>
 	type: TypeValue;
 }
 
-export interface KeyedObject extends Omit<JSONObject, 'key'> {
+export interface KeyedObject extends Omit<JsonObject, 'key'> {
 	key: string;
 }
 
-export interface LabeledObject extends Omit<JSONObject, 'label'> {
+export interface LabeledObject extends Omit<JsonObject, 'label'> {
 	label: string;
 }
 

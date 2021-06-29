@@ -39,8 +39,7 @@ export const H_PREFIXES: Record<string, string> = {
 	ibm_type: 'http://www.ibm.com/xmlns/rdm/types/',
 	ibm_public: 'http://www.ibm.com/xmlns/rm/public/1.0/',
 	ibm_workflow: 'http://www.ibm.com/xmlns/rdm/workflow/',
-	ibm_req_workflow:
-		'http://www.ibm.com/xmlns/rdm/workflow/Requirement_Workflow#',
+	ibm_req_workflow: 'http://www.ibm.com/xmlns/rdm/workflow/Requirement_Workflow#',
 
 	// JAZZ
 	jazz_acc: 'http://jazz.net/ns/clm/acc#',
@@ -84,8 +83,7 @@ export const H_PREFIXES: Record<string, string> = {
 	'mms-ontology': 'https://opencae.jpl.nasa.gov/mms/rdf/ontology/',
 	'mms-graph': 'https://opencae.jpl.nasa.gov/mms/rdf/graph/',
 	'mms-property': 'https://opencae.jpl.nasa.gov/mms/rdf/property/',
-	'mms-derived-property':
-		'https://opencae.jpl.nasa.gov/mms/rdf/derived-property/',
+	'mms-derived-property': 'https://opencae.jpl.nasa.gov/mms/rdf/derived-property/',
 	'mms-class': 'https://opencae.jpl.nasa.gov/mms/rdf/class/',
 	'mms-element': 'https://opencae.jpl.nasa.gov/mms/rdf/element/',
 	'mms-artifact': 'https://opencae.jpl.nasa.gov/mms/rdf/artifact/',
@@ -93,8 +91,7 @@ export const H_PREFIXES: Record<string, string> = {
 	'mms-shape': 'https://opencae.jpl.nasa.gov/mms/rdf/shape/',
 	'uml-model': 'https://www.omg.org/spec/UML/20161101/UML.xmi#',
 	'uml-model-dt': 'https://www.omg.org/spec/UML/20161101/UML.xmi#datatype/',
-	'uml-primitives':
-		'https://www.omg.org/spec/UML/20161101/PrimitiveTypes.xmi#',
+	'uml-primitives': 'https://www.omg.org/spec/UML/20161101/PrimitiveTypes.xmi#',
 	'uml-class': 'https://opencae.jpl.nasa.gov/mms/rdf/uml-class/',
 	'uml-property': 'https://opencae.jpl.nasa.gov/mms/rdf/uml-property/',
 };

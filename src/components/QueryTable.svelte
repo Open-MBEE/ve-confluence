@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-
 	import { quadOut } from 'svelte/easing';
 	import { slide } from 'svelte/transition';
 	import { create_in_transition } from 'svelte/internal';

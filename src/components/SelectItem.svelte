@@ -19,7 +19,7 @@
 	import Fa from 'svelte-fa';
 	import {
 		faCheck,
-    } from '@fortawesome/free-solid-svg-icons';
+	} from '@fortawesome/free-solid-svg-icons';
 </script>
 
 <style lang="less">
