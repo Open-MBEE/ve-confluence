@@ -35,6 +35,8 @@ Layout of directories organizing code within the project:
    └─ util/   # utility modules
 ```
 
+> The project is configured in such a way that importing files can be done relative to the `src/` directory using the mapped path prefix `#/`. For example, the file `src/vendor/confluence/module/my-confluence-module.ts` can use `import AsyncLockPool from '#/util/async-lock-pool';` rather than `[...] from '../../../util/async-lock-pool';`
+
 
 ## Object Metadata
 
