@@ -56,7 +56,7 @@
 				}
 				group by ?value order by desc(?count)
 			`);
-debugger;
+ debugger;
 			let a_options = a_rows.map(({value:g_value, count:g_count}) => ({
 				label: g_value.value,
 				value: g_value.value,
@@ -132,7 +132,7 @@ debugger;
 	.param-label {
 		color: var(--ve-color-light-text);
 		margin-right: 6em;
-		font-size: 13px;
+		font-size: 14px;
 	}
 
 	.param-values {

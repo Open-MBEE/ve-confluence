@@ -218,11 +218,16 @@
 			flex: 1 auto;
 			text-align: right;
 		}
+
+		.buttons button {
+			cursor:pointer;
+		}
 	}
 
 	.loading {
 		opacity: 0.5;
 	}
+
 
 	.hidden {
 		display: none;
@@ -243,7 +248,7 @@
 
 		.config {
 			background-color: var(--ve-color-dark-background);
-			padding: 7pt 14pt;
+			padding: 4pt 10pt;
 			border-radius: 3px 3px 0 0;
 			display: flex;
 
@@ -255,7 +260,7 @@
 
 				* {
 					align-self: baseline;
-					padding: 5px 10px;
+					padding: 5px 7px;
 				}
 
 				.active {
@@ -301,7 +306,7 @@
 			background-color: var(--ve-color-dark-background);
 			color: var(--ve-color-medium-light-text);
 			padding: 6pt 20pt 10pt 20pt;
-
+			
 			.query-type {
 				color: var(--ve-color-light-text);
 
@@ -387,6 +392,10 @@
 				}
 			}
 		}
+
+		.tablesorter-header-inner {
+			font-size: 14px;
+		}
 	}
 </style>
 
@@ -437,6 +446,7 @@
 							</svg>
 						`}
 						Item={SelectItem}
+						containerStyles={'padding: 0px 40px 0px 6px;'}
 					/>
 				</span>
 			</div>
