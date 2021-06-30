@@ -1,39 +1,38 @@
-# view-editor-4
+# View Editor 4
 
-Injects interactive components into a live Confluence Wiki page.
+An extensible, multi-environment view and widget UI for querying and transcluding model elements for Systems Engineering documents.
 
-## Contributing and Running Locally
+## Currently Supported Environments:
 
-After cloning the repository, install git submodules:
-```shell
-git submodule init && git submodule update
-```
+ - Atlassian Confluence ^7.9
 
-The following environment variables are required when building:
 
-```shell
-SPARQL_ENDPOINT
-```
+## Codebase Architecture
 
-For example, on *nix, create a `.env` file:
-```bash
-#!/bin/bash
-export SPARQL_ENDPOINT='https://my-sparql-endpoint/sparql'
-```
+The relationship between the various types of modules in the codebase is engineered for reusability across environments and model polymorphism from the perspective of the components.
 
-Install the dependencies and necessary build tools:
-```shell
-npm install
-```
+![Codebase architecture](docs/codebase-architecture.png)
 
-To build the output javascript bundle:
 
-```shell
-npm run build
-```
+## Object Metadata
 
-Or better yet, for development:
+Object metadata is serialized and persisted across three different locations: Page, Document, and Hardcoded.
 
-```shell
-npm run dev
-```
+Page metadata is responsible for storing information about the particular presentation elements embedded on the page (e.g., what values a user has entered for a parameter field input in a query table element).
+
+Document metadata is for information that is shared across Pages, scoped to the broader "document", such as the endpoint URL for SPARQL connection, the project name, etc.
+
+Finally, Hardcoded metadata is for objects that should be globally available to all documents, such as sort functions, field descriptions, query types, etc.
+
+![Object metadata](docs/object-metadata.png)
+
+
+## Confluence Distribution Architecture
+
+The output `public/build/bundle.js` file is a self-contained distributable that is built and uploaded to a "publicly-accessible" CDN and included as part of a Confluence HTML Macro that must be active on the target wiki page.
+
+![Distribution architecture for confluence](docs/distribution-architecture.png)
+
+
+## [Developer Guide](docs/developer-guide.md)
+
