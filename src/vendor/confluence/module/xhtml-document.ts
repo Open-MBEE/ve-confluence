@@ -1,7 +1,9 @@
-import xpath, { SelectedValue } from 'xpath';
-import xmldom from 'xmldom';
+import xpath, {SelectedValue} from 'xpath';
 
-const { DOMParser, XMLSerializer } = xmldom;
+import {
+	DOMParser,
+	XMLSerializer,
+} from 'xmldom';
 
 type Hash = Record<string, string>;
 
@@ -20,12 +22,12 @@ const H_NAMESPACES = [...AS_PREFIXES].reduce(
 		...h_out,
 		[si_ns]: `${P_URN_NS}${si_ns}`,
 	}),
-	{},
+	{}
 );
 
 // prepare XHTML namespace declaration string
 const SX_NAMESPACES = [...AS_PREFIXES]
-	.map((si_ns) => `xmlns:${si_ns}="${P_URN_NS}${si_ns}"`)
+	.map(si_ns => `xmlns:${si_ns}="${P_URN_NS}${si_ns}"`)
 	.join(' ');
 
 // for excluding elements that are within active directives
@@ -35,13 +37,9 @@ const SX_EXCLUDE_ACTIVE_DIRECTIVES = `[not(ancestor::ac:structured-macro[@ac:nam
 // css style for active directives
 const SX_STYLE_DIRECTIVE = 'background-color:lemonchiffon;';
 
-const select_ns = xpath.useNamespaces({
-	...H_NAMESPACES,
-});
+const select_ns = xpath.useNamespaces({...H_NAMESPACES});
 
-const select = (sx_xpath: string, ...a_args: any[]) => {
-	return select_ns(sx_xpath.replace(/&nbsp;/g, '&#160;'), ...a_args);
-};
+const select = (sx_xpath: string, ...a_args: any[]) => select_ns(sx_xpath.replace(/&nbsp;/g, '&#160;'), ...a_args);
 
 export class XHTMLDocument {
 	_sx_doc: string;
@@ -51,7 +49,7 @@ export class XHTMLDocument {
 		this._sx_doc = sx_doc;
 
 		this._y_doc = new DOMParser().parseFromString(
-			`<xml ${SX_NAMESPACES}>${sx_doc}</xml>`,
+			`<xml ${SX_NAMESPACES}>${sx_doc}</xml>`
 		);
 	}
 
@@ -74,21 +72,21 @@ export class XHTMLDocument {
 	builder(): (s_tag: string, h_attrs?: Hash, a_children?: Node[]) => Node {
 		const y_doc = this._y_doc;
 
-		return function (
+		return function(
 			s_tag: string,
 			h_attrs: Record<string, string> = {},
-			a_children: Node[] = [],
+			a_children: Node[] = []
 		): Node {
 			const ym_node = y_doc.createElement(s_tag);
 
-			for (const si_attr in h_attrs) {
+			for(const si_attr in h_attrs) {
 				ym_node.setAttribute(si_attr, h_attrs[si_attr]);
 			}
 
-			for (const z_child of a_children) {
+			for(const z_child of a_children) {
 				let ym_child = z_child;
 
-				if ('string' === typeof z_child) {
+				if('string' === typeof z_child) {
 					ym_child = y_doc.createTextNode(z_child);
 				}
 

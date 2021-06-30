@@ -1,22 +1,22 @@
 <script lang="ts">
 	import {createEventDispatcher} from 'svelte';
 	const dispatch = createEventDispatcher();
-	import {lang} from '../common/static';
+	import {lang} from '#/common/static';
 	import Select from 'svelte-select';
 
 	import type {
 		ParamValuesList,
 		QueryParam,
 		SparqlQueryTable,
-	} from '../model/QueryTable';
+	} from '#/elements/QueryTable/model/QueryTable';
 
 	import type {
 		MmsSparqlConnection,
-	} from '../model/Connection';
+	} from '#/model/Connection';
 
 	import {
 		Sparql,
-	} from '../util/sparql-endpoint';
+	} from '#/util/sparql-endpoint';
 
 	interface Option {
 		label: string;

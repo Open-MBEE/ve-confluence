@@ -1,4 +1,4 @@
-import type {VePath} from '../class/object-store';
+import type {VeoPath} from '#/common/veo';
 
 import type {
 	UrlString,
@@ -6,7 +6,7 @@ import type {
 	JsonObject,
 	SparqlString,
 	QueryRow,
-} from '../common/types';
+} from '#/common/types';
 
 import SparqlEndpoint from '../util/sparql-endpoint';
 
@@ -49,7 +49,7 @@ export namespace SparqlConnection {
 	export interface Serialized extends Connection.Serialized {
 		type: `${'Mms' | 'Plain'}SparqlConnection`;
 		endpoint: UrlString;
-		contextPath: VePath.SparqlQueryContext;
+		contextPath: VeoPath.SparqlQueryContext;
 	}
 }
 
@@ -70,9 +70,7 @@ export abstract class SparqlConnection<
 	}
 
 	get context(): SparqlQueryContext {
-		return this._k_store.resolveSync<SparqlQueryContext>(
-			this._gc_serialized.contextPath
-		);
+		return this._k_store.resolveSync<SparqlQueryContext>(this._gc_serialized.contextPath);
 	}
 
 	get prefixes(): Hash {
@@ -86,7 +84,7 @@ export namespace MmsSparqlConnection {
 		endpoint: UrlString;
 		modelGraph: UrlString;
 		metadataGraph: UrlString;
-		contextPath: VePath.SparqlQueryContext;
+		contextPath: VeoPath.SparqlQueryContext;
 	}
 }
 

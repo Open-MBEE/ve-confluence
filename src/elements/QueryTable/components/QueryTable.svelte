@@ -14,7 +14,7 @@
 		faQuestionCircle,
 	} from '@fortawesome/free-solid-svg-icons';
 
-	import SelectItem from './SelectItem.svelte';
+	import SelectItem from '#/ui/components/SelectItem.svelte';
 
 	import QueryTableParam from './QueryTableParam.svelte';
 
@@ -23,9 +23,9 @@
 	import type {
 		Connection,
 		ModelVersionDescriptor,
-	} from '../model/Connection';
+	} from '#/model/Connection';
 	
-	import type { ValuedLabeledObject } from '../common/types';
+	import type { ValuedLabeledObject } from '#/common/types';
 
 	export let k_query_table: QueryTable;
 	(async () => {
@@ -354,7 +354,7 @@
 </div>
 
 <style lang="less">
-	@import './ve.less';
+	@import '/src/common/ve.less';
 
 	.controls {
 		display: flex;

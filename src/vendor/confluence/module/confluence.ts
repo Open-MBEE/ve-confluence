@@ -1,32 +1,30 @@
 import type {
 	JsonObject,
 	JsonValue,
-} from '../common/types';
-
-import G_META from '../common/meta';
+} from '#/common/types';
 
 import {
 	Ve4MetadataKeyConfluencePage as Ve4MetadataKeyPage,
 	G_VE4_METADATA_KEYS,
 	Ve4MetadataKeyConfluenceDocument as Ve4MetadataKeyDocument,
 	Ve4MetadataKey,
-} from '../common/static';
+} from '#/common/static';
 
 import {
 	get_json,
 	put_json,
 	Response,
-} from '../util/fetch';
+} from '#/util/fetch';
 
-import XHTMLDocument from './xhtml-document';
+import XhtmlDocument from './xhtml-document';
 
-import type {MmsSparqlConnection} from '../model/Connection';
+import type {MmsSparqlConnection} from '#/model/Connection';
 
 const P_API_DEFAULT = '/rest/api';
 
 type Hash = Record<string, string>;
 
-export type CXHTML = `${string}`;
+export type Cxhtml = `${string}`;
 
 export interface PageMetadata extends JsonObject {
 	type: 'Page';
@@ -53,36 +51,13 @@ export type PageMetadataBundle = {
 
 export type DocumentMetadataBundle = {
 	[T in Ve4MetadataKeyDocument]: ConfluenceApi.Info<
-	Ve4MetadataKeyDocument,
-	DocumentMetadata
+		Ve4MetadataKeyDocument,
+		DocumentMetadata
 	>;
 };
 
 type MetadataBundle = PageMetadataBundle | DocumentMetadataBundle;
 
-interface CommonSource extends JsonObject {
-	readonly key: SourceKey;
-	readonly qualifier: string;
-}
-
-type NeptuneSource = CommonSource & {
-	readonly endpoint: string;
-	readonly graph: string;
-	readonly modified: string;
-};
-
-export type DngMdkSource = NeptuneSource & {
-	readonly key: 'dng';
-	readonly ref: string;
-	readonly mopid: string;
-	readonly commit: string;
-};
-
-export type HelixSource = CommonSource & {
-	readonly key: 'helix';
-};
-
-export type Source = DngMdkSource | HelixSource;
 
 export namespace ConfluenceApi {
 	export type PageId = `${string}`;
@@ -109,7 +84,7 @@ export namespace ConfluenceApi {
 		version: Version;
 		body: {
 			storage: {
-				value: CXHTML;
+				value: Cxhtml;
 			};
 		};
 	}
@@ -367,7 +342,7 @@ export class ConfluencePage {
 		b_force = false
 	): Promise<{
 			versionNumber: ConfluenceApi.PageVersionNumber;
-			value: CXHTML;
+			value: Cxhtml;
 		}> {
 		const g_page = await this._content(b_force);
 
@@ -379,7 +354,7 @@ export class ConfluencePage {
 
 	async getContentAsXhtmlDocument(): Promise<{
 		versionNumber: ConfluenceApi.PageVersionNumber;
-		value: XHTMLDocument;
+		value: XhtmlDocument;
 	}> {
 		const {
 			versionNumber: n_version,
@@ -388,11 +363,11 @@ export class ConfluencePage {
 
 		return {
 			versionNumber: n_version,
-			value: new XHTMLDocument(sx_value),
+			value: new XhtmlDocument(sx_value),
 		};
 	}
 
-	async postContent(n_version: ConfluenceApi.PageVersionNumber, s_content: CXHTML): Promise<ConfluenceApi.PageVersionNumber> {
+	async postContent(n_version: ConfluenceApi.PageVersionNumber, s_content: Cxhtml): Promise<ConfluenceApi.PageVersionNumber> {
 		return 0;
 	}
 

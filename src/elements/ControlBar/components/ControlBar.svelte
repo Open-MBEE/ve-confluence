@@ -1,14 +1,14 @@
 <script lang="ts">
-	import DatasetsTable from '../components/DatasetsTable.svelte';
+	import DatasetsTable from '../../../components/DatasetsTable.svelte';
 
 	import {
 		ConfluencePage,
 		ConfluenceDocument,
-	} from '../class/confluence';
+	} from '#/vendor/confluence/module/confluence';
 
 	import { getContext, onMount } from 'svelte';
-	import G_META from '../common/meta';
-	import {lang} from '../common/static';
+	import G_META from '#/common/meta';
+	import {lang} from '#/common/static';
 
 	import Fa from 'svelte-fa';
 	import {
@@ -18,16 +18,11 @@
 	import {
 		qs,
 		dm_main,
-	} from '../util/dom';
+	} from '#/util/dom';
 
 	import {
 		slide,
 	} from 'svelte/transition';
-
-	export let G_CONTEXT: import('../common/ve4').Ve4ComponentContext;
-	// const {
-	// 	// k_sparql,
-	// } = G_CONTEXT;
 
 	import { Tabs, TabList, TabPanel, Tab } from 'svelte-tabs';
 	import { create } from 'gretchen';
@@ -106,7 +101,7 @@
 </script>
 
 <style lang="less">
-	@import "./ve";
+	@import '/src/common/ve.less';
 
 	.animated {
 		&.bounce {

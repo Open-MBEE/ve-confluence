@@ -1,3 +1,12 @@
+import type {
+	Context,
+	Primitive,
+	Serializable,
+	VeOdm,
+} from '#/model/Serializable';
+
+import type {VeoPath} from './veo';
+
 export type Hash = Record<string, string>;
 
 export type UrlString = `${'http' | 'https'}://${string}`;
@@ -121,3 +130,26 @@ export interface Labeled {
 export type CompareFunction<Type> = (w_a: Type, w_b: Type) => -1 | 0 | 1;
 
 export type DotFragment = string;
+
+export interface IObjectStore {
+	idPartSync(sp_path: string): string;
+
+	optionsSync<
+		ValueType extends Serializable | Primitive,
+		ClassType extends VeOdm<ValueType>,
+	>(
+		sp_path: string,
+		dc_class: {new (gc: ValueType, g: Context): ClassType;},
+		g_context: Context
+	): Record<VeoPath.Full, ClassType>;
+
+	resolveSync<
+		ValueType extends PrimitiveValue,
+		VeoPathType extends VeoPath.HardcodedObject = VeoPath.HardcodedObject,
+	>(sp_path: string): ValueType;
+
+	resolve<
+		ValueType extends PrimitiveValue,
+		VeoPathType extends VeoPath.Full = VeoPath.Full,
+	>(sp_path: string): Promise<ValueType>;
+}

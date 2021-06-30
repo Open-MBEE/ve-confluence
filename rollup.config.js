@@ -1,6 +1,7 @@
 import fs from 'fs';
 import yaml from 'js-yaml';
 
+import alias from 'rollup-plugin-alias';
 import svelte from 'rollup-plugin-svelte';
 import commonjs from '@rollup/plugin-commonjs';
 import resolve from '@rollup/plugin-node-resolve';
@@ -10,6 +11,8 @@ import sveltePreprocess from 'svelte-preprocess';
 import typescript from '@rollup/plugin-typescript';
 import replace from '@rollup/plugin-replace';
 import url from '@rollup/plugin-url';
+import ttypescript from 'ttypescript';
+import path from 'path';
 
 const production = !process.env.ROLLUP_WATCH;
 
@@ -51,7 +54,7 @@ console.dir(replace_values({
 }));
 
 export default {
-	input: 'src/main.ts',
+	input: 'src/vendor/confluence/main/entrypoint.ts',
 	output: {
 		sourcemap: true,
 		format: 'iife',
@@ -80,6 +83,12 @@ export default {
 			}),
 		}),
 
+		alias({
+			resolve: ['.ts'],
+			entries: {
+				'#/': path.resolve(__dirname, './src/'),
+			},
+		}),
 		// url({
 		// 	include: ['**/*.css'],
 		// }),
@@ -104,6 +113,7 @@ export default {
 		}),
 		commonjs(),
 		typescript({
+			typescript: ttypescript,
 			sourceMap: !production,
 			inlineSources: !production
 		}),

@@ -2,30 +2,46 @@ import {
 	PageMetadata,
 	ConfluencePage,
 	ConfluenceDocument,
-	Source,
-	DngMdkSource,
-} from './class/confluence';
+} from '#/vendor/confluence/module/confluence';
 
-import G_META from './common/meta';
-import { process, lang, static_css, static_js } from './common/static';
-import { format } from './util/intl';
-import { qs, qsa, dd, dm_main, dm_content } from './util/dom';
+import G_META from '#/common/meta';
 
-import type { SvelteComponent } from 'svelte';
+import {
+	process,
+	lang,
+	static_css,
+	static_js,
+} from '#/common/static';
 
-import ControlBar from './components/ControlBar.svelte';
-import DngArtifact from './components/DngArtifact.svelte';
-import QueryTable from './components/QueryTable.svelte';
-import InsertBlockView from './components/InsertBlockView.svelte';
-import SparqlEndpoint from './util/sparql-endpoint';
-import H_PREFIXES from './common/prefixes';
-import type XHTMLDocument from './class/xhtml-document';
+import {format} from '#/util/intl';
 
-import type { Ve4ComponentContext } from './common/ve4';
-import type { SourceKey } from './class/source';
-import { MmsSparqlQueryTable } from './model/QueryTable';
-import { ObjectStore } from './class/object-store';
-import { H_HARDCODED_OBJECTS } from './common/hardcoded';
+import {
+	qs,
+	qsa,
+	dd,
+	dm_main,
+	dm_content,
+} from '#/util/dom';
+
+import type {SvelteComponent} from 'svelte';
+
+import ControlBar from '#/elements/ControlBar/components/ControlBar.svelte';
+
+import DngArtifact from '#/elements/DngArtifact/components/DngArtifact.svelte';
+
+import QueryTable from '#/elements/QueryTable/components/QueryTable.svelte';
+
+import SparqlEndpoint from '#/util/sparql-endpoint';
+
+import H_PREFIXES from '#/common/prefixes';
+
+import type XhtmlDocument from '#/vendor/confluence/module/xhtml-document';
+
+import {MmsSparqlQueryTable} from '#/elements/QueryTable/model/QueryTable';
+
+import {ObjectStore} from '#/vendor/confluence/module/object-store';
+
+import {H_HARDCODED_OBJECTS} from '#/common/hardcoded';
 
 // write static css
 {
@@ -135,9 +151,7 @@ const A_DIRECTIVE_CORRELATIONS: CorrelationDescriptor[] = [
 let K_OBJECT_STORE: ObjectStore;
 
 const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
-	'Insert Block View': () => ({
-		component: InsertBlockView,
-	}),
+	// 'Insert Block View': () => ({component:InsertBlockView}),
 	// 'Insert DNG Artifact or Attribute': ([ym_anchor]) => ({
 	// 	component: InsertInlineView,
 	// 	props: {
@@ -161,9 +175,7 @@ const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 						'hardcoded#queryParameter.sparql.dng.maturity',
 					],
 				},
-				{
-					store: K_OBJECT_STORE,
-				},
+				{store:K_OBJECT_STORE}
 			),
 		},
 	}),
@@ -177,29 +189,24 @@ const G_CONTEXT: Ve4ComponentContext = {
 /**
  * content mixin
  */
-const GM_CONTEXT = {
-	G_CONTEXT,
-};
+const GM_CONTEXT = {G_CONTEXT};
 
-const xpath_attrs = (a_attrs: string[]) =>
-	a_attrs.map((sx) => `[${sx}]`).join('');
+const xpath_attrs = (a_attrs: string[]) => a_attrs.map(sx => `[${sx}]`).join('');
 
 let k_page: ConfluencePage;
 let k_document: ConfluenceDocument | null;
-let k_source: XHTMLDocument;
+let k_source: XhtmlDocument;
 let gm_page: PageMetadata | null;
 
 function control_bar(gc_bar: ControlBarConfig) {
-	let g_props = {
-		...gc_bar.props,
-	};
+	const g_props = {...gc_bar.props};
 
 	// error is present
-	if ('number' === typeof gc_bar.error) {
+	if('number' === typeof gc_bar.error) {
 		let s_message = '';
 		let xc_level = Ve4ErrorLevel.INFO;
 
-		switch (gc_bar.error) {
+		switch(gc_bar.error) {
 			case Ve4Error.PERMISSIONS: {
 				s_message = lang.error.page_permissions;
 				xc_level = Ve4ErrorLevel.WARN;
@@ -223,7 +230,7 @@ function control_bar(gc_bar: ControlBarConfig) {
 }
 
 function* correlate(
-	gc_correlator: CorrelationDescriptor,
+	gc_correlator: CorrelationDescriptor
 ): Generator<ViewBundle> {
 	// find all matching page nodes
 	const a_nodes = k_source.select<Node>(gc_correlator.storage);
@@ -233,26 +240,24 @@ function* correlate(
 	const a_elmts = qsa(dm_content, gc_correlator.live) as HTMLElement[];
 
 	// mismatch
-	if (a_elmts.length !== nl_nodes) {
+	if(a_elmts.length !== nl_nodes) {
 		// `XPath selection found ${nl_nodes} matches but DOM query selection found ${a_elmts.length} matches`);
 		throw new Error(
 			format(lang.error.xpath_dom_mismatch, {
 				node_count: nl_nodes,
 				element_count: a_elmts.length,
-			}),
+			})
 		);
 	}
 
 	// apply struct mapper
 	const f_struct = gc_correlator.struct;
 	const a_structs = f_struct
-		? a_nodes.map((ym_node, i_node) => {
-				return f_struct(ym_node, a_elmts[i_node]);
-		  })
+		? a_nodes.map((ym_node, i_node) => f_struct(ym_node, a_elmts[i_node]))
 		: [];
 
 	// each match
-	for (let i_match = 0; i_match < nl_nodes; i_match++) {
+	for(let i_match = 0; i_match < nl_nodes; i_match++) {
 		yield {
 			...gc_correlator.directive([a_elmts[i_match], a_structs[i_match]]),
 			anchor: a_elmts[i_match],
@@ -265,14 +270,14 @@ function render_component(g_bundle: ViewBundle, b_hide_anchor = false) {
 	const dm_anchor = g_bundle.anchor;
 
 	// hide anchor
-	if (b_hide_anchor) dm_anchor.style.display = 'none';
+	if(b_hide_anchor) dm_anchor.style.display = 'none';
 
 	// render component
 	new g_bundle.component({
 		target: dm_anchor.parentNode as HTMLElement,
 		anchor: dm_anchor,
 		props: {
-			...(g_bundle.props || {}),
+			...g_bundle.props || {},
 			g_node: g_bundle.node,
 			...GM_CONTEXT,
 		},
@@ -297,9 +302,9 @@ const H_SOURCE_HANDLERS: Record<SourceKey, (source: Source) => void> = {
 };
 
 export async function main() {
-	if ('object' !== typeof lang?.basic) {
+	if('object' !== typeof lang?.basic) {
 		throw new Error(
-			`ERROR: No lang file defined! Did you forget to set the environment variables when building?`,
+			`ERROR: No lang file defined! Did you forget to set the environment variables when building?`
 		);
 	}
 
@@ -309,29 +314,30 @@ export async function main() {
 		props: GM_CONTEXT,
 	});
 
-	G_CONTEXT.k_page = k_page = await ConfluencePage.fromCurrentPage();
+	// G_CONTEXT.k_page =
+	k_page = await ConfluencePage.fromCurrentPage();
 
 	await Promise.allSettled([
-		(async () => {
+		(async() => {
 			// fetch page metadata
 			const g_meta = await k_page.getMetadata();
 			gm_page = g_meta?.value || null;
 		})(),
 
-		(async () => {
+		(async() => {
 			// page is part of document
 			k_document = await k_page.getDocument();
 		})(),
 
-		(async () => {
+		(async() => {
 			// load page's XHTML source
-			k_source =
-				(await k_page.getContentAsXhtmlDocument())?.value || null;
+			k_source
+				= (await k_page.getContentAsXhtmlDocument())?.value || null;
 		})(),
 	]);
 
 	// not a document member
-	if (!k_document) {
+	if(!k_document) {
 		// exit
 		return;
 	}
@@ -343,12 +349,12 @@ export async function main() {
 	const gm_document = await k_document.getMetadata();
 
 	// no metadata; error
-	if (!gm_document) {
+	if(!gm_document) {
 		throw new Error(`Document exists but no metadata`);
 	}
 
 	// each page directive
-	for (const si_page_directive in H_PAGE_DIRECTIVES) {
+	for(const si_page_directive in H_PAGE_DIRECTIVES) {
 		const f_directive = H_PAGE_DIRECTIVES[si_page_directive];
 
 		// page refs
@@ -379,25 +385,23 @@ export async function main() {
 		const dg_links = correlate({
 			storage: `.//a[@href="${p_href}"]`,
 			live: `a[href="${p_href}"]`,
-			struct: (ym_node) => ({
-				label: ym_node.textContent,
-			}),
+			struct: ym_node => ({label:ym_node.textContent}),
 			directive: f_directive,
 		});
 
 		// each instance
-		for (const g_bundle of [...dg_refs, ...dg_links]) {
+		for(const g_bundle of [...dg_refs, ...dg_links]) {
 			render_component(g_bundle, true);
 		}
 	}
 
 	// each simple directive
-	for (const gc_correlator of A_DIRECTIVE_CORRELATIONS) {
+	for(const gc_correlator of A_DIRECTIVE_CORRELATIONS) {
 		// select all instances of this directive
 		const dg_directives = correlate(gc_correlator);
 
 		//
-		for (const g_bundle of dg_directives) {
+		for(const g_bundle of dg_directives) {
 			render_component(g_bundle, true);
 		}
 	}
@@ -422,7 +426,7 @@ async function dom_ready() {}
 	main();
 
 	// document is already loaded
-	if (['complete', 'interactive', 'loaded'].includes(document.readyState)) {
+	if(['complete', 'interactive', 'loaded'].includes(document.readyState)) {
 		dom_ready();
 	}
 	// dom content not yet loaded; add event listener

@@ -1,12 +1,7 @@
 <script lang="ts">
 	import {onMount} from 'svelte';
-	import H_PREFIXES from '../common/prefixes';
-	import { dd } from '../util/dom';
-
-	export let G_CONTEXT: import('../common/ve4').Ve4ComponentContext;
-	const {
-		k_sparql,
-	} = G_CONTEXT;
+	import H_PREFIXES from '#/common/prefixes';
+	import { dd } from '#/util/dom';
 
 	/**
 	 * input href of artifact

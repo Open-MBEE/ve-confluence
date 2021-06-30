@@ -1,4 +1,6 @@
-import type {ObjectStore} from '../class/object-store';
+import type {
+	IObjectStore,
+} from '#/common/types';
 
 import type {
 	TypedKeyedLabeledObject,
@@ -15,7 +17,7 @@ export type Serializable = TypedObject;
 export type Primitive = TypedPrimitive;
 
 export interface Context {
-	store: ObjectStore;
+	store: IObjectStore;
 }
 
 export abstract class VeOdm<Serialized extends Serializable | Primitive> {
@@ -24,7 +26,7 @@ export abstract class VeOdm<Serialized extends Serializable | Primitive> {
 
 	protected _gc_serialized: Serialized;
 	protected _g_context: Context;
-	protected _k_store: ObjectStore;
+	protected _k_store: IObjectStore;
 
 	constructor(gc_serialized: Serialized, g_context: Context) {
 		this._gc_serialized = gc_serialized;
