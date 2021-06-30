@@ -14,7 +14,7 @@
 		faQuestionCircle,
 	} from '@fortawesome/free-solid-svg-icons';
 
-	import SelectItem from '#/ui/components/SelectItem.svelte';
+	import SelectItem from '#/ui/component/SelectItem.svelte';
 
 	import QueryTableParam from './QueryTableParam.svelte';
 

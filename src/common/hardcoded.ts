@@ -12,7 +12,7 @@ import type {
 	QueryField,
 	QueryParam,
 	QueryType,
-} from '#/elements/QueryTable/model/QueryTable';
+} from '#/element/QueryTable/model/QueryTable';
 
 import {build_dng_select_query_from_params} from './helper/sparql-code';
 

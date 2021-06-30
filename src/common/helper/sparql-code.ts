@@ -1,4 +1,4 @@
-import type {MmsSparqlQueryTable} from '#/elements/QueryTable/model/QueryTable';
+import type {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
 
 import {SparqlSelectQuery} from '../../util/sparql-endpoint';
 

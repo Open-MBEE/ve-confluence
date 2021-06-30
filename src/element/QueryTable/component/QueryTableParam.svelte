@@ -8,7 +8,7 @@
 		ParamValuesList,
 		QueryParam,
 		SparqlQueryTable,
-	} from '#/elements/QueryTable/model/QueryTable';
+	} from '#/element/QueryTable/model/QueryTable';
 
 	import type {
 		MmsSparqlConnection,

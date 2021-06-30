@@ -25,11 +25,11 @@ import {
 
 import type {SvelteComponent} from 'svelte';
 
-import ControlBar from '#/elements/ControlBar/components/ControlBar.svelte';
+import ControlBar from '#/element/ControlBar/component/ControlBar.svelte';
 
-import DngArtifact from '#/elements/DngArtifact/components/DngArtifact.svelte';
+import DngArtifact from '#/element/DngArtifact/component/DngArtifact.svelte';
 
-import QueryTable from '#/elements/QueryTable/components/QueryTable.svelte';
+import QueryTable from '#/element/QueryTable/component/QueryTable.svelte';
 
 import SparqlEndpoint from '#/util/sparql-endpoint';
 
@@ -37,7 +37,7 @@ import H_PREFIXES from '#/common/prefixes';
 
 import type XhtmlDocument from '#/vendor/confluence/module/xhtml-document';
 
-import {MmsSparqlQueryTable} from '#/elements/QueryTable/model/QueryTable';
+import {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
 
 import {ObjectStore} from '#/vendor/confluence/module/object-store';
 

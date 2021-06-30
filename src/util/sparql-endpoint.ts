@@ -3,7 +3,7 @@ import type {
 	SparqlBindings,
 } from '../common/types';
 
-import type {ConnectionQuery} from '#/elements/QueryTable/model/QueryTable';
+import type {ConnectionQuery} from '#/element/QueryTable/model/QueryTable';
 
 import AsyncLockPool from './async-lock-pool';
 

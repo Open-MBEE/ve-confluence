@@ -4,7 +4,7 @@ An extensible, multi-environment view and widget UI for querying and transcludin
 
 ## Currently Supported Environments:
 
- - Atlassian Confluence ^7.9
+ - Atlassian Confluence `^7.9`
 
 
 ## Codebase Architecture

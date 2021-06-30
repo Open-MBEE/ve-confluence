@@ -1,5 +1,5 @@
 <script lang="ts">
-	import DatasetsTable from '#/ui/components/DatasetsTable.svelte';
+	import DatasetsTable from '#/ui/component/DatasetsTable.svelte';
 
 
 	import {
