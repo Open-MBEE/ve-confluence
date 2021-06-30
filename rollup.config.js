@@ -12,6 +12,7 @@ import typescript from '@rollup/plugin-typescript';
 import replace from '@rollup/plugin-replace';
 import url from '@rollup/plugin-url';
 import ttypescript from 'ttypescript';
+import tsPathsResolve from 'rollup-plugin-ts-paths-resolve';
 import path from 'path';
 
 const production = !process.env.ROLLUP_WATCH;
@@ -53,6 +54,17 @@ console.dir(replace_values({
 	lang: yaml.load(fs.readFileSync(`./resource/${process.env.LANG_FILE || 'lang.yaml'}`))[process.env.LANG],
 }));
 
+const k_resolver = resolve({
+	browser: true,
+	dedupe: ['svelte'],
+	extensions: [
+		'.ts',
+		'.mjs',
+		'.js',
+		'.svelte',
+	],
+})
+
 export default {
 	input: 'src/vendor/confluence/main/entrypoint.ts',
 	output: {
@@ -83,12 +95,6 @@ export default {
 			}),
 		}),
 
-		alias({
-			resolve: ['.ts'],
-			entries: {
-				'#/': path.resolve(__dirname, './src/'),
-			},
-		}),
 		// url({
 		// 	include: ['**/*.css'],
 		// }),
@@ -102,15 +108,26 @@ export default {
 			emitCss: false,
 		}),
 
+		alias({
+			resolve: ['.svelte', '.ts'],
+			entries: {
+				'#': path.resolve(__dirname, 'src'),
+			},
+			k_resolver,
+		}),
+
+		k_resolver,
+
 		// If you have external dependencies installed from
 		// npm, you'll most likely need these plugins. In
 		// some cases you'll need additional configuration -
 		// consult the documentation for details:
 		// https://github.com/rollup/plugins/tree/master/packages/commonjs
-		resolve({
-			browser: true,
-			dedupe: ['svelte']
-		}),
+		// resolve({
+		// 	browser: true,
+		// 	dedupe: ['svelte']
+		// }),
+		// tsPathsResolve(),
 		commonjs(),
 		typescript({
 			typescript: ttypescript,

@@ -53,7 +53,7 @@ module.exports = {
 			'prefer-readonly': ['warn'],
 			'member-delimiter-style': ['warn', {
 				singleline: {
-					requireLast: true,
+					requireLast: false,
 				},
 			}],
 			'member-ordering': ['warn', {

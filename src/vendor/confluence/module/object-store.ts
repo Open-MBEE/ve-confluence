@@ -136,16 +136,13 @@ export class ObjectStore implements IObjectStore {
 	optionsSync<
 		ValueType extends Serializable | Primitive,
 		ClassType extends VeOdm<ValueType>,
-	>(
-		sp_path: string,
-		dc_class: {new (gc: ValueType, g: Context): ClassType;},
-		g_context: Context
-	): Record<VeoPath.Full, ClassType> {
-		const h_options = this.resolveSync<Record<string, ValueType>>(sp_path);
+	>(sp_path: VeoPath.HardcodedObject, dc_class: {new (gc: ValueType, g: Context): ClassType;}, g_context: Context): Record<VeoPath.Full, ClassType> {
+		const sp_parent = sp_path.replace(/\.[^.]+$/, '');
+		const h_options = this.resolveSync<Record<string, ValueType>>(sp_parent);
 		return Object.entries(h_options).reduce(
 			(h_out, [si_key, w_value]) => ({
 				...h_out,
-				[`${sp_path}.${si_key}`]: new dc_class(w_value, g_context),
+				[`${sp_parent}.${si_key}`]: new dc_class(w_value, g_context),
 			}),
 			{}
 		);

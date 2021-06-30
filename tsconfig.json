@@ -6,7 +6,7 @@
 
   "compilerOptions": {
     "baseUrl": "./src",
-    // "rootDir": "./src",
+    "rootDir": "./src",
     "paths": {
       "#/*": ["./*"],
     },
