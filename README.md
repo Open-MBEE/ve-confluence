@@ -13,6 +13,28 @@ The relationship between the various types of modules in the codebase is enginee
 
 ![Codebase architecture](docs/codebase-architecture.png)
 
+## Directory Structure
+
+Layout of directories organizing code within the project:
+
+```
+./
+└─ src/
+   ├─ common/   # classes and interfaces shared across all modules/components
+   ├─ element/   # VE4 presentation element types
+   │  └─ {ElementName}
+   │     ├─ component/   # svelte components
+   │     └─ model/   # supporting models
+   ├─ model/   # generic models and model interfaces
+   ├─ ui/
+   │  └─ component/   # reusable svelte components for UI
+   ├─ vendor/
+   │  └─ confluence/   # specific to the Confluence environment
+   │     ├─ main/   # contains entrypoint
+   │     └─ module/   # modules specific to Confluence
+   └─ util/   # utility modules
+```
+
 
 ## Object Metadata
 
