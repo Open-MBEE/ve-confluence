@@ -62,3 +62,5 @@ export const dm_main = document.getElementById('main')as HTMLDivElement;
 // main content
 export const dm_content = document.getElementById('main-content') as HTMLDivElement;
 
+// main header
+export const dm_main_header = document.getElementById('main-header')as HTMLDivElement;

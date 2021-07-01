@@ -224,6 +224,7 @@
 					<path d="M3.5 4.5L0.468911 0.75L6.53109 0.75L3.5 4.5Z" fill="#333333"/>
 				</svg>
 			`}
+			containerStyles={'height: 26px;'}
 			on:select={select_value}
 		></Select>
 	{/if}

@@ -30,7 +30,7 @@
 	// } = G_CONTEXT;
 
     import { Tabs, TabList, TabPanel, Tab } from 'svelte-tabs';
-import { create } from 'gretchen';
+    import { create } from 'gretchen';
 
     let b_ready = false;
     let b_read_only = false;
@@ -41,9 +41,22 @@ import { create } from 'gretchen';
 
     let k_page: ConfluencePage | null = null;
     let k_document: ConfluenceDocument | null = null;
+    let main_header = dm_main.children.namedItem('main-header') as HTMLDivElement;
+
 
     function realign_control_bar() {
-        dm_bar.style.marginLeft = dm_main.style.marginLeft || '';
+        // when scrolling down the wiki header style changes, so update the control bar margin
+        if(main_header.style.position != '') {
+            dm_bar.style.marginTop = '0px';
+
+            // when the 'overlay-header' class is applied for the nav bar, adjust margins
+            if(main_header.className == 'overlay-header') {
+                dm_bar.style.marginTop = '-10px';
+            }
+        }
+        else {
+            dm_bar.style.marginTop = '-20px';
+        }
     }
 
     onMount(async() => {
@@ -72,6 +85,11 @@ import { create } from 'gretchen';
         d_observer.observe(dm_main, {
             attributes: true,
         });
+
+        // start observing 'main-header' attribute changes
+        d_observer.observe(main_header, {
+            attributes: true,
+        })
 
         k_page = await ConfluencePage.fromCurrentPage();
 
@@ -155,6 +173,11 @@ import { create } from 'gretchen';
     .ve-control-bar {
         background-color: var(--ve-color-dark-background);
         color: var(--ve-color-light-text);
+        // margins to offset wiki 'main' content padding
+        margin-left: -40px;
+        margin-right: -40px;
+        margin-top: -20px;
+        margin-bottom: 20px;
         
         .heading {
             position: relative;

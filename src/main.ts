@@ -20,6 +20,7 @@ import {
 	dd,
 	dm_main,
 	dm_content,
+	dm_main_header,
 } from './util/dom';
 
 import type { SvelteComponent } from 'svelte';
@@ -311,9 +312,10 @@ const H_SOURCE_HANDLERS: Record<SourceKey, (source: Source) => void> = {
 
 
 export async function main() {
+	
 	new ControlBar({
-		target: dm_main.parentElement as HTMLElement,
-		anchor: dm_main,
+		target: dm_main_header as HTMLElement, 
+		anchor: dm_main_header.children.navigation,
 		props: GM_CONTEXT,
 	});
 
