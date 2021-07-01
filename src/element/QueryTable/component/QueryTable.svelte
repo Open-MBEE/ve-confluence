@@ -24,7 +24,7 @@
 		Connection,
 		ModelVersionDescriptor,
 	} from '#/model/Connection';
-	
+
 	import type { ValuedLabeledObject } from '#/common/types';
 
 	export let k_query_table: QueryTable;
@@ -36,6 +36,7 @@
 
 	let k_connection: Connection;
 	let g_version: ModelVersionDescriptor;
+	let b_published = false;
 
 	onMount(async () => {
 		// get query table's connection
@@ -167,6 +168,7 @@
 		if (!b_expand) {
 			return;
 		}
+		b_published = false;
 
 		queueMicrotask(() => {
 			create_in_transition(dm_parameters, slide, {
@@ -176,7 +178,12 @@
 		});
 	}
 
-	function publish_table() {}
+	function publish_table() {
+		xc_info_mode = INFO_MODES.LOADING;
+		b_published = true;
+		b_expand = false;
+		xc_info_mode = 0;
+	}
 
 	function reset_table() {}
 
@@ -192,16 +199,16 @@
 			<Fa icon={faQuestionCircle} />
 		</span>
 		<span class="buttons">
-			<button class="ve-button-primary" on:click={publish_table}
-				>Publish</button
-			>
-			<button class="ve-button-secondary" on:click={reset_table}
-				>Cancel</button
-			>
+			{#if b_published}
+				<button class="ve-button-primary published-status"><i class="fas fa-check-circle"></i> Published</button>
+			{:else}
+				<button class="ve-button-primary" on:click={publish_table}>Publish</button>
+				<button class="ve-button-secondary" on:click={reset_table}>Cancel</button>
+			{/if}
 		</span>
 	</div>
 
-	<div class="ve-table" class:expanded={b_expand}>
+	<div class="ve-table" class:published={b_published} class:expanded={b_expand}>
 		<div class="config">
 			<span class="tabs">
 				<span
@@ -218,7 +225,7 @@
 				</span>
 			</span>
 			<span class="info">
-				{#if INFO_MODES.PREVIEW === xc_info_mode}
+				{#if INFO_MODES.PREVIEW === xc_info_mode && !b_published}
 					{s_status_info}
 				{:else if INFO_MODES.LOADING === xc_info_mode}
 					<Fa icon={faCircleNotch} class="fa-spin" /> LOADING PREVIEW
@@ -391,11 +398,40 @@
 		font-weight: 500;
 	}
 
+	.published-status {
+		border-radius: 3px 3px 0 0;
+		background-color: var(--ve-color-darker-background);
+		color: var(--ve-color-light-text);
+		border-color: var(--ve-color-accent-darker);
+	}
+
 	.ve-table {
 		&.expanded {
 			.config {
 				.tabs {
 					border-bottom: 1px solid var(--ve-color-light-text);
+				}
+			}
+		}
+
+		&.published {
+			.table-wrap {
+				border: 0;
+			}
+
+			.config {
+				background-color: var(--ve-color-light-background);
+				.tabs {
+					.parameters {
+						color: var(--ve-color-dark-text);
+					}
+					.version {
+						color: var(--ve-color-accent-light);
+					}
+				}
+				.info {
+					background-color: var(--ve-color-light-background);
+					color: var(--ve-color-dark-text);
 				}
 			}
 		}
