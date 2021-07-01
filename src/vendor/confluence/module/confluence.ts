@@ -1,32 +1,32 @@
 import type {
 	JsonObject,
 	JsonValue,
-} from '../common/types';
-
-import G_META from '../common/meta';
+} from '#/common/types';
 
 import {
 	Ve4MetadataKeyConfluencePage as Ve4MetadataKeyPage,
 	G_VE4_METADATA_KEYS,
 	Ve4MetadataKeyConfluenceDocument as Ve4MetadataKeyDocument,
 	Ve4MetadataKey,
-} from '../common/static';
+} from '#/common/static';
 
 import {
 	get_json,
 	put_json,
 	Response,
-} from '../util/fetch';
+} from '#/util/fetch';
 
-import XHTMLDocument from './xhtml-document';
+import XhtmlDocument from './xhtml-document';
 
-import type {MmsSparqlConnection} from '../model/Connection';
+import type {MmsSparqlConnection} from '#/model/Connection';
+
+import {G_META} from '#/common/meta';
 
 const P_API_DEFAULT = '/rest/api';
 
 type Hash = Record<string, string>;
 
-export type CXHTML = `${string}`;
+export type Cxhtml = `${string}`;
 
 export interface PageMetadata extends JsonObject {
 	type: 'Page';
@@ -53,36 +53,13 @@ export type PageMetadataBundle = {
 
 export type DocumentMetadataBundle = {
 	[T in Ve4MetadataKeyDocument]: ConfluenceApi.Info<
-	Ve4MetadataKeyDocument,
-	DocumentMetadata
+		Ve4MetadataKeyDocument,
+		DocumentMetadata
 	>;
 };
 
 type MetadataBundle = PageMetadataBundle | DocumentMetadataBundle;
 
-interface CommonSource extends JsonObject {
-	readonly key: SourceKey;
-	readonly qualifier: string;
-}
-
-type NeptuneSource = CommonSource & {
-	readonly endpoint: string;
-	readonly graph: string;
-	readonly modified: string;
-};
-
-export type DngMdkSource = NeptuneSource & {
-	readonly key: 'dng';
-	readonly ref: string;
-	readonly mopid: string;
-	readonly commit: string;
-};
-
-export type HelixSource = CommonSource & {
-	readonly key: 'helix';
-};
-
-export type Source = DngMdkSource | HelixSource;
 
 export namespace ConfluenceApi {
 	export type PageId = `${string}`;
@@ -109,7 +86,7 @@ export namespace ConfluenceApi {
 		version: Version;
 		body: {
 			storage: {
-				value: CXHTML;
+				value: Cxhtml;
 			};
 		};
 	}
@@ -164,10 +141,7 @@ type DocumentInfo = ConfluenceApi.ContentResult<
 	DocumentMetadataBundle
 >;
 
-async function confluence_get_json<Data extends JsonObject>(
-	pr_path: string,
-	gc_get?: {search?: Hash;}
-): Promise<Response<Data>> {
+async function confluence_get_json<Data extends JsonObject>(pr_path: string, gc_get?: {search?: Hash}): Promise<Response<Data>> {
 	// complete path with API
 	pr_path = `${P_API_DEFAULT}${pr_path}`;
 
@@ -175,10 +149,7 @@ async function confluence_get_json<Data extends JsonObject>(
 	return await get_json<Data>(pr_path, gc_get);
 }
 
-async function confluence_put_json<Data extends JsonObject>(
-	pr_path: string,
-	gc_post?: {body?: string; json?: JsonValue;}
-): Promise<Response<Data>> {
+async function confluence_put_json<Data extends JsonObject>(pr_path: string, gc_post?: {body?: string; json?: JsonValue}): Promise<Response<Data>> {
 	// complete path with API
 	pr_path = `${P_API_DEFAULT}${pr_path}`;
 
@@ -188,10 +159,7 @@ async function confluence_put_json<Data extends JsonObject>(
 
 async function fetch_page_properties<
 	BundleType extends MetadataBundle = PageMetadataBundle,
->(
-	s_page_title: string,
-	si_metadata_key: Ve4MetadataKey = G_VE4_METADATA_KEYS.CONFLUENCE_PAGE
-): Promise<ConfluenceApi.ContentResult<
+>(s_page_title: string, si_metadata_key: Ve4MetadataKey=G_VE4_METADATA_KEYS.CONFLUENCE_PAGE): Promise<ConfluenceApi.ContentResult<
 	BasicPageWithAncestorsType,
 	BundleType
 	> | null> {
@@ -250,18 +218,12 @@ const H_CACHE_PAGES: Record<string, ConfluencePage> = {};
 export class ConfluencePage {
 	static async fromCurrentPage(): Promise<ConfluencePage> {
 		const k_page = new ConfluencePage(G_META.page_id, G_META.page_title);
-		const dm_modified = document.querySelector(
-			'a.last-modified'
-		) as HTMLAnchorElement;
+		const dm_modified = document.querySelector('a.last-modified') as HTMLAnchorElement;
 		const s_search = new URL(dm_modified.href).search;
-		const a_versions = new URLSearchParams(s_search).getAll(
-			'selectedPageVersions'
-		);
+		const a_versions = new URLSearchParams(s_search).getAll('selectedPageVersions');
 
 		// deduce page version
-		const n_local = a_versions?.length
-			? +a_versions[a_versions.length - 1]
-			: 1;
+		const n_local = a_versions?.length? +a_versions[a_versions.length - 1]: 1;
 
 		// compare versions
 		const n_remote = await k_page.getVersionNumber();
@@ -350,25 +312,19 @@ export class ConfluencePage {
 
 	async getMetadata(b_force = false): Promise<ConfluenceApi.Info | null> {
 		const g_info = await this._info(b_force);
-		return normalize_metadata<Ve4MetadataKeyPage, PageMetadata>(
-			g_info?.metadata.properties[G_VE4_METADATA_KEYS.CONFLUENCE_PAGE]
-		);
+		return normalize_metadata<Ve4MetadataKeyPage, PageMetadata>(g_info?.metadata.properties[G_VE4_METADATA_KEYS.CONFLUENCE_PAGE]);
 	}
 
-	async getVersionNumber(
-		b_force = false
-	): Promise<ConfluenceApi.PageVersionNumber> {
+	async getVersionNumber(b_force=false): Promise<ConfluenceApi.PageVersionNumber> {
 		const g_page = await this._content(b_force);
 
 		return g_page?.version.number || 1;
 	}
 
-	async getContentAsString(
-		b_force = false
-	): Promise<{
-			versionNumber: ConfluenceApi.PageVersionNumber;
-			value: CXHTML;
-		}> {
+	async getContentAsString(b_force=false): Promise<{
+		versionNumber: ConfluenceApi.PageVersionNumber;
+		value: Cxhtml;
+	}> {
 		const g_page = await this._content(b_force);
 
 		return {
@@ -377,10 +333,7 @@ export class ConfluencePage {
 		};
 	}
 
-	async getContentAsXhtmlDocument(): Promise<{
-		versionNumber: ConfluenceApi.PageVersionNumber;
-		value: XHTMLDocument;
-	}> {
+	async getContentAsXhtmlDocument(): Promise<{versionNumber: ConfluenceApi.PageVersionNumber; value: XhtmlDocument;}> {
 		const {
 			versionNumber: n_version,
 			value: sx_value,
@@ -388,19 +341,16 @@ export class ConfluencePage {
 
 		return {
 			versionNumber: n_version,
-			value: new XHTMLDocument(sx_value),
+			value: new XhtmlDocument(sx_value),
 		};
 	}
 
-	async postContent(n_version: ConfluenceApi.PageVersionNumber, s_content: CXHTML): Promise<ConfluenceApi.PageVersionNumber> {
+	async postContent(n_version: ConfluenceApi.PageVersionNumber, s_content: Cxhtml): Promise<ConfluenceApi.PageVersionNumber> {
 		return 0;
 	}
 
 	async isDocumentCoverPage(): Promise<boolean> {
-		return await new ConfluenceDocument(
-			this._si_page,
-			this._s_page_title
-		).isDocumentCoverPage();
+		return await new ConfluenceDocument(this._si_page, this._s_page_title).isDocumentCoverPage();
 	}
 
 	async getDocument(b_force = false): Promise<ConfluenceDocument | null> {
@@ -445,9 +395,7 @@ export class ConfluenceDocument {
 
 	static async createNew(k_page: ConfluencePage, b_bypass = false): Promise<ConfluenceDocument> {
 		if(!b_bypass && await k_page.isDocumentMember()) {
-			throw new Error(
-				`Cannot create document from page which is already member of a document`
-			);
+			throw new Error(`Cannot create document from page which is already member of a document`);
 		}
 
 		const k_document = ConfluenceDocument.fromPage(k_page);
@@ -483,10 +431,7 @@ export class ConfluenceDocument {
 
 	private _g_info: DocumentInfo | null = null;
 
-	constructor(
-		si_cover_page: ConfluenceApi.PageId,
-		s_cover_page_title: string
-	) {
+	constructor(si_cover_page: ConfluenceApi.PageId, s_cover_page_title: string) {
 		this._si_cover_page = si_cover_page;
 		this._s_cover_page_title = s_cover_page_title;
 	}
@@ -495,10 +440,7 @@ export class ConfluenceDocument {
 		if(this._b_cached_info && !b_force) return this._g_info;
 		this._b_cached_info = true;
 		return (this._g_info
-			= await fetch_page_properties<DocumentMetadataBundle>(
-				this._s_cover_page_title,
-				G_VE4_METADATA_KEYS.CONFLUENCE_DOCUMENT
-			));
+			= await fetch_page_properties<DocumentMetadataBundle>(this._s_cover_page_title, G_VE4_METADATA_KEYS.CONFLUENCE_DOCUMENT));
 	}
 
 	get coverPageId(): ConfluenceApi.PageId {
@@ -506,44 +448,30 @@ export class ConfluenceDocument {
 	}
 
 	getCoverPage(): ConfluencePage {
-		return new ConfluencePage(
-			this._si_cover_page,
-			this._s_cover_page_title
-		);
+		return new ConfluencePage(this._si_cover_page, this._s_cover_page_title);
 	}
 
-	async getMetadata(
-		b_force = false
-	): Promise<ConfluenceApi.Info<
+	async getMetadata(b_force = false): Promise<ConfluenceApi.Info<
 		Ve4MetadataKeyDocument,
 		DocumentMetadata
-		> | null> {
+	> | null> {
 		return normalize_metadata<Ve4MetadataKeyDocument, DocumentMetadata>(
-			(await this._info(b_force))?.metadata.properties[
-				G_VE4_METADATA_KEYS.CONFLUENCE_DOCUMENT
-			]
+			(await this._info(b_force))?.metadata.properties[G_VE4_METADATA_KEYS.CONFLUENCE_DOCUMENT]
 		);
 	}
 
-	async postMetadata(
-		gm_document: DocumentMetadata,
-		n_version = 1,
-		s_message = ''
-	): Promise<boolean> {
-		await confluence_put_json(
-			`/content/${this._si_cover_page}/property/${G_VE4_METADATA_KEYS.CONFLUENCE_DOCUMENT}`,
-			{
-				json: {
-					key: G_VE4_METADATA_KEYS.CONFLUENCE_DOCUMENT,
-					value: gm_document,
-					version: {
-						minorEdit: true,
-						number: n_version,
-						message: s_message,
-					},
+	async postMetadata(gm_document: DocumentMetadata, n_version=1, s_message=''): Promise<boolean> {
+		await confluence_put_json(`/content/${this._si_cover_page}/property/${G_VE4_METADATA_KEYS.CONFLUENCE_DOCUMENT}`, {
+			json: {
+				key: G_VE4_METADATA_KEYS.CONFLUENCE_DOCUMENT,
+				value: gm_document,
+				version: {
+					minorEdit: true,
+					number: n_version,
+					message: s_message,
 				},
-			}
-		);
+			},
+		});
 
 		return true;
 	}

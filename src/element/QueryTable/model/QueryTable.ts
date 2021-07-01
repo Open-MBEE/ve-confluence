@@ -10,9 +10,9 @@ import type {
 	TypedKeyedPrimitive,
 	TypedPrimitive,
 	ValuedLabeledObject,
-} from '../common/types';
+} from '#/common/types';
 
-import type {VePath} from '../class/object-store';
+import type {VeoPath} from '#/common/veo';
 
 import {
 	Serializable,
@@ -20,13 +20,13 @@ import {
 	VeOdmKeyed,
 	VeOdmKeyedLabeled,
 	VeOrmClass,
-} from './Serializable';
+} from '#/model/Serializable';
 
 import {
 	Connection,
 	SparqlConnection,
 	MmsSparqlConnection,
-} from './Connection';
+} from '#/model/Connection';
 
 export namespace QueryParamValue {
 	export interface Serialized extends TypedLabeledObject<'QueryParamValue'> {
@@ -95,7 +95,7 @@ export class ParamValuesList {
 
 export namespace QueryParam {
 	export interface Serialized extends TypedKeyedPrimitive<'QueryParam'> {
-		sortPath: VePath.SortFunction | null;
+		sortPath: VeoPath.SortFunction | null;
 		value: string;
 		label?: string;
 	}
@@ -156,7 +156,7 @@ export class QueryField extends VeOdmKeyed<QueryField.Serialized> {
 
 export namespace QueryFieldGroup {
 	export interface Serialized extends TypedObject<'QueryFieldGroup'> {
-		queryFieldsPaths: VePath.SparqlQueryField[];
+		queryFieldsPaths: VeoPath.SparqlQueryField[];
 	}
 }
 
@@ -182,7 +182,7 @@ export class QueryBuilder extends VeOdm<QueryBuilder.Serialized> {
 
 export namespace QueryType {
 	export interface Serialized extends TypedKeyedLabeledObject<'QueryType'> {
-		queryBuilderPath: VePath.QueryBuilder;
+		queryBuilderPath: VeoPath.QueryBuilder;
 	}
 }
 
@@ -207,18 +207,18 @@ export class QueryType extends VeOdmKeyedLabeled<QueryType.Serialized> {
 }
 
 export namespace QueryTable {
-	export interface Serialized<ConnectionType extends string = string>
+	export interface Serialized<ConnectionType extends string=string>
 		extends Serializable {
 		type: `${`${'Mms'}Sparql` | `${'Plain'}Vql`}QueryTable`;
-		connectionPath: VePath.Connection<ConnectionType>;
+		connectionPath: VeoPath.Connection<ConnectionType>;
 		parameterValues: Record<string, QueryParamValue.Serialized[]>;
-		parameterPaths: VePath.QueryParameter<ConnectionType>[];
+		parameterPaths: VeoPath.QueryParameter<ConnectionType>[];
 	}
 }
 
 export abstract class QueryTable<
-	ConnectionType extends string = string,
-	Serialized extends QueryTable.Serialized<ConnectionType> = QueryTable.Serialized<ConnectionType>,
+	ConnectionType extends string=string,
+	Serialized extends QueryTable.Serialized<ConnectionType>=QueryTable.Serialized<ConnectionType>,
 > extends VeOdm<Serialized> {
 	protected _h_param_values_lists: Record<string, ParamValuesList> = {};
 
@@ -286,20 +286,20 @@ export interface ConnectionQuery {
 }
 
 export namespace SparqlQueryTable {
-	export interface Serialized<Group extends DotFragment = DotFragment>
+	export interface Serialized<Group extends DotFragment=DotFragment>
 		extends QueryTable.Serialized<'sparql'> {
 		type: `${'Mms'}SparqlQueryTable`;
-		connectionPath: VePath.SparqlConnection;
-		queryTypePath: VePath.SparqlQueryType<Group>;
-		parameterPaths: VePath.SparqlQueryParameter<Group>[];
-		fieldGroupPath: VePath.SparqlQueryFieldGroup<Group>;
+		connectionPath: VeoPath.SparqlConnection;
+		queryTypePath: VeoPath.SparqlQueryType<Group>;
+		parameterPaths: VeoPath.SparqlQueryParameter<Group>[];
+		fieldGroupPath: VeoPath.SparqlQueryFieldGroup<Group>;
 	}
 }
 
 export abstract class SparqlQueryTable<
-	Serialized extends SparqlQueryTable.Serialized = SparqlQueryTable.Serialized,
+	Serialized extends SparqlQueryTable.Serialized=SparqlQueryTable.Serialized,
 > extends QueryTable<'sparql', Serialized> {
-	protected _h_options!: Record<VePath.SparqlQueryType, QueryType>;
+	protected _h_options!: Record<VeoPath.SparqlQueryType, QueryType>;
 	protected _k_query_type!: QueryType;
 
 	abstract getConnection(): Promise<SparqlConnection>;
@@ -324,7 +324,7 @@ export abstract class SparqlQueryTable<
 		for(const sp_test in h_options) {
 			const k_test = h_options[sp_test];
 			if(si_value === k_test.value && s_label === k_test.label) {
-				this._gc_serialized.queryTypePath = sp_test as VePath.SparqlQueryType;
+				this._gc_serialized.queryTypePath = sp_test as VeoPath.SparqlQueryType;
 				return;
 			}
 		}
@@ -332,7 +332,7 @@ export abstract class SparqlQueryTable<
 		throw new Error(`Unable to set .queryType property on QueryTable instance since ${JSON.stringify(g_query_type)} did not match any known queryType options`);
 	}
 
-	get queryTypeOptions(): Record<VePath.SparqlQueryType, QueryType> {
+	get queryTypeOptions(): Record<VeoPath.SparqlQueryType, QueryType> {
 		return this._h_options;
 	}
 
@@ -343,7 +343,7 @@ export abstract class SparqlQueryTable<
 }
 
 export namespace MmsSparqlQueryTable {
-	export interface Serialized<Group extends DotFragment = DotFragment>
+	export interface Serialized<Group extends DotFragment=DotFragment>
 		extends SparqlQueryTable.Serialized<Group>,
 		TypedObject {
 		type: 'MmsSparqlQueryTable';
@@ -352,7 +352,7 @@ export namespace MmsSparqlQueryTable {
 }
 
 export class MmsSparqlQueryTable<
-	Group extends DotFragment = DotFragment,
+	Group extends DotFragment=DotFragment,
 > extends SparqlQueryTable<MmsSparqlQueryTable.Serialized<Group>> {
 	async getConnection(): Promise<MmsSparqlConnection> {
 		const g_serialized

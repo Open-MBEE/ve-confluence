@@ -1,36 +1,38 @@
 <script lang="ts">
-	import DatasetsTable from '../components/DatasetsTable.svelte';
+	import DatasetsTable from '#/ui/component/DatasetsTable.svelte';
+
 
 	import {
 		ConfluencePage,
 		ConfluenceDocument,
-	} from '../class/confluence';
+	} from '#/vendor/confluence/module/confluence';
 
-	import { getContext, onMount } from 'svelte';
-	import G_META from '../common/meta';
-	import {lang} from '../common/static';
+	import {
+		getContext,
+		onMount,
+} from 'svelte';
+
+	import G_META from '#/common/meta';
+
+	import {lang} from '#/common/static';
 
 	import Fa from 'svelte-fa';
-	import {
-		faQuestionCircle,
-	} from '@fortawesome/free-solid-svg-icons';
+
+	import {faQuestionCircle} from '@fortawesome/free-solid-svg-icons';
 
 	import {
 		qs,
 		dm_main,
-	} from '../util/dom';
+	} from '#/util/dom';
+
+	import {slide} from 'svelte/transition';
 
 	import {
-		slide,
-	} from 'svelte/transition';
-
-	export let G_CONTEXT: import('../common/ve4').Ve4ComponentContext;
-	// const {
-	// 	// k_sparql,
-	// } = G_CONTEXT;
-
-	import { Tabs, TabList, TabPanel, Tab } from 'svelte-tabs';
-	import { create } from 'gretchen';
+		Tabs,
+		TabList,
+		TabPanel,
+		Tab,
+} from 'svelte-tabs';
 
 	let b_ready = false;
 	let b_read_only = false;
@@ -69,13 +71,11 @@
 		});
 
 		// start observing 'main' attribute changes
-		d_observer.observe(dm_main, {
-			attributes: true,
-		});
+		d_observer.observe(dm_main, {attributes:true});
 
 		k_page = await ConfluencePage.fromCurrentPage();
 
-		if(await k_page.isDocumentMember()){
+		if(await k_page.isDocumentMember()) {
 			k_document = await k_page.getDocument();
 		}
 	});
@@ -106,14 +106,7 @@
 </script>
 
 <style lang="less">
-	@import "./ve";
-
-	.animated {
-		&.bounce {
-			#a.animated();
-			#a.rotate();
-		}
-	}
+	@import '/src/common/ve.less';
 
 	.animated {
 		animation-duration: 0.4s;
@@ -244,10 +237,7 @@
 				{/if}
 				<span class="icon-help">
 					<!-- help icon -->
-					<Fa
-						icon={faQuestionCircle}
-						size="2x"
-					></Fa>
+					<Fa icon={faQuestionCircle} size="2x"></Fa>
 				</span>
 				<span class="icon-dropdown animated rotate-expand" bind:this={dm_icon_dropdown}>
 					<!-- drop-down -->
@@ -269,7 +259,7 @@
 							<div class="tab-body">
 								<p>New updates are available every Friday at 10:00 PM</p>
 								<button on:click={reset_document}>Reset this document's metadata</button>
-								<DatasetsTable {G_CONTEXT}></DatasetsTable>
+								<DatasetsTable></DatasetsTable>
 							</div>
 						</TabPanel>
 					{:else}

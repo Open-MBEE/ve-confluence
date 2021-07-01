@@ -1,16 +1,15 @@
-import type {MmsSparqlQueryTable} from '../../model/QueryTable';
+import type {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
 
 import {SparqlSelectQuery} from '../../util/sparql-endpoint';
 
 import type {Hash} from '../types';
 
-const terse_lit = (s: string) =>
-	`"${s.replace(/[\r\n]+/g, '').replace(/"/g, '\\"')}"`;
+const terse_lit = (s: string) => `"${s.replace(/[\r\n]+/g, '').replace(/"/g, '\\"')}"`;
 
 function attr(h_props: Hash, si_attr: string, s_attr_key: string, b_many=false) {
-	const sx_prop = (h_props[si_attr] = `?_${si_attr}`);
+	const sx_prop = h_props[si_attr] = `?_${si_attr}`;
 
-	if (!s_attr_key) debugger;
+	if(!s_attr_key) debugger;
 	return /* syntax: sparql */ `
 		${sx_prop} a rdf:Property ;
 			rdfs:label ${terse_lit(s_attr_key)} .
@@ -35,34 +34,40 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 	const a_aggregates: string[] = [];
 
 	// each param
-	for (const {key:si_param, label:s_label} of await this.getParameters()) {
+	for(const {
+		key: si_param, label: s_label,
+	} of await this.getParameters()) {
 		// fetch values list
 		const k_list = this.parameterValuesList(si_param);
 
 		// nothing selected for this param; skip it
-		if (!k_list?.size) continue;
+		if(!k_list?.size) continue;
 
 		// insert value filter
 		a_bgp.push(/* syntax: sparql */ `
 			${attr(h_props, si_param, s_label)}
 
 			values ?${si_param}Value {
-				${[...this.parameterValuesList(si_param)]
-					.map((k) => terse_lit(k.value)).join(' ')}
+				${[...this.parameterValuesList(si_param)].map(k => terse_lit(k.value)).join(' ')}
 			}
 		`);
 	}
 
 	// each field
-	for (const {key:si_param, label:s_header, value:s_value, hasMany:b_many} of this.fields) {
+	for(const {
+		key: si_param,
+		label: s_header,
+		value: s_value,
+		hasMany: b_many,
+	} of this.fields) {
 		// attr already captured from filter; select value variable and skip it
-		if (si_param in h_props) {
+		if(si_param in h_props) {
 			a_selects.push(`?${si_param}Value`);
 			continue;
 		}
 
 		// many cardinality; group concat variable
-		if (b_many) {
+		if(b_many) {
 			a_aggregates.push(/* syntax: sparql */ `
 				(group_concat(distinct ?${si_param}Values; separator='\\u0000') as ?${si_param}Value)
 			`);

@@ -2,30 +2,40 @@ import {
 	PageMetadata,
 	ConfluencePage,
 	ConfluenceDocument,
-	Source,
-	DngMdkSource,
-} from './class/confluence';
+} from '#/vendor/confluence/module/confluence';
 
-import G_META from './common/meta';
-import { process, lang, static_css, static_js } from './common/static';
-import { format } from './util/intl';
-import { qs, qsa, dd, dm_main, dm_content } from './util/dom';
+import G_META from '#/common/meta';
 
-import type { SvelteComponent } from 'svelte';
+import {
+	process,
+	lang,
+	static_css,
+	static_js,
+} from '#/common/static';
 
-import ControlBar from './components/ControlBar.svelte';
-import DngArtifact from './components/DngArtifact.svelte';
-import QueryTable from './components/QueryTable.svelte';
-import InsertBlockView from './components/InsertBlockView.svelte';
-import SparqlEndpoint from './util/sparql-endpoint';
-import H_PREFIXES from './common/prefixes';
-import type XHTMLDocument from './class/xhtml-document';
+import {format} from '#/util/intl';
 
-import type { Ve4ComponentContext } from './common/ve4';
-import type { SourceKey } from './class/source';
-import { MmsSparqlQueryTable } from './model/QueryTable';
-import { ObjectStore } from './class/object-store';
-import { H_HARDCODED_OBJECTS } from './common/hardcoded';
+import {
+	qsa,
+	dm_main,
+	dm_content,
+} from '#/util/dom';
+
+import type {SvelteComponent} from 'svelte';
+
+import ControlBar from '#/element/ControlBar/component/ControlBar.svelte';
+
+import DngArtifact from '#/element/DngArtifact/component/DngArtifact.svelte';
+
+import QueryTable from '#/element/QueryTable/component/QueryTable.svelte';
+
+import type XhtmlDocument from '#/vendor/confluence/module/xhtml-document';
+
+import {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
+
+import {ObjectStore} from '#/vendor/confluence/module/object-store';
+
+import {H_HARDCODED_OBJECTS} from '#/common/hardcoded';
 
 // write static css
 {
@@ -42,17 +52,6 @@ import { H_HARDCODED_OBJECTS } from './common/hardcoded';
 	document.body.appendChild(dm_script);
 }
 
-// write remote resuorces
-{
-	// document.body.appendChild(dd('link', {
-	// 	rel: 'stylesheet',
-	// 	// href: 'https://ced-cdn-test.s3-us-gov-west-1.amazonaws.com/confluence-ui/fontawesome-free/css/all.min.css',
-	// 	href: 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css',
-	// 	integrity: 'sha512-iBBXm8fW90+nuLcSKlbmrPcLa0OT92xO1BIsZ+ywDWZCvqsWgccV3gFoRBv0z+8dLJgyAHIhR35VZc2oM/gI1w==',
-	// 	crossorigin: 'anonymous',
-	// 	referrerpolicy: 'no-referrer',
-	// }));
-}
 /**
  * tuple of a node's corresponding HTML element and a struct with properties to be used later
  */
@@ -111,7 +110,6 @@ type ControlBarConfig = {
 };
 
 const P_DNG_WEB_PREFIX = process.env.DOORS_NG_PREFIX;
-const SI_DNG_LOOKUP = 'Doors-NG Artifact or Requirement'.replace(/ /g, '+');
 
 // for excluding elements that are within active directives
 const SX_PARAMETER_ID = `ac:parameter[@ac:name="id"][starts-with(text(),"{SI_VIEW_PREFIX}-")]`;
@@ -132,12 +130,10 @@ const A_DIRECTIVE_CORRELATIONS: CorrelationDescriptor[] = [
 	},
 ];
 
-let K_OBJECT_STORE: ObjectStore;
+let k_object_store: ObjectStore;
 
 const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
-	'Insert Block View': () => ({
-		component: InsertBlockView,
-	}),
+	// 'Insert Block View': () => ({component:InsertBlockView}),
 	// 'Insert DNG Artifact or Attribute': ([ym_anchor]) => ({
 	// 	component: InsertInlineView,
 	// 	props: {
@@ -161,45 +157,28 @@ const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 						'hardcoded#queryParameter.sparql.dng.maturity',
 					],
 				},
-				{
-					store: K_OBJECT_STORE,
-				},
+				{store:k_object_store}
 			),
 		},
 	}),
 };
 
-const G_CONTEXT: Ve4ComponentContext = {
-	k_page: null as unknown as ConfluencePage,
-	k_sparql: null as unknown as SparqlEndpoint,
-};
-
-/**
- * content mixin
- */
-const GM_CONTEXT = {
-	G_CONTEXT,
-};
-
-const xpath_attrs = (a_attrs: string[]) =>
-	a_attrs.map((sx) => `[${sx}]`).join('');
+const xpath_attrs = (a_attrs: string[]) => a_attrs.map(sx => `[${sx}]`).join('');
 
 let k_page: ConfluencePage;
 let k_document: ConfluenceDocument | null;
-let k_source: XHTMLDocument;
+let k_source: XhtmlDocument;
 let gm_page: PageMetadata | null;
 
 function control_bar(gc_bar: ControlBarConfig) {
-	let g_props = {
-		...gc_bar.props,
-	};
+	const g_props = {...gc_bar.props};
 
 	// error is present
-	if ('number' === typeof gc_bar.error) {
+	if('number' === typeof gc_bar.error) {
 		let s_message = '';
 		let xc_level = Ve4ErrorLevel.INFO;
 
-		switch (gc_bar.error) {
+		switch(gc_bar.error) {
 			case Ve4Error.PERMISSIONS: {
 				s_message = lang.error.page_permissions;
 				xc_level = Ve4ErrorLevel.WARN;
@@ -222,9 +201,7 @@ function control_bar(gc_bar: ControlBarConfig) {
 	}
 }
 
-function* correlate(
-	gc_correlator: CorrelationDescriptor,
-): Generator<ViewBundle> {
+function* correlate(gc_correlator: CorrelationDescriptor): Generator<ViewBundle> {
 	// find all matching page nodes
 	const a_nodes = k_source.select<Node>(gc_correlator.storage);
 	const nl_nodes = a_nodes.length;
@@ -233,26 +210,21 @@ function* correlate(
 	const a_elmts = qsa(dm_content, gc_correlator.live) as HTMLElement[];
 
 	// mismatch
-	if (a_elmts.length !== nl_nodes) {
+	if(a_elmts.length !== nl_nodes) {
 		// `XPath selection found ${nl_nodes} matches but DOM query selection found ${a_elmts.length} matches`);
-		throw new Error(
-			format(lang.error.xpath_dom_mismatch, {
-				node_count: nl_nodes,
-				element_count: a_elmts.length,
-			}),
+		throw new Error(format(lang.error.xpath_dom_mismatch, {
+			node_count: nl_nodes,
+			element_count: a_elmts.length,
+		})
 		);
 	}
 
 	// apply struct mapper
 	const f_struct = gc_correlator.struct;
-	const a_structs = f_struct
-		? a_nodes.map((ym_node, i_node) => {
-				return f_struct(ym_node, a_elmts[i_node]);
-		  })
-		: [];
+	const a_structs = f_struct? a_nodes.map((ym_node, i_node) => f_struct(ym_node, a_elmts[i_node])): [];
 
 	// each match
-	for (let i_match = 0; i_match < nl_nodes; i_match++) {
+	for(let i_match = 0; i_match < nl_nodes; i_match++) {
 		yield {
 			...gc_correlator.directive([a_elmts[i_match], a_structs[i_match]]),
 			anchor: a_elmts[i_match],
@@ -265,90 +237,71 @@ function render_component(g_bundle: ViewBundle, b_hide_anchor = false) {
 	const dm_anchor = g_bundle.anchor;
 
 	// hide anchor
-	if (b_hide_anchor) dm_anchor.style.display = 'none';
+	if(b_hide_anchor) dm_anchor.style.display = 'none';
 
 	// render component
 	new g_bundle.component({
 		target: dm_anchor.parentNode as HTMLElement,
 		anchor: dm_anchor,
 		props: {
-			...(g_bundle.props || {}),
+			...g_bundle.props || {},
 			g_node: g_bundle.node,
-			...GM_CONTEXT,
+			// ...GM_CONTEXT,
 		},
 	});
 }
 
-const H_SOURCE_HANDLERS: Record<SourceKey, (source: Source) => void> = {
-	dng: ((g_source: DngMdkSource) => {
-		// init SPARQL endpoint
-		G_CONTEXT.k_sparql = new SparqlEndpoint({
-			endpoint: g_source.endpoint || 'void://',
-			prefixes: H_PREFIXES,
-			concurrency: 16,
-			variables: {
-				DATA_GRAPH: `<${g_source.graph || 'void://'}>`,
-				LIMIT: '21',
-			},
-		});
-	}) as (source: Source) => void,
-
-	helix: () => {},
-};
-
-export async function main() {
-	if ('object' !== typeof lang?.basic) {
-		throw new Error(
-			`ERROR: No lang file defined! Did you forget to set the environment variables when building?`,
-		);
+export async function main(): Promise<void> {
+	if('object' !== typeof lang?.basic) {
+		throw new Error(`ERROR: No lang file defined! Did you forget to set the environment variables when building?`);
 	}
 
 	new ControlBar({
 		target: dm_main.parentElement as HTMLElement,
 		anchor: dm_main,
-		props: GM_CONTEXT,
+		// props: GM_CONTEXT,
 	});
 
-	G_CONTEXT.k_page = k_page = await ConfluencePage.fromCurrentPage();
+	// G_CONTEXT.k_page =
+	k_page = await ConfluencePage.fromCurrentPage();
 
 	await Promise.allSettled([
-		(async () => {
+		(async() => {
 			// fetch page metadata
 			const g_meta = await k_page.getMetadata();
 			gm_page = g_meta?.value || null;
 		})(),
 
-		(async () => {
+		(async() => {
 			// page is part of document
 			k_document = await k_page.getDocument();
 		})(),
 
-		(async () => {
+		(async() => {
 			// load page's XHTML source
-			k_source =
-				(await k_page.getContentAsXhtmlDocument())?.value || null;
+			k_source = (await k_page.getContentAsXhtmlDocument())?.value || null;
 		})(),
 	]);
 
 	// not a document member
-	if (!k_document) {
+	if(!k_document) {
 		// exit
 		return;
 	}
 
 	// initialize object store
-	K_OBJECT_STORE = new ObjectStore(k_page, k_document, H_HARDCODED_OBJECTS);
+	k_object_store = new ObjectStore(k_page, k_document, H_HARDCODED_OBJECTS);
 
 	// fetch document metadata
 	const gm_document = await k_document.getMetadata();
 
 	// no metadata; error
-	if (!gm_document) {
+	if(!gm_document) {
 		throw new Error(`Document exists but no metadata`);
 	}
 
 	// each page directive
-	for (const si_page_directive in H_PAGE_DIRECTIVES) {
+	for(const si_page_directive in H_PAGE_DIRECTIVES) {
 		const f_directive = H_PAGE_DIRECTIVES[si_page_directive];
 
 		// page refs
@@ -357,47 +310,38 @@ export async function main() {
 				`@ri:space-key="${G_META.space_key}" or not(@ri:space-key)`,
 				`@ri:content-title="${si_page_directive}"`,
 			])}`,
-			live: `a[href="/display/${
-				G_META.space_key
-			}/${si_page_directive.replace(/ /g, '+')}"]`,
+			live: `a[href="/display/${G_META.space_key}/${si_page_directive.replace(/ /g, '+')}"]`,
 			struct: (ym_node) => {
 				const ym_parent = ym_node.parentNode as Node;
 				return {
-					label:
-						('ac:link' === ym_parent.nodeName
-							? ym_parent.textContent
-							: '') || si_page_directive,
+					label: ('ac:link' === ym_parent.nodeName? ym_parent.textContent: '') || si_page_directive,
 				};
 			},
 			directive: f_directive,
 		});
 
 		// page link as absolute url
-		const p_href = `${G_META.base_url}/display/${
-			G_META.space_key
-		}/${si_page_directive.replace(/ /g, '+')}`;
+		const p_href = `${G_META.base_url}/display/${G_META.space_key}/${si_page_directive.replace(/ /g, '+')}`;
 		const dg_links = correlate({
 			storage: `.//a[@href="${p_href}"]`,
 			live: `a[href="${p_href}"]`,
-			struct: (ym_node) => ({
-				label: ym_node.textContent,
-			}),
+			struct: ym_node => ({label:ym_node.textContent}),
 			directive: f_directive,
 		});
 
 		// each instance
-		for (const g_bundle of [...dg_refs, ...dg_links]) {
+		for(const g_bundle of [...dg_refs, ...dg_links]) {
 			render_component(g_bundle, true);
 		}
 	}
 
 	// each simple directive
-	for (const gc_correlator of A_DIRECTIVE_CORRELATIONS) {
+	for(const gc_correlator of A_DIRECTIVE_CORRELATIONS) {
 		// select all instances of this directive
 		const dg_directives = correlate(gc_correlator);
 
 		//
-		for (const g_bundle of dg_directives) {
+		for(const g_bundle of dg_directives) {
 			render_component(g_bundle, true);
 		}
 	}
@@ -422,11 +366,13 @@ async function dom_ready() {}
 	main();
 
 	// document is already loaded
-	if (['complete', 'interactive', 'loaded'].includes(document.readyState)) {
+	if(['complete', 'interactive', 'loaded'].includes(document.readyState)) {
 		dom_ready();
 	}
 	// dom content not yet loaded; add event listener
 	else {
-		document.addEventListener('DOMContentLoaded', dom_ready, false);
+		document.addEventListener('DOMContentLoaded', () => {
+			dom_ready();
+		}, false);
 	}
 }

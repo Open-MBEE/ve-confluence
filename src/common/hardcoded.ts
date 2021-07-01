@@ -6,13 +6,13 @@ import type {
 	TypedObject,
 	KeyedObject,
 	QueryRow,
-} from '../common/types';
+} from '#/common/types';
 
 import type {
 	QueryField,
 	QueryParam,
 	QueryType,
-} from '../model/QueryTable';
+} from '#/element/QueryTable/model/QueryTable';
 
 import {build_dng_select_query_from_params} from './helper/sparql-code';
 

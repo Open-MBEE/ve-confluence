@@ -1,6 +1,7 @@
 import fs from 'fs';
 import yaml from 'js-yaml';
 
+import alias from 'rollup-plugin-alias';
 import svelte from 'rollup-plugin-svelte';
 import commonjs from '@rollup/plugin-commonjs';
 import resolve from '@rollup/plugin-node-resolve';
@@ -10,6 +11,9 @@ import sveltePreprocess from 'svelte-preprocess';
 import typescript from '@rollup/plugin-typescript';
 import replace from '@rollup/plugin-replace';
 import url from '@rollup/plugin-url';
+import ttypescript from 'ttypescript';
+import tsPathsResolve from 'rollup-plugin-ts-paths-resolve';
+import path from 'path';
 
 const production = !process.env.ROLLUP_WATCH;
 
@@ -50,8 +54,19 @@ console.dir(replace_values({
 	lang: yaml.load(fs.readFileSync(`./resource/${process.env.LANG_FILE || 'lang.yaml'}`))[process.env.LANG],
 }));
 
+const k_resolver = resolve({
+	browser: true,
+	dedupe: ['svelte'],
+	extensions: [
+		'.ts',
+		'.mjs',
+		'.js',
+		'.svelte',
+	],
+})
+
 export default {
-	input: 'src/main.ts',
+	input: 'src/vendor/confluence/main/entrypoint.ts',
 	output: {
 		sourcemap: true,
 		format: 'iife',
@@ -93,17 +108,29 @@ export default {
 			emitCss: false,
 		}),
 
+		alias({
+			resolve: ['.svelte', '.ts'],
+			entries: {
+				'#': path.resolve(__dirname, 'src'),
+			},
+			k_resolver,
+		}),
+
+		k_resolver,
+
 		// If you have external dependencies installed from
 		// npm, you'll most likely need these plugins. In
 		// some cases you'll need additional configuration -
 		// consult the documentation for details:
 		// https://github.com/rollup/plugins/tree/master/packages/commonjs
-		resolve({
-			browser: true,
-			dedupe: ['svelte']
-		}),
+		// resolve({
+		// 	browser: true,
+		// 	dedupe: ['svelte']
+		// }),
+		// tsPathsResolve(),
 		commonjs(),
 		typescript({
+			typescript: ttypescript,
 			sourceMap: !production,
 			inlineSources: !production
 		}),
