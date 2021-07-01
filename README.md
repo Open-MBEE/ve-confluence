@@ -76,6 +76,8 @@ To run Cypress create a `cypress.env.json` file in the project's root directory.
 | username_field | DOM query identifier for the username field. Example: `#username_field`  |
 | password_field | DOM query identifier for the password field. Example: `#password_field`   |
 
+[Opt out of sending exception data to Cypress](https://docs.cypress.io/guides/getting-started/installing-cypress#Opt-out-of-sending-exception-data-to-Cypress)
+
 Run Cypress:
 ```shell
 yarn run cypress:open
