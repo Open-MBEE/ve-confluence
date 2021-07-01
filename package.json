@@ -5,9 +5,9 @@
   "scripts": {
     "build": "yarn rollup -c",
     "dev": "yarn rollup -c -w",
-    "start": "yarn sirv public --no-clear",
     "validate": "yarn svelte-check",
-    "lint": "yarn eslint src"
+    "lint": "yarn eslint src",
+    "cypress:open": "yarn cypress open"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^19.0.0",
@@ -21,6 +21,7 @@
     "@typescript-eslint/eslint-plugin": "^4.28.1",
     "@typescript-eslint/parser": "^4.28.1",
     "@zerollup/ts-transform-paths": "^1.7.18",
+    "cypress": "^7.6.0",
     "eslint": "^7.29.0",
     "eslint-plugin-modules-newline": "^0.0.6",
     "eslint-plugin-node": "^11.1.0",
@@ -39,6 +40,7 @@
     "svelte-check": "^2.2.0",
     "svelte-fa": "^2.2.1",
     "svelte-preprocess": "^4.7.3",
+    "ts-node": "^10.0.0",
     "tslib": "^2.3.0",
     "ttypescript": "^1.5.12",
     "typescript": "^4.3.5"
@@ -47,7 +49,6 @@
     "@fortawesome/fontawesome-free": "^5.15.3",
     "@fortawesome/free-solid-svg-icons": "^5.15.3",
     "gretchen": "^1.4.0",
-    "sirv-cli": "^1.0.12",
     "svelte-select": "^4.1.0",
     "svelte-tabs": "^1.1.0",
     "xmldom": "^0.6.0",
