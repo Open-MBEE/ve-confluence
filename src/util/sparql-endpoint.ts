@@ -3,12 +3,9 @@ import type {
 	SparqlBindings,
 } from '../common/types';
 
-import type {
-	ConnectionQuery,
-} from '../model/QueryTable';
+import type {ConnectionQuery} from '#/element/QueryTable/model/QueryTable';
 
 import AsyncLockPool from './async-lock-pool';
-
 
 export interface SparqlEndpointConfig {
 	endpoint: string;
@@ -26,15 +23,17 @@ export class SparqlQueryHelper {
 		this._h_variables = h_variables;
 	}
 
-	var(si_key: string, s_default: string | null=null) {
+	var(si_key: string, s_default: string | null = null): string {
 		if(!(si_key in this._h_variables)) {
 			if(null !== s_default) return s_default;
-			throw new Error(`SPARQL substitution variable not defined: '${si_key}'`);
+			throw new Error(
+				`SPARQL substitution variable not defined: '${si_key}'`
+			);
 		}
 		return this._h_variables[si_key];
 	}
 
-	iri(p_iri: string) {
+	iri(p_iri: string): string {
 		// prevent injection attacks
 		return p_iri.replace(/\s+/g, '+').replace(/>/g, '_');
 	}
@@ -69,9 +68,9 @@ export class SparqlEndpoint {
 		this._p_endpoint = gc_init.endpoint;
 		this._h_prefixes = gc_init.prefixes || {};
 		this._kl_fetch = new AsyncLockPool(gc_init.concurrency || 1);
-		this._sq_prefixes = Object.entries(this._h_prefixes).map(([si_prefix, p_iri]) => {
-			return `prefix ${si_prefix}: <${p_iri}>\n`;
-		}).join('');
+		this._sq_prefixes = Object.entries(this._h_prefixes)
+			.map(([si_prefix, p_iri]) => `prefix ${si_prefix}: <${p_iri}>\n`)
+			.join('');
 		this._k_helper = new SparqlQueryHelper(gc_init.variables || {});
 	}
 
@@ -88,7 +87,7 @@ export class SparqlEndpoint {
 				href: document.location.href,
 				cookie: document.cookie,
 			}),
-		})
+		});
 	}
 
 	// submit SPARQL SELECT query
@@ -111,14 +110,14 @@ export class SparqlEndpoint {
 				'Content-Type': 'application/x-www-form-urlencoded',
 				'Accept': 'application/sparql-results+json',
 			},
-			body: new URLSearchParams({
-				query: `${this._sq_prefixes}\n${sq_select}`,
-			}),
+			body: new URLSearchParams({query:`${this._sq_prefixes}\n${sq_select}`}),
 		});
 
 		// response not ok
 		if(!d_res.ok) {
-			throw new Error(`Neptune response not OK: '''\n${await d_res.text()}\n'''`);
+			throw new Error(
+				`Neptune response not OK: '''\n${await d_res.text()}\n'''`
+			);
 		}
 
 		// parse results as JSON
@@ -131,7 +130,6 @@ export class SparqlEndpoint {
 		return g_res.results.bindings;
 	}
 }
-
 
 interface SelectQueryDescriptor {
 	count?: string;
@@ -150,7 +148,7 @@ function stringify_select_query_descriptor(g_desc: SelectQueryDescriptor): strin
 	if(g_desc.from) s_from += /* syntax: sparql */ `from ${g_desc.from}`;
 	if(g_desc.group) s_tail += /* syntax: sparql */ `group by ${g_desc.group}`;
 
-	return `
+	return /* syntax: sparql */ `
 		select ${s_select} ${s_from} {
 			${g_desc.bgp}
 		} ${s_tail}
@@ -164,8 +162,11 @@ export class SparqlSelectQuery implements ConnectionQuery {
 		this._gc_query = gc_query;
 	}
 
-	paginate(n_limit: number, n_offset=0): string {
-		return stringify_select_query_descriptor(this._gc_query)+` limit ${n_limit} offset ${n_offset}`;
+	paginate(n_limit: number, n_offset = 0): string {
+		return (
+			stringify_select_query_descriptor(this._gc_query)
+			+ ` limit ${n_limit} offset ${n_offset}`
+		);
 	}
 
 	count(): string {
@@ -180,7 +181,10 @@ export class SparqlSelectQuery implements ConnectionQuery {
 }
 
 export namespace Sparql {
-	export function literal(s_value: string, s_lang_or_datatype?: string): string {
+	export function literal(
+		s_value: string,
+		s_lang_or_datatype?: string
+	): string {
 		// post modifier
 		let s_post = '';
 		if(s_lang_or_datatype) {
@@ -194,7 +198,7 @@ export namespace Sparql {
 			}
 		}
 
-		return '"""'+s_value.replace(/"/g, '\\"')+'"""'+s_post;
+		return '"""' + s_value.replace(/"/g, '\\"') + '"""' + s_post;
 	}
 
 	export function iri(p_iri: string): string {

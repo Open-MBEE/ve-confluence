@@ -1,0 +1,11 @@
+{
+    "typescript.tsdk": "node_modules/typescript/lib",
+    // "svelte.plugin.typescript.enable": true,
+    // "svelte.plugin.svelte.format.enable": false,
+    // "eslint.workingDirectories": ["./src"],
+    "eslint.validate": [
+        "javascript",
+        "typescript",
+        "svelte"
+    ]
+}

@@ -1,15 +1,16 @@
-import type { MmsSparqlQueryTable, SparqlQueryTable } from "../../model/QueryTable";
-import {
-    SparqlSelectQuery,
-} from "../../util/sparql-endpoint";
-import type { Hash } from "../types";
+import type {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
+
+import {SparqlSelectQuery} from '../../util/sparql-endpoint';
+
+import type {Hash} from '../types';
 
 const terse_lit = (s: string) => `"${s.replace(/[\r\n]+/g, '').replace(/"/g, '\\"')}"`;
 
 function attr(h_props: Hash, si_attr: string, s_attr_key: string, b_many=false) {
 	const sx_prop = h_props[si_attr] = `?_${si_attr}`;
 
-	return `
+	if(!s_attr_key) debugger;
+	return /* syntax: sparql */ `
 		${sx_prop} a rdf:Property ;
 			rdfs:label ${terse_lit(s_attr_key)} .
 
@@ -32,55 +33,64 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 
 	const a_aggregates: string[] = [];
 
-    // each param
-    for(const {key:si_param, label:s_label} of await this.getParameters()) {
-        // fetch values list
-        const k_list = this.parameterValuesList(si_param);
+	// each param
+	for(const {
+		key: si_param, label: s_label,
+	} of await this.getParameters()) {
+		// fetch values list
+		const k_list = this.parameterValuesList(si_param);
 
 		// nothing selected for this param; skip it
-        if(!k_list?.size) continue;
+		if(!k_list?.size) continue;
 
 		// insert value filter
-		a_bgp.push(`
-            ${attr(h_props, si_param, s_label)}
+		a_bgp.push(/* syntax: sparql */ `
+			${attr(h_props, si_param, s_label)}
 
-            values ?${si_param}Value {
-                ${[...this.parameterValuesList(si_param)].map(k => terse_lit(k.value)).join(' ')}
-            }
-        `);
-    }
+			values ?${si_param}Value {
+				${[...this.parameterValuesList(si_param)].map(k => terse_lit(k.value)).join(' ')}
+			}
+		`);
+	}
 
 	// each field
-	for(const {key:si_param, label:s_header, value:s_value, hasMany:b_many} of this.fields) {
+	for(const {
+		key: si_param,
+		label: s_header,
+		value: s_value,
+		hasMany: b_many,
+	} of this.fields) {
 		// attr already captured from filter; select value variable and skip it
 		if(si_param in h_props) {
 			a_selects.push(`?${si_param}Value`);
 			continue;
 		}
 
-        // many cardinality; group concat variable
+		// many cardinality; group concat variable
 		if(b_many) {
-			a_aggregates.push(/* syntax: sparql */ `(group_concat(distinct ?${si_param}Values; separator='\\u0000') as ?${si_param}Value)`);
+			a_aggregates.push(/* syntax: sparql */ `
+				(group_concat(distinct ?${si_param}Values; separator='\\u0000') as ?${si_param}Value)
+			`);
 		}
-        // select the value variable
+		// select the value variable
 		else {
 			a_selects.push(`?${si_param}Value`);
 		}
 
 		// insert binding pattern fragment
-		a_bgp.push(`
+		a_bgp.push(/* syntax: sparql */ `
 			optional {
 				${attr(h_props, si_param, s_value, b_many)}
 			}
 		`);
 	}
 
-    const k_connection = await this.getConnection();
+	const k_connection = await this.getConnection();
 
 	return new SparqlSelectQuery({
 		count: '?artifact',
 		select: [...a_selects, ...a_aggregates],
-		from: k_connection.modelGraph,
+		from: `<${k_connection.modelGraph}>`,
 		bgp: /* syntax: sparql */ `
 			?artifact a oslc_rm:Requirement ;
 				dct:identifier ?identifierValue ;
@@ -90,7 +100,6 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 
 			${a_bgp.join('\n')}
 		`,
-		group: a_aggregates.length? a_selects.join(' '): null,
+		group: a_aggregates.length ? a_selects.join(' ') : null,
 	});
 }
-
