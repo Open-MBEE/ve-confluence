@@ -109,13 +109,7 @@
 		<span class="label">{s_label}</span>
 	</span>
 	<span class="preview">
-		<span bind:this={dm_macro}
-			style="background-color:lemonchiffon;"
-			id="ve4-directive-tooltip-d2b512da419f477f801de24b5c336546"
-			class="inline-first-p conf-macro output-inline"
-			data-hasbody="true"
-			data-macro-name="span"
-			original-title="{s_tooltip}">
+		<span bind:this={dm_macro} style="background-color:lemonchiffon;" id="ve4-directive-tooltip-d2b512da419f477f801de24b5c336546" class="inline-first-p conf-macro output-inline" data-hasbody="true" data-macro-name="span" original-title="{s_tooltip}">
 			<a href="{p_artifact}" class="external-link" rel="nofollow">{s_label}</a>
 		</span>
 	</span>

@@ -207,7 +207,7 @@ export class QueryType extends VeOdmKeyedLabeled<QueryType.Serialized> {
 }
 
 export namespace QueryTable {
-	export interface Serialized<ConnectionType extends string = string>
+	export interface Serialized<ConnectionType extends string=string>
 		extends Serializable {
 		type: `${`${'Mms'}Sparql` | `${'Plain'}Vql`}QueryTable`;
 		connectionPath: VeoPath.Connection<ConnectionType>;
@@ -217,8 +217,8 @@ export namespace QueryTable {
 }
 
 export abstract class QueryTable<
-	ConnectionType extends string = string,
-	Serialized extends QueryTable.Serialized<ConnectionType> = QueryTable.Serialized<ConnectionType>,
+	ConnectionType extends string=string,
+	Serialized extends QueryTable.Serialized<ConnectionType>=QueryTable.Serialized<ConnectionType>,
 > extends VeOdm<Serialized> {
 	protected _h_param_values_lists: Record<string, ParamValuesList> = {};
 
@@ -286,7 +286,7 @@ export interface ConnectionQuery {
 }
 
 export namespace SparqlQueryTable {
-	export interface Serialized<Group extends DotFragment = DotFragment>
+	export interface Serialized<Group extends DotFragment=DotFragment>
 		extends QueryTable.Serialized<'sparql'> {
 		type: `${'Mms'}SparqlQueryTable`;
 		connectionPath: VeoPath.SparqlConnection;
@@ -297,7 +297,7 @@ export namespace SparqlQueryTable {
 }
 
 export abstract class SparqlQueryTable<
-	Serialized extends SparqlQueryTable.Serialized = SparqlQueryTable.Serialized,
+	Serialized extends SparqlQueryTable.Serialized=SparqlQueryTable.Serialized,
 > extends QueryTable<'sparql', Serialized> {
 	protected _h_options!: Record<VeoPath.SparqlQueryType, QueryType>;
 	protected _k_query_type!: QueryType;
@@ -343,7 +343,7 @@ export abstract class SparqlQueryTable<
 }
 
 export namespace MmsSparqlQueryTable {
-	export interface Serialized<Group extends DotFragment = DotFragment>
+	export interface Serialized<Group extends DotFragment=DotFragment>
 		extends SparqlQueryTable.Serialized<Group>,
 		TypedObject {
 		type: 'MmsSparqlQueryTable';
@@ -352,7 +352,7 @@ export namespace MmsSparqlQueryTable {
 }
 
 export class MmsSparqlQueryTable<
-	Group extends DotFragment = DotFragment,
+	Group extends DotFragment=DotFragment,
 > extends SparqlQueryTable<MmsSparqlQueryTable.Serialized<Group>> {
 	async getConnection(): Promise<MmsSparqlConnection> {
 		const g_serialized

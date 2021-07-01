@@ -7,25 +7,32 @@
 		ConfluenceDocument,
 	} from '#/vendor/confluence/module/confluence';
 
-	import { getContext, onMount } from 'svelte';
+	import {
+		getContext,
+		onMount,
+} from 'svelte';
+
 	import G_META from '#/common/meta';
+
 	import {lang} from '#/common/static';
 
 	import Fa from 'svelte-fa';
-	import {
-		faQuestionCircle,
-	} from '@fortawesome/free-solid-svg-icons';
+
+	import {faQuestionCircle} from '@fortawesome/free-solid-svg-icons';
 
 	import {
 		qs,
 		dm_main,
 	} from '#/util/dom';
 
-	import {
-		slide,
-	} from 'svelte/transition';
+	import {slide} from 'svelte/transition';
 
-	import { Tabs, TabList, TabPanel, Tab } from 'svelte-tabs';
+	import {
+		Tabs,
+		TabList,
+		TabPanel,
+		Tab,
+} from 'svelte-tabs';
 
 	let b_ready = false;
 	let b_read_only = false;
@@ -64,13 +71,11 @@
 		});
 
 		// start observing 'main' attribute changes
-		d_observer.observe(dm_main, {
-			attributes: true,
-		});
+		d_observer.observe(dm_main, {attributes:true});
 
 		k_page = await ConfluencePage.fromCurrentPage();
 
-		if(await k_page.isDocumentMember()){
+		if(await k_page.isDocumentMember()) {
 			k_document = await k_page.getDocument();
 		}
 	});
@@ -102,13 +107,6 @@
 
 <style lang="less">
 	@import '/src/common/ve.less';
-
-	.animated {
-		&.bounce {
-			#a.animated();
-			#a.rotate();
-		}
-	}
 
 	.animated {
 		animation-duration: 0.4s;
@@ -239,10 +237,7 @@
 				{/if}
 				<span class="icon-help">
 					<!-- help icon -->
-					<Fa
-						icon={faQuestionCircle}
-						size="2x"
-					></Fa>
+					<Fa icon={faQuestionCircle} size="2x"></Fa>
 				</span>
 				<span class="icon-dropdown animated rotate-expand" bind:this={dm_icon_dropdown}>
 					<!-- drop-down -->
