@@ -1,22 +1,15 @@
 <script lang="ts">
-	import {createEventDispatcher} from 'svelte';
-	const dispatch = createEventDispatcher();
+	import {createEventDispatcher, tick} from 'svelte';
 	import {lang} from '#/common/static';
 	import Select from 'svelte-select';
 
-	import type {
-		ParamValuesList,
-		QueryParam,
-		SparqlQueryTable,
-	} from '#/element/QueryTable/model/QueryTable';
+	import type {ParamValuesList, QueryParam, SparqlQueryTable,} from '#/element/QueryTable/model/QueryTable';
 
-	import type {
-		MmsSparqlConnection,
-	} from '#/model/Connection';
+	import type {MmsSparqlConnection,} from '#/model/Connection';
 
-	import {
-		Sparql,
-	} from '#/util/sparql-endpoint';
+	import {Sparql,} from '#/util/sparql-endpoint';
+
+	const dispatch = createEventDispatcher();
 
 	interface Option {
 		label: string;
@@ -24,12 +17,13 @@
 		count: number;
 		state: number;
 	}
-	
+
 	export let k_param: QueryParam;
 	export let k_values: ParamValuesList;
 	export let k_query_table: SparqlQueryTable;
 
 	let a_options: Option[] = [];
+	export let selected_items: Option[] = [];
 
 	const XC_STATE_HIDDEN = 0;
 	const XC_STATE_VISIBLE = 1;
@@ -70,14 +64,24 @@
 		}
 	}
 
+	async function load_values(k_values: ParamValuesList) {
+		await tick();
+		for (const val of k_values) {
+			console.log('Loading selected value: ' + val.value);
+			selected_items = a_options.filter(e => e.value === val.value).map(function (item) {
+				return item;
+			});
+			console.log(selected_items);
+		}
+	}
+
 	(async() => {
-		if(!k_values.size) {
-			try {
-				await load_param(k_param);
-			}
-			catch(_e_query) {
-				e_query = _e_query;
-			}
+		try {
+			await load_param(k_param);
+			await load_values(k_values);
+		}
+		catch(_e_query) {
+			e_query = _e_query;
 		}
 
 		xc_load = XC_LOAD_YES;
@@ -167,7 +171,7 @@
 
 		--multiClearHoverBG: var(--ve-color-light-background);
 		--multiClearHoverFill: var(--ve-color-dark-text);
-		
+
 		--multiLabelMargin: 0;
 
 		--multiSelectPadding: 0 0 0 2px;
@@ -226,6 +230,7 @@
 					<path d="M3.5 4.5L0.468911 0.75L6.53109 0.75L3.5 4.5Z" fill="#333333"/>
 				</svg>
 			`}
+			value={selected_items}
 			on:select={select_value}
 			on:clear={handle_clear}
 		></Select>

@@ -133,10 +133,7 @@ export class ObjectStore implements IObjectStore {
 		return a_frags[3];
 	}
 
-	optionsSync<
-		ValueType extends Serializable | Primitive,
-		ClassType extends VeOdm<ValueType>,
-	>(sp_path: VeoPath.HardcodedObject, dc_class: {new (gc: ValueType, g: Context): ClassType;}, g_context: Context): Record<VeoPath.Full, ClassType> {
+	optionsSync<ValueType extends Serializable | Primitive, ClassType extends VeOdm<ValueType>>(sp_path: VeoPath.HardcodedObject, dc_class: {new (gc: ValueType, g: Context): ClassType;}, g_context: Context): Record<VeoPath.Full, ClassType> {
 		const sp_parent = sp_path.replace(/\.[^.]+$/, '');
 		const h_options = this.resolveSync<Record<string, ValueType>>(sp_parent);
 		return Object.entries(h_options).reduce(
@@ -148,10 +145,7 @@ export class ObjectStore implements IObjectStore {
 		);
 	}
 
-	resolveSync<
-		ValueType extends PrimitiveValue,
-		VeoPathType extends VeoPath.HardcodedObject = VeoPath.HardcodedObject,
-	>(sp_path: string): ValueType {
+	resolveSync<ValueType extends PrimitiveValue, VeoPathType extends VeoPath.HardcodedObject = VeoPath.HardcodedObject>(sp_path: string): ValueType {
 		const a_parts = sp_path.split('#');
 
 		if(2 !== a_parts.length) {
@@ -168,10 +162,7 @@ export class ObjectStore implements IObjectStore {
 		return access<ValueType>(this._h_hardcoded, a_frags);
 	}
 
-	async resolve<
-		ValueType extends PrimitiveValue,
-		VeoPathType extends VeoPath.Full = VeoPath.Full,
-	>(sp_path: string): Promise<ValueType> {
+	async resolve<ValueType extends PrimitiveValue, VeoPathType extends VeoPath.Full = VeoPath.Full>(sp_path: string): Promise<ValueType> {
 		const a_parts = sp_path.split('#');
 		if(2 !== a_parts.length) {
 			throw new TypeError(`Invalid path string: '${sp_path}'; no storage parameter`);

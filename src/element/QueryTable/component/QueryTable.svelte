@@ -1,4 +1,9 @@
 <script lang="ts">
+	import {
+		PageMetadata,
+		ConfluencePage,
+	} from '#/vendor/confluence/module/confluence';
+
 	import { onMount } from 'svelte';
 	import { quadOut } from 'svelte/easing';
 	import { slide } from 'svelte/transition';
@@ -26,17 +31,29 @@
 	} from '#/model/Connection';
 
 	import type { ValuedLabeledObject } from '#/common/types';
+	import {MmsSparqlQueryTable} from "../model/QueryTable";
 
 	export let k_query_table: QueryTable;
+	export let k_page: ConfluencePage;
+
+	let b_published = false;
+
 	(async () => {
+		let meta = (await k_page.getMetadata(true))?.value;
+		if (meta.published) {
+			k_query_table = <QueryTable> await (<MmsSparqlQueryTable> k_query_table).fromSerialized(meta.published);
+			b_published = true;
+			await render();
+		}
 		const k_connection = await k_query_table.getConnection();
 		const g_version = await k_connection.getVersion();
-		new Date(g_version.dateTime);
+		const dt_version = new Date(g_version.dateTime);
+		s_display_version = `${dt_version.toDateString()} @${dt_version.toLocaleTimeString() }`;
 	})();
 
 	let k_connection: Connection;
 	let g_version: ModelVersionDescriptor;
-	let b_published = false;
+	let g_metadata: PageMetadata;
 
 	onMount(async () => {
 		// get query table's connection
@@ -109,9 +126,11 @@
 	let s_status_info = SX_STATUS_INFO_INIT;
 
 	async function render() {
+		console.log('render was called.');
 		xc_info_mode = INFO_MODES.LOADING;
 
 		let b_filtered = false;
+
 		const a_params = await k_query_table.getParameters();
 		for (const g_param of a_params) {
 			if (k_query_table.parameterValuesList(g_param.key).size) {
@@ -178,14 +197,28 @@
 		});
 	}
 
-	function publish_table() {
+	async function publish_table() {
 		xc_info_mode = INFO_MODES.LOADING;
-		b_published = true;
-		b_expand = false;
-		xc_info_mode = 0;
+		g_metadata = (await k_page.getMetadata(true))?.value;
+		g_metadata.published = (<MmsSparqlQueryTable> k_query_table).toSerialized();
+		const n_version = (await k_page.getMetadata(true))?.version.number + 1 || 1;
+		if (await k_page.postMetadata(g_metadata, n_version)) {
+			b_published = true;
+			b_expand = false;
+			xc_info_mode = 0;
+		}
 	}
 
-	function reset_table() {}
+	async function reset_table() {
+		xc_info_mode = INFO_MODES.LOADING;
+		const n_version = (await k_page.getMetadata(true))?.version.number + 1 || 1;
+		if (await k_page.initMetadata(n_version)) {
+			b_published = false;
+			b_expand = false;
+			xc_info_mode = 0;
+		}
+		g_metadata = (await k_page.getMetadata(true))?.value;
+	}
 
 	function select_query_type(dv_select: CustomEvent<ValuedLabeledObject>) {
 		k_query_table.setQueryType(dv_select.detail);

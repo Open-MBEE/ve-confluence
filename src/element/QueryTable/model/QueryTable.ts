@@ -27,6 +27,7 @@ import {
 	SparqlConnection,
 	MmsSparqlConnection,
 } from '#/model/Connection';
+import Serialized = MmsSparqlQueryTable.Serialized;
 
 export namespace QueryParamValue {
 	export interface Serialized extends TypedLabeledObject<'QueryParamValue'> {
@@ -360,6 +361,12 @@ export class MmsSparqlQueryTable<
 				this._gc_serialized.connectionPath
 			);
 		return new MmsSparqlConnection(g_serialized, this._g_context);
+	}
+
+	async fromSerialized(serialized: Serialized): Promise<MmsSparqlQueryTable> {
+		const table = new MmsSparqlQueryTable(serialized, {store: this._k_store});
+		await table.init();
+		return table;
 	}
 }
 

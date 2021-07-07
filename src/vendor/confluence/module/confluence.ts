@@ -19,6 +19,7 @@ import {
 import XhtmlDocument from './xhtml-document';
 
 import type {MmsSparqlConnection} from '#/model/Connection';
+import type {MmsSparqlQueryTable} from "#/element/QueryTable/model/QueryTable";
 
 import {G_META} from '#/common/meta';
 
@@ -31,6 +32,7 @@ export type Cxhtml = `${string}`;
 export interface PageMetadata extends JsonObject {
 	type: 'Page';
 	schema: '1.0';
+	published?: MmsSparqlQueryTable.Serialized | null;
 }
 
 export interface DocumentMetadata extends JsonObject {
@@ -311,7 +313,7 @@ export class ConfluencePage {
 	}
 
 	async getMetadata(b_force = false): Promise<ConfluenceApi.Info | null> {
-		const g_info = await this._info(b_force);
+		let g_info = await this._info(b_force);
 		return normalize_metadata<Ve4MetadataKeyPage, PageMetadata>(g_info?.metadata.properties[G_VE4_METADATA_KEYS.CONFLUENCE_PAGE]);
 	}
 
@@ -347,6 +349,31 @@ export class ConfluencePage {
 
 	async postContent(n_version: ConfluenceApi.PageVersionNumber, s_content: Cxhtml): Promise<ConfluenceApi.PageVersionNumber> {
 		return 0;
+	}
+
+	async initMetadata(n_version: ConfluenceApi.PageVersionNumber = 1): Promise<boolean> {
+		const gm_page: PageMetadata = {
+			type: 'Page',
+			schema: '1.0',
+			published: null,
+		};
+		return await this.postMetadata(gm_page, n_version, 'Initialization');
+	}
+
+	async postMetadata(gm_page: PageMetadata, n_version=1, s_message=''): Promise<boolean> {
+		await confluence_put_json(`/content/${this._si_page}/property/${G_VE4_METADATA_KEYS.CONFLUENCE_PAGE}`, {
+			json: {
+				key: G_VE4_METADATA_KEYS.CONFLUENCE_PAGE,
+				value: gm_page,
+				version: {
+					minorEdit: true,
+					number: n_version,
+					message: s_message,
+				},
+			},
+		});
+
+		return true;
 	}
 
 	async isDocumentCoverPage(): Promise<boolean> {

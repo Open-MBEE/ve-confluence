@@ -42,6 +42,8 @@ import {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
 import {ObjectStore} from '#/vendor/confluence/module/object-store';
 
 import {H_HARDCODED_OBJECTS} from '#/common/hardcoded';
+import type {Serializable} from "#/model/Serializable";
+import Serialized = MmsSparqlQueryTable.Serialized;
 
 // write static css
 {
@@ -149,8 +151,23 @@ const A_DIRECTIVE_CORRELATIONS: CorrelationDescriptor[] = [
 ];
 
 let K_OBJECT_STORE: ObjectStore;
+let k_page: ConfluencePage;
 
-const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
+let serialized: Serialized<string> = {
+	type: 'MmsSparqlQueryTable',
+	group: 'dng',
+	queryTypePath: 'hardcoded#queryType.sparql.dng.afsr',
+	connectionPath: 'document#connection.sparql.mms.dng',
+	fieldGroupPath:
+		'hardcoded#queryFieldGroup.sparql.dng.basic',
+	parameterValues: {},
+	parameterPaths: [
+		'hardcoded#queryParameter.sparql.dng.sysvac',
+		'hardcoded#queryParameter.sparql.dng.maturity',
+	],
+};
+
+let H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 	// 'Insert Block View': () => ({component:InsertBlockView}),
 	// 'Insert DNG Artifact or Attribute': ([ym_anchor]) => ({
 	// 	component: InsertInlineView,
@@ -162,21 +179,11 @@ const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 		component: QueryTable,
 		props: {
 			k_query_table: new MmsSparqlQueryTable(
-				{
-					type: 'MmsSparqlQueryTable',
-					group: 'dng',
-					queryTypePath: 'hardcoded#queryType.sparql.dng.afsr',
-					connectionPath: 'document#connection.sparql.mms.dng',
-					fieldGroupPath:
-						'hardcoded#queryFieldGroup.sparql.dng.basic',
-					parameterValues: {},
-					parameterPaths: [
-						'hardcoded#queryParameter.sparql.dng.sysvac',
-						'hardcoded#queryParameter.sparql.dng.maturity',
-					],
-				},
+				serialized,
 				{store:K_OBJECT_STORE}
 			),
+			// not ideal
+			k_page: k_page,
 		},
 	}),
 };
@@ -193,10 +200,8 @@ const GM_CONTEXT = {G_CONTEXT};
 
 const xpath_attrs = (a_attrs: string[]) => a_attrs.map(sx => `[${sx}]`).join('');
 
-let k_page: ConfluencePage;
 let k_document: ConfluenceDocument | null;
 let k_source: XhtmlDocument;
-let gm_page: PageMetadata | null;
 
 function control_bar(gc_bar: ControlBarConfig) {
 	const g_props = {...gc_bar.props};
@@ -320,8 +325,8 @@ export async function main() {
 	await Promise.allSettled([
 		(async() => {
 			// fetch page metadata
-			const g_meta = await k_page.getMetadata();
-			gm_page = g_meta?.value || null;
+			const g_meta = await k_page.getMetadata(true);
+			// get or initialize page metadata
 		})(),
 
 		(async() => {
@@ -356,7 +361,6 @@ export async function main() {
 	// each page directive
 	for(const si_page_directive in H_PAGE_DIRECTIVES) {
 		const f_directive = H_PAGE_DIRECTIVES[si_page_directive];
-
 		// page refs
 		const dg_refs = correlate({
 			storage: `.//ri:page${xpath_attrs([
