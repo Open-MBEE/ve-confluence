@@ -89,6 +89,16 @@ const unordered_list = (si_key: string) => (g: QueryRow) => /* syntax: html */ `
 		.join('')}</ul>
 `;
 
+const A_QUERY_FIELD_PATHS_BASIC = [
+	'hardcoded#queryField.sparql.dng.id',
+	'hardcoded#queryField.sparql.dng.requirementName',
+	'hardcoded#queryField.sparql.dng.requirementText',
+	'hardcoded#queryField.sparql.dng.keyDriver',
+	'hardcoded#queryField.sparql.dng.affectedSystems',
+	'hardcoded#queryField.sparql.dng.maturity',
+];
+
+/* eslint-disable object-curly-newline */
 export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 	queryParameter: auto_key<QueryParam.Serialized>({
 		sparql: {
@@ -118,7 +128,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 						'hardcoded#queryParameter.sparql.dng.sysvac',
 						'hardcoded#queryParameter.sparql.dng.maturity',
 					],
-					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basic',
+					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basicWithChildren',
 					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.basicParams',
 				},
 				asr: {
@@ -138,13 +148,12 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 		sparql: {
 			dng: {
 				basic: {
+					queryFieldsPaths: A_QUERY_FIELD_PATHS_BASIC,
+				},
+				basicWithChildren: {
 					queryFieldsPaths: [
-						'hardcoded#queryField.sparql.dng.id',
-						'hardcoded#queryField.sparql.dng.requirementName',
-						'hardcoded#queryField.sparql.dng.requirementText',
-						'hardcoded#queryField.sparql.dng.keyDriver',
-						'hardcoded#queryField.sparql.dng.affectedSystems',
-						'hardcoded#queryField.sparql.dng.maturity',
+						...A_QUERY_FIELD_PATHS_BASIC,
+						'hardcoded#queryField.sparql.dng.children',
 					],
 				},
 			},
@@ -159,21 +168,21 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					label: null, // inherit from value
 					source: 'native',
 					hasMany: false,
-					cell: (g: QueryRow) => escape_html(g.identifierValue.value),
+					cell: (g: QueryRow) => escape_html(g.idValue.value),
 				},
 				requirementName: {
 					value: 'Requirement Name',
 					label: null, // inherit from value
 					source: 'native',
 					hasMany: false,
-					cell: (g: QueryRow) => /* syntax: html */ `<a href="${g.artifact.value}">${escape_html(g.titleValue.value)}</a>`,
+					cell: (g: QueryRow) => /* syntax: html */ `<a href="${g.artifact.value}">${escape_html(g.requirementNameValue.value)}</a>`,
 				},
 				requirementText: {
 					value: 'Requirement Text',
 					label: null, // inherit from value
 					source: 'native',
 					hasMany: false,
-					cell: (g: QueryRow) => g.primaryTextValue.value,
+					cell: (g: QueryRow) => g.requirementTextValue.value,
 				},
 				keyDriver: {
 					value: 'Key/Driver [S]',
@@ -187,7 +196,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					label: null, // inherit from value
 					source: 'attribute',
 					hasMany: true,
-					cell: (g: QueryRow) => escape_html(g.systemsValue?.value || ''),
+					cell: (g: QueryRow) => escape_html(g.affectedSystemsValue?.value || ''),
 				},
 				maturity: {
 					value: 'Maturity',
@@ -196,13 +205,48 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					hasMany: false,
 					cell: (g: QueryRow) => g.maturityValue?.value || '',
 				},
+				children: {
+					value: 'Child Requirements',
+					label: null,  // inherit from value
+					source: 'native',
+					hasMany: true,
+					cell: (g: QueryRow) => `<ul>${
+						g.childrenValue.value
+							.split(/\0/g)
+							.map(s => /* syntax: html*/ `<li>${escape_html(s)}</li>`)
+							.join('')
+					}</ul>`,
+				},
 			},
 		},
 	}),
 
-	queryBuilder: {sparql:{dng:{basicParams:{function:build_dng_select_query_from_params}}}},
+	queryBuilder: {
+		sparql: {
+			dng: {
+				basicParams: {
+					function: build_dng_select_query_from_params,
+				},
+			},
+		},
+	},
 
-	queryContext: {sparql:{dng:{common:{prefixes:H_PREFIXES}}}},
+	queryContext: {
+		sparql: {
+			dng: {
+				common: {
+					prefixes: H_PREFIXES,
+				},
+			},
+		},
+	},
 
-	utility: {function:{sort:{label_asc:(g_a: Labeled, g_b: Labeled) => g_a.label < g_b.label ? -1 : 1}}},
+	utility: {
+		function: {
+			sort: {
+				label_asc:(g_a: Labeled, g_b: Labeled) => g_a.label < g_b.label ? -1 : 1,
+			},
+		},
+	},
 });
+/* eslint-enable object-curly-newline */

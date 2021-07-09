@@ -22,7 +22,7 @@
 
 	import QueryTableParam from './QueryTableParam.svelte';
 
-	import type {QueryTable} from '../model/QueryTable';
+	import type {QueryTable, QueryType} from '../model/QueryTable';
 
 	import type {
 		Connection,
@@ -33,8 +33,8 @@
 
 	export let k_query_table: QueryTable;
 	(async() => {
-		const k_connection = await k_query_table.getConnection();
-		const g_version = await k_connection.getVersion();
+		const k_connection = await k_query_table.fetchConnection();
+		const g_version = await k_connection.fetchCurrentVersion();
 		new Date(g_version.dateTime);
 	})();
 
@@ -43,7 +43,7 @@
 
 	onMount(async() => {
 		// get query table's connection
-		const k_connection_new = await k_query_table.getConnection();
+		const k_connection_new = await k_query_table.fetchConnection();
 
 		// new connection; refresh version
 		if(k_connection !== k_connection_new) {
@@ -54,7 +54,7 @@
 			s_display_version = '...';
 
 			// get model version descriptor from connection
-			g_version = await k_connection.getVersion();
+			g_version = await k_connection.fetchCurrentVersion();
 
 			// parse datetime string
 			const dt_version = new Date(g_version.dateTime);
@@ -105,7 +105,7 @@
 		xc_info_mode = G_INFO_MODES.LOADING;
 
 		let b_filtered = false;
-		const a_params = await k_query_table.getParameters();
+		const a_params = await k_query_table.queryType.fetchParameters();
 		for(const g_param of a_params) {
 			if(k_query_table.parameterValuesList(g_param.key).size) {
 				b_filtered = true;
@@ -140,7 +140,7 @@
 		g_preview.rows = a_rows.map((g_row) => {
 			const h_out: Record<string, string> = {};
 
-			for(const k_field of k_query_table.fields) {
+			for(const k_field of k_query_table.queryType.fields) {
 				h_out[k_field.key] = k_field.cell(g_row);
 			}
 
@@ -412,25 +412,26 @@
 				<span class="label">Query Type</span>
 				<span class="select">
 					<Select
-						showIndicator={true}
-						selectedValue={k_query_table.queryType.toItem()}
-						items={Object.values(
-							k_query_table.queryTypeOptions
-						).map(k => k.toItem())}
-						indicatorSvg={/* syntax: html */ `
-							<svg width="7" height="5" viewBox="0 0 7 5" fill="none" xmlns="http://www.w3.org/2000/svg">
-								<path d="M3.5 4.5L0.468911 0.75L6.53109 0.75L3.5 4.5Z" fill="#333333"/>
-							</svg>
-						`}
-						Item={SelectItem}
-						on:select={select_query_type}
-					/>
+						/>
+						<!-- 
+							showIndicator={true}
+							indicatorSvg={/* syntax: html */ `
+									<svg width="7" height="5" viewBox="0 0 7 5" fill="none" xmlns="http://www.w3.org/2000/svg">
+										<path d="M3.5 4.5L0.468911 0.75L6.53109 0.75L3.5 4.5Z" fill="#333333"/>
+										</svg>
+										`}
+							value={k_query_table.queryType.toItem().label}
+							items={Object.values(k_query_table.queryTypeOptions).map(k => k.toItem())}
+							Item={SelectItem}
+							on:select={select_query_type}
+
+						 -->
 				</span>
 			</div>
 			<div class="form">
 				<span class="header">Parameter</span>
 				<span class="header">Value</span>
-				{#await k_query_table.getParameters() then a_params}
+				{#await k_query_table.queryType.fetchParameters() then a_params}
 					{#each a_params as k_param}
 						<QueryTableParam {k_query_table} {k_param} k_values={k_query_table.parameterValuesList(k_param.key)} on:change={render} />
 					{/each}
@@ -440,13 +441,13 @@
 		<div class="table-wrap">
 			<table class="wrapped confluenceTable tablesorter tablesorter-default stickyTableHeaders" role="grid" style="padding: 0px;" resolved="">
 				<colgroup>
-					{#each k_query_table.fields as k_field}
+					{#each k_query_table.queryType.fields as k_field}
 						<col />
 					{/each}
 				</colgroup>
 				<thead class="tableFloatingHeaderOriginal">
 					<tr role="row" class="tablesorter-headerRow">
-						{#each k_query_table.fields as k_field, i_field}
+						{#each k_query_table.queryType.fields as k_field, i_field}
 							<th class="confluenceTh tablesorter-header sortableHeader tablesorter-headerUnSorted" data-column={i_field} tabindex="0" scope="col" role="columnheader" aria-disabled="false" unselectable="on" aria-sort="none" aria-label="{k_field.label}: No sort applied, activate to apply an ascending sort" style="user-select: none;">
 								<div class="tablesorter-header-inner">
 									{k_field.label}
@@ -457,7 +458,7 @@
 				</thead>
 				<thead class="tableFloatingHeader" style="display: none;">
 					<tr role="row" class="tablesorter-headerRow">
-						{#each k_query_table.fields as k_field, i_header}
+						{#each k_query_table.queryType.fields as k_field, i_header}
 							<th class="confluenceTh tablesorter-header sortableHeader tablesorter-headerUnSorted" data-column={i_header} tabindex="0" scope="col" role="columnheader" aria-disabled="false" unselectable="on" aria-sort="none" aria-label="{k_field.label}: No sort applied, activate to apply an ascending sort" style="user-select: none;">
 								<div class="tablesorter-header-inner">
 									{k_field.label}
@@ -470,7 +471,7 @@
 					{#if b_loading || !g_preview.rows.length}
 						{#each A_DUMMY_TABLE_ROWS as g_row}
 							<tr role="row">
-								{#each k_query_table.fields as k_field}
+								{#each k_query_table.queryType.fields as k_field}
 									<td class="confluenceTd">
 										<span class="ve-table-preview-cell-placeholder">&nbsp;</span>
 									</td>

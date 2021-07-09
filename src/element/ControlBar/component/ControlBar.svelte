@@ -1,6 +1,9 @@
 <script lang="ts">
+	import type {IObjectStore} from '#/common/types';
+
 	import DatasetsTable from '#/ui/component/DatasetsTable.svelte';
 
+	import type { Context } from '#/model/Serializable';
 
 	import {
 		ConfluencePage,
@@ -10,7 +13,7 @@
 	import {
 		getContext,
 		onMount,
-} from 'svelte';
+	} from 'svelte';
 
 	import G_META from '#/common/meta';
 
@@ -32,7 +35,10 @@
 		TabList,
 		TabPanel,
 		Tab,
-} from 'svelte-tabs';
+	} from 'svelte-tabs';
+
+	export let g_context: Context;
+	let k_object_store = g_context.store;
 
 	let b_ready = false;
 	let b_read_only = false;
@@ -259,7 +265,7 @@
 							<div class="tab-body">
 								<p>New updates are available every Friday at 10:00 PM</p>
 								<button on:click={reset_document}>Reset this document's metadata</button>
-								<DatasetsTable></DatasetsTable>
+								<DatasetsTable {g_context}></DatasetsTable>
 							</div>
 						</TabPanel>
 					{:else}

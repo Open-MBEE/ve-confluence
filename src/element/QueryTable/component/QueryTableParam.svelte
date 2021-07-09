@@ -44,7 +44,7 @@
 
 	async function load_param(k_param: QueryParam) {
 		if(k_query_table.type.startsWith('MmsSparql')) {
-			const k_connection = (await k_query_table.getConnection()) as MmsSparqlConnection;
+			const k_connection = (await k_query_table.fetchConnection()) as MmsSparqlConnection;
 
 			const a_rows = await k_connection.execute(/* syntax: sparql */ `
 				select ?value (count(?req) as ?count) from <${k_connection.modelGraph}> {
@@ -215,13 +215,19 @@
 	{:else if XC_LOAD_ERROR === xc_load}
 		<p style="color:red;">{lang.loading_failed}</p>
 	{:else}
-		<Select isMulti={true} isClearable={false} showIndicator={true} items={a_options} placeholder="Select Attribute Value(s)"
+		<Select
+			items={a_options} 
+			placeholder="Select Attribute Value(s)"
+			isMulti={true}
+			isClearable={false}
+			showIndicator={true}
 			indicatorSvg={/* syntax: html */ `
 				<svg width="7" height="5" viewBox="0 0 7 5" fill="none" xmlns="http://www.w3.org/2000/svg">
 					<path d="M3.5 4.5L0.468911 0.75L6.53109 0.75L3.5 4.5Z" fill="#333333"/>
 				</svg>
 			`}
-			on:select={select_value} on:clear={handle_clear}
+			on:select={select_value}
+			on:clear={handle_clear}
 		></Select>
 	{/if}
 </span>

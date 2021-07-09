@@ -37,6 +37,8 @@ import {ObjectStore} from '#/vendor/confluence/module/object-store';
 
 import {H_HARDCODED_OBJECTS} from '#/common/hardcoded';
 
+import type {Context} from '#/model/Serializable';
+
 // write static css
 {
 	const dm_style = document.createElement('style');
@@ -130,7 +132,7 @@ const A_DIRECTIVE_CORRELATIONS: CorrelationDescriptor[] = [
 	},
 ];
 
-let k_object_store: ObjectStore;
+const G_CONTEXT: Context = {} as Context;
 
 const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 	// 'Insert Block View': () => ({component:InsertBlockView}),
@@ -149,15 +151,9 @@ const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 					group: 'dng',
 					queryTypePath: 'hardcoded#queryType.sparql.dng.afsr',
 					connectionPath: 'document#connection.sparql.mms.dng',
-					fieldGroupPath:
-						'hardcoded#queryFieldGroup.sparql.dng.basic',
 					parameterValues: {},
-					parameterPaths: [
-						'hardcoded#queryParameter.sparql.dng.sysvac',
-						'hardcoded#queryParameter.sparql.dng.maturity',
-					],
 				},
-				{store:k_object_store}
+				G_CONTEXT,
 			),
 		},
 	}),
@@ -259,7 +255,9 @@ export async function main(): Promise<void> {
 	new ControlBar({
 		target: dm_main.parentElement as HTMLElement,
 		anchor: dm_main,
-		// props: GM_CONTEXT,
+		props: {
+			g_context: G_CONTEXT,
+		},
 	});
 
 	// G_CONTEXT.k_page =
@@ -290,7 +288,7 @@ export async function main(): Promise<void> {
 	}
 
 	// initialize object store
-	k_object_store = new ObjectStore(k_page, k_document, H_HARDCODED_OBJECTS);
+	G_CONTEXT.store = new ObjectStore(k_page, k_document, H_HARDCODED_OBJECTS);
 
 	// fetch document metadata
 	const gm_document = await k_document.getMetadata();

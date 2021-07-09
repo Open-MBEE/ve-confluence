@@ -16,6 +16,7 @@
     "module": "es2020",
     "moduleResolution": "node",
 
+    // "allowJs": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "strict": true,

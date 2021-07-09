@@ -6,6 +6,7 @@ import type {
 	JsonObject,
 	SparqlString,
 	QueryRow,
+	TypedLabeledObject,
 } from '#/common/types';
 
 import SparqlEndpoint from '../util/sparql-endpoint';
@@ -13,6 +14,7 @@ import SparqlEndpoint from '../util/sparql-endpoint';
 import {
 	Serializable,
 	VeOdm,
+	VeOdmLabeled,
 	VeOrmClass,
 } from './Serializable';
 
@@ -23,38 +25,43 @@ export interface ModelVersionDescriptor {
 }
 
 export namespace Connection {
-	export interface Serialized extends Serializable {
-		type: `${'Mms' | 'Plain'}${'Sparql' | 'Vql'}Connection`;
+	type DefaultType = `${'Mms' | 'Plain'}${'Sparql' | 'Vql'}Connection`;
+
+	export interface Serialized<TypeString extends DefaultType=DefaultType> extends TypedLabeledObject<TypeString> {
 		endpoint: UrlString;
 	}
 }
 
 export abstract class Connection<
-	Serialized extends Connection.Serialized = Connection.Serialized,
-> extends VeOdm<Serialized> {
+	Serialized extends Connection.Serialized=Connection.Serialized,
+> extends VeOdmLabeled<Serialized> {
 	get endpoint(): UrlString {
 		return this._gc_serialized.endpoint;
 	}
 
-	abstract getVersion(): Promise<ModelVersionDescriptor>;
+	abstract fetchCurrentVersion(): Promise<ModelVersionDescriptor>;
+
+	abstract fetchVersions(): Promise<ModelVersionDescriptor[]>;
 
 	abstract execute(sq_query: string): Promise<QueryRow[]>;
 }
+
 
 export interface SparqlQueryContext extends JsonObject {
 	prefixes: Hash;
 }
 
 export namespace SparqlConnection {
-	export interface Serialized extends Connection.Serialized {
-		type: `${'Mms' | 'Plain'}SparqlConnection`;
+	type DefaultType = `${'Mms' | 'Plain'}SparqlConnection`;
+
+	export interface Serialized<TypeString extends DefaultType=DefaultType> extends Connection.Serialized<TypeString> {
 		endpoint: UrlString;
 		contextPath: VeoPath.SparqlQueryContext;
 	}
 }
 
 export abstract class SparqlConnection<
-	Serialized extends SparqlConnection.Serialized = SparqlConnection.Serialized,
+	Serialized extends SparqlConnection.Serialized=SparqlConnection.Serialized,
 > extends Connection<Serialized> {
 	protected _k_endpoint: SparqlEndpoint = <SparqlEndpoint>(<unknown>null);
 
@@ -79,8 +86,7 @@ export abstract class SparqlConnection<
 }
 
 export namespace MmsSparqlConnection {
-	export interface Serialized extends SparqlConnection.Serialized {
-		type: 'MmsSparqlConnection';
+	export interface Serialized extends SparqlConnection.Serialized<'MmsSparqlConnection'> {
 		endpoint: UrlString;
 		modelGraph: UrlString;
 		metadataGraph: UrlString;
@@ -97,7 +103,7 @@ export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Se
 		return this._gc_serialized.metadataGraph;
 	}
 
-	async getVersion(): Promise<ModelVersionDescriptor> {
+	async fetchCurrentVersion(): Promise<ModelVersionDescriptor> {
 		const a_rows = await this.execute(`
 			select ?commit ?commitDateTime from <${this.metadataGraph}> {
 				?snapshot a mms:Snapshot ;
@@ -132,6 +138,42 @@ export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Se
 				label: new URL(p_commit).pathname.replace(/[^/]*\//g, ''),
 				dateTime: s_datetime,
 			};
+		}
+	}
+
+	async fetchVersions(): Promise<ModelVersionDescriptor[]> {
+		const a_rows = await this.execute(`
+			select ?commit ?commitDateTime from <${this.metadataGraph}> {
+				?snapshot a mms:Snapshot ;
+					mms:materializes/mms:commit ?commit ;
+					mms:graph ?modelGraph ;
+					.
+
+				?commit a mms:Commit ;
+					mms:submitted ?dateTime ;
+					.
+			}
+		`);
+
+		// failed to match pattern
+		if(!a_rows.length) {
+			// TODO: run diagnostic queries
+			return [];
+		}
+		// matched
+		else {
+			return a_rows.map((g_row) => {
+				const {
+					commit: {value:p_commit},
+					commitDateTime: {value:s_datetime},
+				} = g_row;
+
+				return {
+					id: g_row.commit.value,
+					label: new URL(p_commit).pathname.replace(/[^/]*\//g, ''),
+					dateTime: s_datetime,
+				};
+			});
 		}
 	}
 

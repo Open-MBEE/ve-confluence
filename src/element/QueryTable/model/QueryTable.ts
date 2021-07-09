@@ -181,12 +181,16 @@ export class QueryBuilder extends VeOdm<QueryBuilder.Serialized> {
 
 
 export namespace QueryType {
-	export interface Serialized extends TypedKeyedLabeledObject<'QueryType'> {
+	export interface Serialized<
+		ConnectionType extends string=string,
+	>extends TypedKeyedLabeledObject<'QueryType'> {
+		queryParameterPaths: VeoPath.QueryParameter<ConnectionType>[];
+		queryFieldGroupPath: VeoPath.QueryFieldGroup;
 		queryBuilderPath: VeoPath.QueryBuilder;
 	}
 }
 
-export class QueryType extends VeOdmKeyedLabeled<QueryType.Serialized> {
+export class QueryType<ConnectionType extends DotFragment=DotFragment> extends VeOdmKeyedLabeled<QueryType.Serialized<ConnectionType>> {
 	get queryBuilder(): QueryBuilder {
 		const gc_builder = this._k_store.resolveSync<QueryBuilder.Serialized>(
 			this._gc_serialized.queryBuilderPath
@@ -204,15 +208,33 @@ export class QueryType extends VeOdmKeyedLabeled<QueryType.Serialized> {
 			label: this.label,
 		};
 	}
+
+	fetchParameters(): Promise<QueryParam[]> {
+		return Promise.all(this._gc_serialized.queryParameterPaths.map(async(sp_parameter) => {
+			const gc_query_param = await this._k_store.resolve<QueryParam.Serialized>(sp_parameter);
+			return new QueryParam(gc_query_param, this._g_context);
+		}));
+	}
+
+	get queryParameterPaths(): VeoPath.QueryParameter[] {
+		return this._gc_serialized.queryParameterPaths;
+	}
+
+	get fields(): QueryField[] {
+		const gc_field_group = this._k_store.resolveSync<QueryFieldGroup.Serialized>(this._gc_serialized.queryFieldGroupPath);
+		return new QueryFieldGroup(gc_field_group, this._g_context).fields;
+	}
 }
 
 export namespace QueryTable {
-	export interface Serialized<ConnectionType extends string=string>
-		extends Serializable {
-		type: `${`${'Mms'}Sparql` | `${'Plain'}Vql`}QueryTable`;
+	type DefaultType = `${`${'Mms'}Sparql` | `${'Plain'}Vql`}QueryTable`;
+
+	export interface Serialized<
+		ConnectionType extends string=string,
+		TypeString extends DefaultType=DefaultType,
+	> extends TypedObject<TypeString> {
 		connectionPath: VeoPath.Connection<ConnectionType>;
 		parameterValues: Record<string, QueryParamValue.Serialized[]>;
-		parameterPaths: VeoPath.QueryParameter<ConnectionType>[];
 	}
 }
 
@@ -222,15 +244,13 @@ export abstract class QueryTable<
 > extends VeOdm<Serialized> {
 	protected _h_param_values_lists: Record<string, ParamValuesList> = {};
 
-	abstract getConnection(): Promise<Connection>;
+	abstract fetchConnection(): Promise<Connection>;
 
-	abstract get queryType(): QueryType;
+	abstract get queryType(): QueryType<ConnectionType>;
 
 	abstract setQueryType(g_query_type: ValuedLabeledObject): void;
 
 	abstract get queryTypeOptions(): Record<string, QueryType>;
-
-	abstract get fields(): QueryField[];
 
 	async init(): Promise<void> {
 		await super.init();
@@ -238,18 +258,11 @@ export abstract class QueryTable<
 		// build param values list
 		const h_param_values = this._gc_serialized.parameterValues;
 		const h_param_values_lists = this._h_param_values_lists;
-		for(const k_param of await this.getParameters()) {
+		for(const k_param of await this.queryType.fetchParameters()) {
 			h_param_values_lists[k_param.key] = new ParamValuesList(
 				h_param_values[k_param.key]
 			);
 		}
-	}
-
-	getParameters(): Promise<QueryParam[]> {
-		return Promise.all(this._gc_serialized.parameterPaths.map(async(sp_parameter) => {
-			const gc_query_param = await this._k_store.resolve<QueryParam.Serialized>(sp_parameter);
-			return new QueryParam(gc_query_param, this._g_context);
-		}));
 	}
 
 	get parameterValues(): Record<string, readonly QueryParamValue.Serialized[]> {
@@ -260,7 +273,7 @@ export abstract class QueryTable<
 		const h_param_values = this._h_param_values_lists;
 
 		// no such param
-		if(!this._gc_serialized.parameterPaths.map(p => this._k_store.idPartSync(p)).includes(si_param)) {
+		if(!this.queryType.queryParameterPaths.map(p => this._k_store.idPartSync(p)).includes(si_param)) {
 			throw new Error(`No such parameter has the id '${si_param}'`);
 		}
 
@@ -286,31 +299,33 @@ export interface ConnectionQuery {
 }
 
 export namespace SparqlQueryTable {
-	export interface Serialized<Group extends DotFragment=DotFragment>
-		extends QueryTable.Serialized<'sparql'> {
-		type: `${'Mms'}SparqlQueryTable`;
+	type DefaultType = `${'Mms'}SparqlQueryTable`;
+
+	export interface Serialized<
+		Group extends DotFragment=DotFragment,
+		TypeString extends DefaultType=DefaultType,
+	> extends QueryTable.Serialized<'sparql', TypeString> {
 		connectionPath: VeoPath.SparqlConnection;
 		queryTypePath: VeoPath.SparqlQueryType<Group>;
-		parameterPaths: VeoPath.SparqlQueryParameter<Group>[];
-		fieldGroupPath: VeoPath.SparqlQueryFieldGroup<Group>;
 	}
 }
 
 export abstract class SparqlQueryTable<
 	Serialized extends SparqlQueryTable.Serialized=SparqlQueryTable.Serialized,
+	LocalQueryType extends QueryType<'sparql'>=QueryType<'sparql'>,
 > extends QueryTable<'sparql', Serialized> {
-	protected _h_options!: Record<VeoPath.SparqlQueryType, QueryType>;
-	protected _k_query_type!: QueryType;
+	protected _h_options!: Record<VeoPath.SparqlQueryType, LocalQueryType>;
+	protected _k_query_type!: LocalQueryType;
 
-	abstract getConnection(): Promise<SparqlConnection>;
+	abstract fetchConnection(): Promise<SparqlConnection>;
 
 	initSync(): void {
-		const h_options: Record<string, QueryType> = this._h_options = this._k_store.optionsSync<QueryType.Serialized, QueryType>(this._gc_serialized.queryTypePath, QueryType, this._g_context);
+		const h_options: Record<string, LocalQueryType> = this._h_options = this._k_store.optionsSync<QueryType.Serialized, QueryType>(this._gc_serialized.queryTypePath, QueryType, this._g_context);
 		this._k_query_type = h_options[this._gc_serialized.queryTypePath];
 		return super.initSync();
 	}
 
-	get queryType(): QueryType {
+	get queryType(): LocalQueryType {
 		return this._k_query_type;
 	}
 
@@ -335,18 +350,10 @@ export abstract class SparqlQueryTable<
 	get queryTypeOptions(): Record<VeoPath.SparqlQueryType, QueryType> {
 		return this._h_options;
 	}
-
-	get fields(): QueryField[] {
-		const gc_field_group = this._k_store.resolveSync<QueryFieldGroup.Serialized>(this._gc_serialized.fieldGroupPath);
-		return new QueryFieldGroup(gc_field_group, this._g_context).fields;
-	}
 }
 
 export namespace MmsSparqlQueryTable {
-	export interface Serialized<Group extends DotFragment=DotFragment>
-		extends SparqlQueryTable.Serialized<Group>,
-		TypedObject {
-		type: 'MmsSparqlQueryTable';
+	export interface Serialized<Group extends DotFragment=DotFragment> extends SparqlQueryTable.Serialized<Group, 'MmsSparqlQueryTable'> {
 		group: 'dng';
 	}
 }
@@ -354,11 +361,8 @@ export namespace MmsSparqlQueryTable {
 export class MmsSparqlQueryTable<
 	Group extends DotFragment=DotFragment,
 > extends SparqlQueryTable<MmsSparqlQueryTable.Serialized<Group>> {
-	async getConnection(): Promise<MmsSparqlConnection> {
-		const g_serialized
-			= await this._k_store.resolve<MmsSparqlConnection.Serialized>(
-				this._gc_serialized.connectionPath
-			);
+	async fetchConnection(): Promise<MmsSparqlConnection> {
+		const g_serialized = await this._k_store.resolve<MmsSparqlConnection.Serialized>(this._gc_serialized.connectionPath);
 		return new MmsSparqlConnection(g_serialized, this._g_context);
 	}
 }
