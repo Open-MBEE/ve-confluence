@@ -71,7 +71,8 @@
 	}
 
 	(async() => {
-		if(!k_values.size) {
+		// if(!k_values.size) {
+		if(XC_LOAD_NOT === xc_load) {
 			try {
 				await load_param(k_param);
 			}
@@ -114,6 +115,8 @@
 
 	function handle_clear(dv_select: CustomEvent<Option[]>) {
 		k_values.clear();
+
+		dispatch('change');
 	}
 </script>
 
@@ -193,14 +196,6 @@
 		:global(.multiSelectItem) {
 			margin: 3px 0 3px 4px;
 		}
-	}
-
-	.greyed-out {
-		color: grey;
-	}
-
-	.hidden {
-		display: none;
 	}
 </style>
 

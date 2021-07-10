@@ -123,7 +123,8 @@ export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Se
 			return {
 				id: 'null',
 				label: 'Unknown date/time',
-				dateTime: 'Unknown date/time',
+				// dateTime: 'Unknown date/time',
+				dateTime: '2020-04-20T04:20:00.69',  // temporary dummy value
 			};
 		}
 		// matched

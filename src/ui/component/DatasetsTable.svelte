@@ -220,7 +220,6 @@
 						{#await k_connection.fetchVersions()}
 							<Select
 								isDisabled={true}
-								items={[]}
 								isClearable={false}
 								placeholder="Loading..."
 							></Select>

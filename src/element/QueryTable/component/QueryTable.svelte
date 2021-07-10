@@ -101,6 +101,14 @@
 	const SX_STATUS_INFO_INIT = 'PREVIEW (0 results)';
 	let s_status_info = SX_STATUS_INFO_INIT;
 
+	function clear_preview(): void {
+		b_loading = false;
+		b_showing = false;
+		s_status_info = 'PREVIEW (0 results)';
+		xc_info_mode = G_INFO_MODES.PREVIEW;
+		g_preview.rows = [];
+	}
+
 	async function render() {
 		xc_info_mode = G_INFO_MODES.LOADING;
 
@@ -113,11 +121,8 @@
 			}
 		}
 
-		if(!b_filtered) {
-			b_loading = false;
-			b_showing = false;
-			return;
-		}
+		// no filters, clear preview
+		if(!b_filtered) return clear_preview();
 
 		b_loading = true;
 
@@ -172,6 +177,12 @@
 
 	function select_query_type(dv_select: CustomEvent<ValuedLabeledObject>) {
 		k_query_table.setQueryType(dv_select.detail);
+
+		// trigger svelte update for query type change
+		k_query_table = k_query_table;
+
+		// clear preview
+		clear_preview();
 	}
 </script>
 
@@ -199,14 +210,6 @@
 			flex: 1 auto;
 			text-align: right;
 		}
-	}
-
-	.loading {
-		opacity: 0.5;
-	}
-
-	.hidden {
-		display: none;
 	}
 
 	.label {
@@ -412,20 +415,17 @@
 				<span class="label">Query Type</span>
 				<span class="select">
 					<Select
-						/>
-						<!-- 
-							showIndicator={true}
-							indicatorSvg={/* syntax: html */ `
-									<svg width="7" height="5" viewBox="0 0 7 5" fill="none" xmlns="http://www.w3.org/2000/svg">
-										<path d="M3.5 4.5L0.468911 0.75L6.53109 0.75L3.5 4.5Z" fill="#333333"/>
-										</svg>
-										`}
-							value={k_query_table.queryType.toItem().label}
-							items={Object.values(k_query_table.queryTypeOptions).map(k => k.toItem())}
-							Item={SelectItem}
-							on:select={select_query_type}
-
-						 -->
+						value={k_query_table.queryType.toItem()}
+						items={Object.values(k_query_table.queryTypeOptions).map(k => k.toItem())}
+						showIndicator={true}
+						indicatorSvg={/* syntax: html */ `
+							<svg width="7" height="5" viewBox="0 0 7 5" fill="none" xmlns="http://www.w3.org/2000/svg">
+								<path d="M3.5 4.5L0.468911 0.75L6.53109 0.75L3.5 4.5Z" fill="#333333"/>
+							</svg>
+						`}
+						Item={SelectItem}
+						on:select={select_query_type}
+					/>
 				</span>
 			</div>
 			<div class="form">
@@ -439,6 +439,7 @@
 			</div>
 		</div>
 		<div class="table-wrap">
+			<!-- svelte-ignore a11y-resolved -->
 			<table class="wrapped confluenceTable tablesorter tablesorter-default stickyTableHeaders" role="grid" style="padding: 0px;" resolved="">
 				<colgroup>
 					{#each k_query_table.queryType.fields as k_field}
@@ -448,7 +449,7 @@
 				<thead class="tableFloatingHeaderOriginal">
 					<tr role="row" class="tablesorter-headerRow">
 						{#each k_query_table.queryType.fields as k_field, i_field}
-							<th class="confluenceTh tablesorter-header sortableHeader tablesorter-headerUnSorted" data-column={i_field} tabindex="0" scope="col" role="columnheader" aria-disabled="false" unselectable="on" aria-sort="none" aria-label="{k_field.label}: No sort applied, activate to apply an ascending sort" style="user-select: none;">
+							<th class="confluenceTh tablesorter-header sortableHeader tablesorter-headerUnSorted" data-column={i_field} tabindex="0" scope="col" role="columnheader" aria-disabled="false" unselectable={true} aria-sort="none" aria-label="{k_field.label}: No sort applied, activate to apply an ascending sort" style="user-select: none;">
 								<div class="tablesorter-header-inner">
 									{k_field.label}
 								</div>
@@ -459,7 +460,7 @@
 				<thead class="tableFloatingHeader" style="display: none;">
 					<tr role="row" class="tablesorter-headerRow">
 						{#each k_query_table.queryType.fields as k_field, i_header}
-							<th class="confluenceTh tablesorter-header sortableHeader tablesorter-headerUnSorted" data-column={i_header} tabindex="0" scope="col" role="columnheader" aria-disabled="false" unselectable="on" aria-sort="none" aria-label="{k_field.label}: No sort applied, activate to apply an ascending sort" style="user-select: none;">
+							<th class="confluenceTh tablesorter-header sortableHeader tablesorter-headerUnSorted" data-column={i_header} tabindex="0" scope="col" role="columnheader" aria-disabled="false" unselectable={true} aria-sort="none" aria-label="{k_field.label}: No sort applied, activate to apply an ascending sort" style="user-select: none;">
 								<div class="tablesorter-header-inner">
 									{k_field.label}
 								</div>

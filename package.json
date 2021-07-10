@@ -41,6 +41,7 @@
     "svelte-check": "2.2.2",
     "svelte-fa": "^2.2.1",
     "svelte-preprocess": "4.7.4",
+    "svelte2tsx": "^0.4.1",
     "ts-node": "^10.0.0",
     "tslib": "^2.3.0",
     "ttypescript": "^1.5.12",

@@ -15,7 +15,6 @@ import type {
 import type {VeoPath} from '#/common/veo';
 
 import {
-	Serializable,
 	VeOdm,
 	VeOdmKeyed,
 	VeOdmKeyedLabeled,
@@ -141,7 +140,7 @@ export class QueryField extends VeOdmKeyed<QueryField.Serialized> {
 	}
 
 	get label(): string {
-		return this._gc_serialized.label || this.key;
+		return this._gc_serialized.label || this.value;
 	}
 
 	get hasMany(): boolean {
@@ -184,7 +183,7 @@ export namespace QueryType {
 	export interface Serialized<
 		ConnectionType extends string=string,
 	>extends TypedKeyedLabeledObject<'QueryType'> {
-		queryParameterPaths: VeoPath.QueryParameter<ConnectionType>[];
+		queryParametersPaths: VeoPath.QueryParameter<ConnectionType>[];
 		queryFieldGroupPath: VeoPath.QueryFieldGroup;
 		queryBuilderPath: VeoPath.QueryBuilder;
 	}
@@ -210,14 +209,14 @@ export class QueryType<ConnectionType extends DotFragment=DotFragment> extends V
 	}
 
 	fetchParameters(): Promise<QueryParam[]> {
-		return Promise.all(this._gc_serialized.queryParameterPaths.map(async(sp_parameter) => {
+		return Promise.all(this._gc_serialized.queryParametersPaths.map(async(sp_parameter) => {
 			const gc_query_param = await this._k_store.resolve<QueryParam.Serialized>(sp_parameter);
 			return new QueryParam(gc_query_param, this._g_context);
 		}));
 	}
 
-	get queryParameterPaths(): VeoPath.QueryParameter[] {
-		return this._gc_serialized.queryParameterPaths;
+	get queryParametersPaths(): VeoPath.QueryParameter[] {
+		return this._gc_serialized.queryParametersPaths;
 	}
 
 	get fields(): QueryField[] {
@@ -273,7 +272,7 @@ export abstract class QueryTable<
 		const h_param_values = this._h_param_values_lists;
 
 		// no such param
-		if(!this.queryType.queryParameterPaths.map(p => this._k_store.idPartSync(p)).includes(si_param)) {
+		if(!this.queryType.queryParametersPaths.map(p => this._k_store.idPartSync(p)).includes(si_param)) {
 			throw new Error(`No such parameter has the id '${si_param}'`);
 		}
 
@@ -314,19 +313,17 @@ export abstract class SparqlQueryTable<
 	Serialized extends SparqlQueryTable.Serialized=SparqlQueryTable.Serialized,
 	LocalQueryType extends QueryType<'sparql'>=QueryType<'sparql'>,
 > extends QueryTable<'sparql', Serialized> {
-	protected _h_options!: Record<VeoPath.SparqlQueryType, LocalQueryType>;
-	protected _k_query_type!: LocalQueryType;
+	protected _h_options!: Record<string, LocalQueryType>;
 
 	abstract fetchConnection(): Promise<SparqlConnection>;
 
 	initSync(): void {
-		const h_options: Record<string, LocalQueryType> = this._h_options = this._k_store.optionsSync<QueryType.Serialized, QueryType>(this._gc_serialized.queryTypePath, QueryType, this._g_context);
-		this._k_query_type = h_options[this._gc_serialized.queryTypePath];
+		this._h_options = this._k_store.optionsSync<QueryType.Serialized, QueryType>(this._gc_serialized.queryTypePath, QueryType, this._g_context);
 		return super.initSync();
 	}
 
 	get queryType(): LocalQueryType {
-		return this._k_query_type;
+		return this._h_options[this._gc_serialized.queryTypePath];
 	}
 
 	setQueryType(g_query_type: ValuedLabeledObject): void {
