@@ -16,9 +16,11 @@ import {
 import {format} from '#/util/intl';
 
 import {
+	qs,
 	qsa,
 	dm_main,
 	dm_content,
+	dm_main_header,
 } from '#/util/dom';
 
 import type {SvelteComponent} from 'svelte';
@@ -253,8 +255,10 @@ export async function main(): Promise<void> {
 	}
 
 	new ControlBar({
-		target: dm_main.parentElement as HTMLElement,
-		anchor: dm_main,
+		// target: dm_main.parentElement as HTMLElement,
+		// anchor: dm_main,
+		target: dm_main_header as HTMLElement, 
+		anchor: qs(dm_main_header, 'div#navigation'),
 		props: {
 			g_context: G_CONTEXT,
 		},

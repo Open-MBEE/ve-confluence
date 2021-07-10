@@ -7,7 +7,8 @@
     "build": "yarn rollup -c",
     "dev": "yarn rollup -c -w",
     "validate": "yarn svelte-check",
-    "lint": "yarn eslint src",
+    "lint": "yarn eslint './src/**/*.{js,ts,svelte}'",
+    "lint:fix": "yarn eslint --fix './src/**/*.{js,ts,svelte}'",
     "cypress:open": "yarn cypress open"
   },
   "devDependencies": {

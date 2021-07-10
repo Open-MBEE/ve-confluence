@@ -24,8 +24,8 @@
 	import {faQuestionCircle} from '@fortawesome/free-solid-svg-icons';
 
 	import {
-		qs,
 		dm_main,
+		dm_main_header,
 	} from '#/util/dom';
 
 	import {slide} from 'svelte/transition';
@@ -38,7 +38,6 @@
 	} from 'svelte-tabs';
 
 	export let g_context: Context;
-	let k_object_store = g_context.store;
 
 	let b_ready = false;
 	let b_read_only = false;
@@ -51,8 +50,19 @@
 	let k_document: ConfluenceDocument | null = null;
 
 	function realign_control_bar() {
-		dm_bar.style.marginLeft = dm_main.style.marginLeft || '';
-	}
+        // when scrolling down the wiki header style changes, so update the control bar margin
+        if('' !== dm_main_header.style.position) {
+            dm_bar.style.marginTop = '0px';
+
+            // when the 'overlay-header' class is applied for the nav bar, adjust margins
+            if('overlay-header' === dm_main_header.className) {
+                dm_bar.style.marginTop = '-10px';
+            }
+        }
+        else {
+            dm_bar.style.marginTop = '-20px';
+        }
+    }
 
 	onMount(async() => {
 		b_ready = true;
@@ -78,6 +88,9 @@
 
 		// start observing 'main' attribute changes
 		d_observer.observe(dm_main, {attributes:true});
+
+		// start observing 'main-header' attribute changes
+		d_observer.observe(dm_main_header, {attributes:true})
 
 		k_page = await ConfluencePage.fromCurrentPage();
 
@@ -154,6 +167,11 @@
 	.ve-control-bar {
 		background-color: var(--ve-color-dark-background);
 		color: var(--ve-color-light-text);
+		// margins to offset wiki 'main' content padding
+		margin-left: -40px;
+        margin-right: -40px;
+        margin-top: -20px;
+        margin-bottom: 20px;
 		
 		.heading {
 			position: relative;

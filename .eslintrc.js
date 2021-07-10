@@ -64,11 +64,11 @@ module.exports = {
 	},
 	parser: '@typescript-eslint/parser',
 	parserOptions: {
+		ecmaVersion: 2021,
+		sourceType: 'module',
 		tsconfigRootDir: __dirname,
 		project: ['./tsconfig.json'],
 		extraFileExtensions: ['.svelte'],
-		ecmaVersion: 2021,
-		sourceType: 'module',
 	},
 	plugins: [
 		'svelte3',
@@ -82,6 +82,7 @@ module.exports = {
 			processor: 'svelte3/svelte3',
 		},
 	],
+	ignorePatterns: ['node_modules'],
 	settings: {
 		'svelte3/typescript': () => require('typescript'),
 		'svelte3/ignore-styles': () => true,
@@ -164,7 +165,7 @@ module.exports = {
 						patterns: a_patterns,
 						caps: true,
 					},
-				])),
+				]))),
 				...snake_types(Object.entries(H_PRIMITIVES).reduce((a_out, [si_type, a_patterns]) => ([
 					...a_out,
 					{
@@ -173,7 +174,7 @@ module.exports = {
 						patterns: a_patterns,
 						short: true,
 					},
-				])),
+				]))),
 				{
 					selector: 'variable',
 					modifiers: ['const', 'global'],

@@ -210,6 +210,10 @@
 			flex: 1 auto;
 			text-align: right;
 		}
+
+		.buttons button {
+			cursor:pointer;
+		}
 	}
 
 	.label {
@@ -370,6 +374,10 @@
 				}
 			}
 		}
+
+		.tablesorter-header-inner {
+			font-size: 14px;
+		}
 	}
 </style>
 
@@ -424,6 +432,8 @@
 							</svg>
 						`}
 						Item={SelectItem}
+						containerStyles={'padding: 0px 40px 0px 6px;'}
+						listOffset={0}
 						on:select={select_query_type}
 					/>
 				</span>

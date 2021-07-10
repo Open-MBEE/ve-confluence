@@ -137,7 +137,7 @@
 	.param-label {
 		color: var(--ve-color-light-text);
 		margin-right: 6em;
-		font-size: 13px;
+		font-size: 14px;
 	}
 
 	.param-values {
