@@ -5,11 +5,18 @@
   "exclude": ["node_modules/*", "__sapper__/*", "public/*"],
 
   "compilerOptions": {
+    "baseUrl": "./src",
+    "rootDir": "./src",
+    "paths": {
+      "#/*": ["./*"],
+    },
+
     "target": "ES2020",
     "lib": ["ES2020", "dom"],
     "module": "es2020",
     "moduleResolution": "node",
 
+    // "allowJs": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "strict": true,
@@ -18,7 +25,14 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "strictNullChecks": true
+    "strictNullChecks": true,
+
+    "plugins": [
+      {
+        "transform": "@zerollup/ts-transform-paths",
+        "exclude": "*"
+      }
+    ]
   },
 
   "types": [

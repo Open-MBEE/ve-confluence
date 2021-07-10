@@ -1,0 +1,9 @@
+coverage
+docs
+lang
+node_modules
+public
+resource
+scrap
+submodule
+**/*.js
