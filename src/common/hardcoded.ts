@@ -9,10 +9,12 @@ import type {
 } from '#/common/types';
 
 import type {
+	MmsSparqlQueryTable,
 	QueryField,
 	QueryParam,
 	QueryType,
 } from '#/element/QueryTable/model/QueryTable';
+import type { SparqlSelectQuery } from '#/util/sparql-endpoint';
 
 import {build_dng_select_query_from_params} from './helper/sparql-code';
 
@@ -129,7 +131,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 						'hardcoded#queryParameter.sparql.dng.maturity',
 					],
 					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basicWithChildren',
-					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.basicParams',
+					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.basicParamsL3',
 				},
 				asr: {
 					label: 'Appendix Subsystem Requirements',
@@ -138,7 +140,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 						'hardcoded#queryParameter.sparql.dng.maturity',
 					],
 					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basic',
-					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.basicParams',
+					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.basicParamsL3ChildrenAndL4s',
 				},
 			},
 		},
@@ -213,7 +215,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					cell: (g: QueryRow) => `<ul>${
 						g.childrenValue.value
 							.split(/\0/g)
-							.map(s => /* syntax: html*/ `<li>${escape_html(s)}</li>`)
+							.map((s, i) => /* syntax: html*/ `<li><a href="${g.children.value.split(/\0/g)[i]}">${escape_html(s)}</a></li>`)
 							.join('')
 					}</ul>`,
 				},
@@ -226,6 +228,40 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 			dng: {
 				basicParams: {
 					function: build_dng_select_query_from_params,
+				},
+				basicParamsL3: {
+					function(this: MmsSparqlQueryTable): Promise<SparqlSelectQuery> {
+						return build_dng_select_query_from_params.call(this, {
+							bgp: /* syntax: js */ `
+								?_level a rdf:Property ;
+									rdfs:label "Level" ;
+									.
+
+								?artifact ?_level [rdfs:label "L3"] .
+							`,
+						});
+					},
+				},
+				basicParamsL3ChildrenAndL4s: {
+					function(this: MmsSparqlQueryTable): Promise<SparqlSelectQuery> {
+						return build_dng_select_query_from_params.call(this, {
+							bgp: /* syntax: js */ `
+								?_level a rdf:Property ;
+									rdfs:label "Level" ;
+									.
+
+								{
+									?artifact ?_level [rdfs:label "L4"] .
+								} union {
+									?artifact a oslc_rm:Requirement ;
+										ibm_type:Decomposition ?parent ;
+										.
+
+									?parent ?_level [rdfs:label "L3"] .
+								}
+							`,
+						});
+					},
 				},
 			},
 		},

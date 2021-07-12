@@ -2,7 +2,7 @@ import type {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
 
 import {SparqlSelectQuery} from '../../util/sparql-endpoint';
 
-import type {Hash} from '../types';
+import type {Hash, SparqlString} from '../types';
 
 const terse_lit = (s: string) => `"${s.replace(/[\r\n]+/g, '').replace(/"/g, '\\"')}"`;
 
@@ -41,21 +41,28 @@ const H_NATIVE_DNG_PATTERNS: Record<string, string> = {
 	`,
 	children: /* syntax: sparql */ `
 		optional {
-			?child a oslc_rm:Requirement ;
+			?children a oslc_rm:Requirement ;
 				ibm_type:Decomposition ?artifact ;
-				dct:title ?childValues ;
+				dct:title ?childrenValues ;
 				.
 		}
 	`,
 };
 
-export async function build_dng_select_query_from_params(this: MmsSparqlQueryTable): Promise<SparqlSelectQuery> {
+interface BuildConfig {
+	bgp?: SparqlString;
+}
+
+export async function build_dng_select_query_from_params(this: MmsSparqlQueryTable, gc_build?: BuildConfig): Promise<SparqlSelectQuery> {
 	const a_bgp: string[] = [];
 	const h_props = {};
 
+	const {
+		bgp: sq_bgp='',
+	} = gc_build || {};
+
 	const a_selects = [
 		'?artifact',
-		'?levelValue',
 	];
 
 	const a_aggregates: string[] = [];
@@ -118,6 +125,12 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 		else if('native' === s_source) {
 			if(si_param in H_NATIVE_DNG_PATTERNS) {
 				a_bgp.push(H_NATIVE_DNG_PATTERNS[si_param]);
+
+				if('children' === si_param) {
+					a_aggregates.push(/* syntax: sparql */ `
+						(group_concat(distinct ?${si_param}; separator='\\u0000') as ?${si_param})
+					`);
+				}
 			}
 		}
 	}
@@ -136,6 +149,8 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 				.
 
 			${a_bgp.join('\n')}
+
+			${sq_bgp || ''}
 		`,
 		group: a_aggregates.length ? a_selects.join(' ') : null,
 	});
