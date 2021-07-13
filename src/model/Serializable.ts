@@ -1,6 +1,4 @@
-import type {
-	IObjectStore,
-} from '#/common/types';
+import type {IObjectStore,} from '#/common/types';
 
 import type {
 	TypedKeyedLabeledObject,
@@ -32,13 +30,16 @@ export abstract class VeOdm<Serialized extends Serializable | Primitive> {
 		this._gc_serialized = gc_serialized;
 		this._g_context = g_context;
 		this._k_store = g_context.store;
+		this.bootstrap();
+	}
 
+	bootstrap(): void {
 		this.initSync();
 
 		this.init()
 			.then(() => {
 				this._b_ready = true;
-				for(const fk_resolve of this._a_awaits) {
+				for (const fk_resolve of this._a_awaits) {
 					fk_resolve();
 				}
 				this._a_awaits.length = 0;
@@ -46,9 +47,9 @@ export abstract class VeOdm<Serialized extends Serializable | Primitive> {
 			.catch(() => {
 				let s_serialized = '(unable to stringify - see Error details)';
 				try {
-					s_serialized = JSON.stringify(gc_serialized);
+					s_serialized = JSON.stringify(this._gc_serialized);
+				} catch (e_stringify) {
 				}
-				catch(e_stringify) {}
 				throw new Error(`ERROR: While asynchronously initializing ${this.constructor.name} with ${s_serialized}`);
 			});
 	}
@@ -79,6 +80,16 @@ export abstract class VeOdm<Serialized extends Serializable | Primitive> {
 	// ): VeOdm<CreationSerialized> {
 	//     return new dc_class(gc_serialized, this._g_context);
 	// }
+
+	async save(): Promise<boolean> {
+		console.log("It's saving.");
+		return true;
+	}
+
+	fromSerialized(serialized: Serialized): void {
+		this._gc_serialized = serialized;
+		this.bootstrap();
+	}
 
 	toSerialized(): Serialized {
 		return this._gc_serialized;

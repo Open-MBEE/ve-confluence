@@ -152,4 +152,6 @@ export interface IObjectStore {
 		ValueType extends PrimitiveValue,
 		VeoPathType extends VeoPath.Full = VeoPath.Full,
 	>(sp_path: string): Promise<ValueType>;
+
+	update(content: any): Promise<boolean>;
 }

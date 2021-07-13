@@ -65,13 +65,13 @@
 	}
 
 	async function load_values(k_values: ParamValuesList) {
-		await tick();
+		console.log("Loading values");
+		console.log(k_values);
 		for (const val of k_values) {
 			console.log('Loading selected value: ' + val.value);
 			selected_items = a_options.filter(e => e.value === val.value).map(function (item) {
 				return item;
 			});
-			console.log(selected_items);
 		}
 	}
 
@@ -83,7 +83,6 @@
 		catch(_e_query) {
 			e_query = _e_query;
 		}
-
 		xc_load = XC_LOAD_YES;
 	})();
 
@@ -230,7 +229,7 @@
 					<path d="M3.5 4.5L0.468911 0.75L6.53109 0.75L3.5 4.5Z" fill="#333333"/>
 				</svg>
 			`}
-			value={selected_items}
+			value={load_values}
 			on:select={select_value}
 			on:clear={handle_clear}
 		></Select>

@@ -22,6 +22,8 @@ import type {
 	ConfluencePage,
 } from './confluence';
 
+import type {MmsSparqlQueryTable} from "#/element/QueryTable/model/QueryTable";
+
 // const G_SHAPE = {
 // 	document: [
 // 		'DocumentObject',
@@ -209,5 +211,26 @@ export class ObjectStore implements IObjectStore {
 		}
 
 		return access<ValueType>(g_metadata, a_frags);
+	}
+
+	async update(content: Serializable): Promise<boolean> {
+		let k_target: ConfluencePage;
+		k_target = this._k_page;
+		// fetch ve4 data
+		const g_ve4 = await k_target.getMetadata(true);
+
+		// fetch metadata
+		const g_metadata = g_ve4?.value || null;
+		if (g_metadata) {
+			g_metadata.published = <MmsSparqlQueryTable.Serialized> content;
+		}
+
+		if(!g_metadata) {
+			throw new Error(`Cannot access ${this._k_page.pageId} metadata`);
+		}
+
+		const n_version = ((g_ve4)?.version.number) || 1;
+
+		return k_target.postMetadata(g_metadata, n_version + 1, '');
 	}
 }

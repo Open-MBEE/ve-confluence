@@ -1,50 +1,46 @@
 <script lang="ts">
-	import {
-		PageMetadata,
-		ConfluencePage,
-	} from '#/vendor/confluence/module/confluence';
+	import {ConfluenceApi, ConfluencePage, PageMetadata,} from '#/vendor/confluence/module/confluence';
 
-	import { onMount } from 'svelte';
-	import { quadOut } from 'svelte/easing';
-	import { slide } from 'svelte/transition';
-	import { create_in_transition } from 'svelte/internal';
+	import {onMount} from 'svelte';
+	import {quadOut} from 'svelte/easing';
+	import {slide} from 'svelte/transition';
+	import {create_in_transition} from 'svelte/internal';
 
 	import Select from 'svelte-select';
 
 	import Fa from 'svelte-fa';
-	import {
-		faCircleNotch,
-		faFilter,
-		faHistory,
-		faQuestionCircle,
-	} from '@fortawesome/free-solid-svg-icons';
+	import {faCircleNotch, faFilter, faHistory, faQuestionCircle,} from '@fortawesome/free-solid-svg-icons';
 
 	import SelectItem from '#/ui/component/SelectItem.svelte';
 
 	import QueryTableParam from './QueryTableParam.svelte';
 
-	import type { QueryTable } from '../model/QueryTable';
+	import type {QueryTable} from '../model/QueryTable';
 
-	import type {
-		Connection,
-		ModelVersionDescriptor,
-	} from '#/model/Connection';
+	import type {Connection, ModelVersionDescriptor,} from '#/model/Connection';
 
-	import type { ValuedLabeledObject } from '#/common/types';
+	import type {ValuedLabeledObject} from '#/common/types';
 	import {MmsSparqlQueryTable} from "../model/QueryTable";
+	import type {Ve4MetadataKeyConfluencePage} from "#/common/static";
 
 	export let k_query_table: QueryTable;
 	export let k_page: ConfluencePage;
 
 	let b_published = false;
+	let selected;
 
 	(async () => {
-		let meta = (await k_page.getMetadata(true))?.value;
-		if (meta.published) {
-			k_query_table = <QueryTable> await (<MmsSparqlQueryTable> k_query_table).fromSerialized(meta.published);
+		k_page = await ConfluencePage.fromCurrentPage();
+		g_metadata = await k_page.getMetadata(true);
+		if (g_metadata?.value.published) {
+			k_query_table = <QueryTable> await (<MmsSparqlQueryTable> k_query_table).fromSerialized(g_metadata.value.published);
 			b_published = true;
-			await render();
+		} else if (g_metadata?.value.last) {
+			k_query_table = <QueryTable> await (<MmsSparqlQueryTable> k_query_table).fromSerialized(g_metadata.value.last);
 		}
+		//await build_selected(k_query_table);
+		await render();
+
 		const k_connection = await k_query_table.getConnection();
 		const g_version = await k_connection.getVersion();
 		const dt_version = new Date(g_version.dateTime);
@@ -53,7 +49,7 @@
 
 	let k_connection: Connection;
 	let g_version: ModelVersionDescriptor;
-	let g_metadata: PageMetadata;
+	let g_metadata: ConfluenceApi.Info<Ve4MetadataKeyConfluencePage, PageMetadata> | null;
 
 	onMount(async () => {
 		// get query table's connection
@@ -148,9 +144,7 @@
 		b_loading = true;
 
 		const k_connection = await k_query_table.getConnection();
-
 		const k_query = await k_query_table.fetchQueryBuilder();
-
 		const a_rows = await k_connection.execute(k_query.paginate(21));
 
 		if (a_rows.length > 20) {
@@ -197,17 +191,24 @@
 		});
 	}
 
+	async function save_table() {
+		await (<MmsSparqlQueryTable> k_query_table).save();
+	}
+
 	async function publish_table() {
 		xc_info_mode = INFO_MODES.LOADING;
-		g_metadata = (await k_page.getMetadata(true))?.value;
-		g_metadata.published = (<MmsSparqlQueryTable> k_query_table).toSerialized();
-		const n_version = (await k_page.getMetadata(true))?.version.number + 1 || 1;
-		if (await k_page.postMetadata(g_metadata, n_version)) {
-			b_published = true;
-			b_expand = false;
-			xc_info_mode = 0;
-		}
+		save_table().then(async() => {
+			let table = (await k_page.getContentAsString())?.value;
+			// Hack to update the date without posting new data
+			table += "<!--" + k_query_table.toSerialized() + "-->"
+			if (await k_page.postContent(table, "Updated CAE CED Table Element")) {
+				b_published = true;
+				b_expand = false;
+				xc_info_mode = 0;
+			}
+		});
 	}
+
 
 	async function reset_table() {
 		xc_info_mode = INFO_MODES.LOADING;
@@ -218,6 +219,15 @@
 			xc_info_mode = 0;
 		}
 		g_metadata = (await k_page.getMetadata(true))?.value;
+	}
+
+	async function build_selected(k_query_table) {
+		for(const n_param of await k_query_table.getParameters()) {
+			selected[n_param.key] = k_query_table.parameterValuesList(
+					n_param.key,
+			)
+		}
+		return selected;
 	}
 
 	function select_query_type(dv_select: CustomEvent<ValuedLabeledObject>) {
@@ -307,7 +317,7 @@
 				{/await}
 			</div>
 		</div>
-		<div class="table-wrap">
+		<div class="table-wrap" id="table-wrapper">
 			<table
 				class="wrapped confluenceTable tablesorter tablesorter-default stickyTableHeaders"
 				role="grid"

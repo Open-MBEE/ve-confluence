@@ -33,6 +33,7 @@ export interface PageMetadata extends JsonObject {
 	type: 'Page';
 	schema: '1.0';
 	published?: MmsSparqlQueryTable.Serialized | null;
+	last?: MmsSparqlQueryTable.Serialized | null;
 }
 
 export interface DocumentMetadata extends JsonObject {
@@ -301,7 +302,7 @@ export class ConfluencePage {
 	private async _info(b_force = false): Promise<PageInfo | null> {
 		if(this._b_cached_info && !b_force) return this._g_info;
 
-		const g_info = await fetch_page_properties(this._s_page_title);
+		let g_info = await fetch_page_properties(this._s_page_title);
 
 		this._b_cached_info = true;
 
@@ -314,6 +315,9 @@ export class ConfluencePage {
 
 	async getMetadata(b_force = false): Promise<ConfluenceApi.Info | null> {
 		let g_info = await this._info(b_force);
+		if (!g_info?.metadata.properties[G_VE4_METADATA_KEYS.CONFLUENCE_PAGE]) {
+			await this.initMetadata();
+		}
 		return normalize_metadata<Ve4MetadataKeyPage, PageMetadata>(g_info?.metadata.properties[G_VE4_METADATA_KEYS.CONFLUENCE_PAGE]);
 	}
 
@@ -347,17 +351,43 @@ export class ConfluencePage {
 		};
 	}
 
-	async postContent(n_version: ConfluenceApi.PageVersionNumber, s_content: Cxhtml): Promise<ConfluenceApi.PageVersionNumber> {
-		return 0;
+	async postContent(s_content: string, s_message: string = ''): Promise<boolean> {
+		let n_version = (await this.getContentAsXhtmlDocument())?.versionNumber;
+		const response = await confluence_put_json(`/content/${this._si_page}`, {
+			json: {
+				id: this._si_page,
+				type: 'page',
+				title: this.pageTitle,
+				body: {
+					storage: {
+						//value: "<p class=\"auto-cursor-target\"><ac:link><ri:page ri:content-title=\"CAE CED Table Element\" /></ac:link></p><p class=\"auto-cursor-target\"><br /></p><ac:structured-macro ac:name=\"span\" ac:schema-version=\"1\" ac:macro-id=\"b064d0ae-be2a-4ad8-ac8e-24e710f0ed86\"><ac:parameter ac:name=\"style\">display:none</ac:parameter><ac:parameter ac:name=\"atlassian-macro-output-type\">INLINE</ac:parameter><ac:rich-text-body><p class=\"auto-cursor-target\"><strong><span style=\"color: rgb(0,0,255);\">Connected Engineering Document. Do not edit nor delete this macro.</span></strong></p><ac:structured-macro ac:name=\"html\" ac:schema-version=\"1\" ac:macro-id=\"06617957-bc59-4490-9c84-f01440966a31\"><ac:plain-text-body><![CDATA[<script type=\"application/json\" id=\"ve4-init\">{\"schema\":\"1.0\",\"type\":\"document\",\"sources\":[]}</script>\n<script type=\"text/javascript\" src=\"https://ced-uat.jpl.nasa.gov/cdn/uat/bundle.js\"></script>]]></ac:plain-text-body></ac:structured-macro><p class=\"auto-cursor-target\"><br /></p></ac:rich-text-body></ac:structured-macro><p class=\"auto-cursor-target\"><br /></p>",
+						value: new XhtmlDocument(s_content).toString(),
+						representation: "storage",
+					},
+				},
+				version: {
+					number: n_version + 1,
+					message: s_message,
+				},
+			},
+		});
+
+		console.log(response);
+
+		return true;
 	}
 
-	async initMetadata(n_version: ConfluenceApi.PageVersionNumber = 1): Promise<boolean> {
+	async initMetadata(n_version: ConfluenceApi.PageVersionNumber = 1): Promise<ConfluenceApi.Info | null> {
 		const gm_page: PageMetadata = {
 			type: 'Page',
 			schema: '1.0',
 			published: null,
 		};
-		return await this.postMetadata(gm_page, n_version, 'Initialization');
+		if (await this.postMetadata(gm_page, n_version, 'Initialization')) {
+			return this.getMetadata(true);
+		} else {
+			return null;
+		}
 	}
 
 	async postMetadata(gm_page: PageMetadata, n_version=1, s_message=''): Promise<boolean> {
@@ -413,6 +443,17 @@ export class ConfluencePage {
 	async isDocumentMember(): Promise<boolean> {
 		return null !== await this.getDocument();
 	}
+
+    escapeSpecialChars(html: string): string {
+		return html.replace(/\\n/g, "\\n")
+			.replace(/\\'/g, "\\'")
+			.replace(/\\"/g, '\\"')
+			.replace(/\\&/g, "\\&")
+			.replace(/\\r/g, "\\r")
+			.replace(/\\t/g, "\\t")
+			.replace(/\\b/g, "\\b")
+			.replace(/\\f/g, "\\f");
+    };
 }
 
 export class ConfluenceDocument {

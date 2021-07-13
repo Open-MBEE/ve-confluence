@@ -182,8 +182,6 @@ let H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 				serialized,
 				{store:K_OBJECT_STORE}
 			),
-			// not ideal
-			k_page: k_page,
 		},
 	}),
 };

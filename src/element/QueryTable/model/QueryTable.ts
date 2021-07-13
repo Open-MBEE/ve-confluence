@@ -223,6 +223,10 @@ export abstract class QueryTable<
 > extends VeOdm<Serialized> {
 	protected _h_param_values_lists: Record<string, ParamValuesList> = {};
 
+	abstract isPublished(): Promise<boolean>;
+
+	abstract publish(published: boolean): Promise<boolean>;
+
 	abstract getConnection(): Promise<Connection>;
 
 	abstract get queryType(): QueryType;
@@ -363,11 +367,24 @@ export class MmsSparqlQueryTable<
 		return new MmsSparqlConnection(g_serialized, this._g_context);
 	}
 
+	isPublished(): Promise<boolean> {
+		return Promise.resolve(false);
+	}
+
+	publish(published: boolean): Promise<boolean> {
+		return Promise.resolve(this._k_store.update(this.toSerialized()));
+	}
+
 	async fromSerialized(serialized: Serialized): Promise<MmsSparqlQueryTable> {
 		const table = new MmsSparqlQueryTable(serialized, {store: this._k_store});
 		await table.init();
 		return table;
 	}
+
+	async save(): Promise<boolean> {
+		return Promise.resolve(this._k_store.update(this.toSerialized()));
+	}
+
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
