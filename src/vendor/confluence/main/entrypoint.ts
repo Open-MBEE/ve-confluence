@@ -127,8 +127,11 @@ const A_DIRECTIVE_CORRELATIONS: CorrelationDescriptor[] = [
 		directive: ([ym_anchor, g_link]) => ({
 			component: DngArtifact,
 			props: {
+				ym_anchor,
+				g_link,
 				p_href: ym_anchor.getAttribute('href'),
 				s_label: ym_anchor.textContent?.trim() || '',
+				g_context: G_CONTEXT,
 			},
 		}),
 	},

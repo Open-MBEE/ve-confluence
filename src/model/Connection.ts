@@ -63,13 +63,11 @@ export namespace SparqlConnection {
 export abstract class SparqlConnection<
 	Serialized extends SparqlConnection.Serialized=SparqlConnection.Serialized,
 > extends Connection<Serialized> {
-	protected _k_endpoint: SparqlEndpoint = <SparqlEndpoint>(<unknown>null);
+	protected _k_endpoint!: SparqlEndpoint;
 
 	protected _h_prefixes?: Hash;
 
-	async init(): Promise<void> {
-		await super.init();
-
+	initSync(): void {
 		this._k_endpoint = new SparqlEndpoint({
 			endpoint: this.endpoint,
 			prefixes: this.prefixes,
