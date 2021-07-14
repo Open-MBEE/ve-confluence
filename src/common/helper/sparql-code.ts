@@ -2,7 +2,7 @@ import type {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
 
 import {SparqlSelectQuery} from '../../util/sparql-endpoint';
 
-import type {Hash} from '../types';
+import type {Hash, SparqlString} from '../types';
 
 const terse_lit = (s: string) => `"${s.replace(/[\r\n]+/g, '').replace(/"/g, '\\"')}"`;
 
@@ -18,17 +18,51 @@ function attr(h_props: Hash, si_attr: string, s_attr_key: string, b_many=false) 
 	`;
 }
 
-// export function build_select_query_from_params(h_params: Record<string, QueryParam>, h_fields: Record<string, Field>={}): SelectQuery {
-export async function build_dng_select_query_from_params(this: MmsSparqlQueryTable): Promise<SparqlSelectQuery> {
+const H_NATIVE_DNG_PATTERNS: Record<string, string> = {
+	id: /* syntax: sparql */ `
+		?artifact dct:identifier ?idValue .
+	`,
+	requirementName: /* syntax: sparql */ `
+		?artifact dct:title ?requirementNameValue .
+	`,
+	requirementText: /* syntax: sparql */ `
+		?artifact jazz_rm:primaryText ?requirementTextValue .
+	`,
+	affectedSystems: /* syntax: sparql */ `
+		[
+			rdf:subject ?artifact ;
+			rdf:predicate <https://jpl.nasa.gov/msr/rm#linkType/Allocation> ;
+			rdf:object ?affectedSystem ;
+		] .
+
+		?affectedSystem a oslc_rm:Requirement ;
+			dct:title ?affectedSystemValue ;
+			.
+	`,
+	children: /* syntax: sparql */ `
+		optional {
+			?children a oslc_rm:Requirement ;
+				ibm_type:Decomposition ?artifact ;
+				dct:title ?childrenValues ;
+				.
+		}
+	`,
+};
+
+interface BuildConfig {
+	bgp?: SparqlString;
+}
+
+export async function build_dng_select_query_from_params(this: MmsSparqlQueryTable, gc_build?: BuildConfig): Promise<SparqlSelectQuery> {
 	const a_bgp: string[] = [];
 	const h_props = {};
 
+	const {
+		bgp: sq_bgp='',
+	} = gc_build || {};
+
 	const a_selects = [
 		'?artifact',
-		'?identifierValue',
-		'?primaryTextValue',
-		'?levelvalue',
-		'?titleValue',
 	];
 
 	const a_aggregates: string[] = [];
@@ -36,7 +70,7 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 	// each param
 	for(const {
 		key: si_param, label: s_label,
-	} of await this.getParameters()) {
+	} of await this.queryType.fetchParameters()) {
 		// fetch values list
 		const k_list = this.parameterValuesList(si_param);
 
@@ -57,9 +91,10 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 	for(const {
 		key: si_param,
 		label: s_header,
+		source: s_source,
 		value: s_value,
 		hasMany: b_many,
-	} of this.fields) {
+	} of this.queryType.fields) {
 		// attr already captured from filter; select value variable and skip it
 		if(si_param in h_props) {
 			a_selects.push(`?${si_param}Value`);
@@ -77,15 +112,30 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 			a_selects.push(`?${si_param}Value`);
 		}
 
-		// insert binding pattern fragment
-		a_bgp.push(/* syntax: sparql */ `
-			optional {
-				${attr(h_props, si_param, s_value, b_many)}
+		// attribute source
+		if('attribute' === s_source) {
+			// insert binding pattern fragment
+			a_bgp.push(/* syntax: sparql */ `
+				optional {
+					${attr(h_props, si_param, s_value, b_many)}
+				}
+			`);
+		}
+		// native source
+		else if('native' === s_source) {
+			if(si_param in H_NATIVE_DNG_PATTERNS) {
+				a_bgp.push(H_NATIVE_DNG_PATTERNS[si_param]);
+
+				if('children' === si_param) {
+					a_aggregates.push(/* syntax: sparql */ `
+						(group_concat(distinct ?${si_param}; separator='\\u0000') as ?${si_param})
+					`);
+				}
 			}
-		`);
+		}
 	}
 
-	const k_connection = await this.getConnection();
+	const k_connection = await this.fetchConnection();
 
 	return new SparqlSelectQuery({
 		count: '?artifact',
@@ -93,12 +143,14 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 		from: `<${k_connection.modelGraph}>`,
 		bgp: /* syntax: sparql */ `
 			?artifact a oslc_rm:Requirement ;
-				dct:identifier ?identifierValue ;
-				dct:title ?titleValue ;
-				jazz_rm:primaryText ?primaryTextValue ;
+				oslc:instanceShape [
+					dct:title "Requirement"^^rdf:XMLLiteral ;
+				] ;
 				.
 
 			${a_bgp.join('\n')}
+
+			${sq_bgp || ''}
 		`,
 		group: a_aggregates.length ? a_selects.join(' ') : null,
 	});

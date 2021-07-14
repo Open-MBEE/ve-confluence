@@ -4,8 +4,12 @@ import type {
 	PrimitiveObject,
 } from '#/common/types';
 
+export const NL_PATH_FRAGMENTS = 5;
+
 export namespace VeoPath {
 	export type Location = 'document' | 'page' | 'hardcoded';
+
+	export type Locatable = `${Location}#${string}`;
 
 	export type Full<
 		Storage extends Location = Location,
@@ -152,10 +156,7 @@ function describe_path_attempt(a_frags: string[], i_frag: number): string {
 	return `${s_current}[.${s_rest}]`;
 }
 
-export function access<Type extends PrimitiveValue>(
-	h_map: PrimitiveObject,
-	a_frags: string[]
-): Type {
+export function access<Type extends PrimitiveValue>(h_map: PrimitiveObject, a_frags: string[]): Type {
 	const nl_frags = a_frags.length;
 
 	// empty path
@@ -167,14 +168,41 @@ export function access<Type extends PrimitiveValue>(
 	let z_node = h_map;
 
 	// each frag
-	for(let i_frag = 0; i_frag < nl_frags; i_frag++) {
+	for(let i_frag=0; i_frag<nl_frags; i_frag++) {
 		const s_frag = a_frags[i_frag];
+
+		// wildcard
+		if('*' === s_frag) {
+			const sp_parent = a_frags.slice(0, i_frag).join('.');
+
+			return Object.entries(z_node).reduce((h_out, [si_key, w_value]) => ({
+				...h_out,
+				[`${sp_parent}.${si_key}`]: w_value,
+			}), {}) as Type;
+		}
+		// recursive wildcard
+		else if('**' === s_frag) {
+			const sp_parent = a_frags.slice(0, i_frag).join('.');
+
+			for(; i_frag<NL_PATH_FRAGMENTS; i_frag++) {
+				debugger;
+				for(const si_part in z_node) {
+					const z_child = z_node[si_part];
+					debugger;
+				}
+			}
+
+			return Object.entries(z_node).reduce((h_out, [si_key, w_value]) => ({
+				...h_out,
+				[`${sp_parent}.${si_key}`]: w_value,
+			}), {}) as Type;
+		}
 
 		// access thing
 		const z_thing = z_node[s_frag];
 
 		// terminal
-		if(i_frag === nl_frags - 1) {
+		if(i_frag === nl_frags-1) {
 			return z_thing as Type;
 		}
 

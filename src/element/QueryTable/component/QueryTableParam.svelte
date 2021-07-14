@@ -1,9 +1,15 @@
 <script lang="ts">
 	import {createEventDispatcher} from 'svelte';
+	const dispatch = createEventDispatcher();
 	import {lang} from '#/common/static';
 	import Select from 'svelte-select';
 
-	import type {ParamValuesList, QueryParam, SparqlQueryTable,} from '#/element/QueryTable/model/QueryTable';
+	import type {
+		ParamValuesList,
+		QueryParam,
+		QueryTable,
+		SparqlQueryTable,
+	} from '#/element/QueryTable/model/QueryTable';
 
 	import type {MmsSparqlConnection,} from '#/model/Connection';
 
@@ -20,7 +26,7 @@
 
 	export let k_param: QueryParam;
 	export let k_values: ParamValuesList;
-	export let k_query_table: SparqlQueryTable;
+	export let k_query_table: QueryTable;
 
 	let a_options: Option[] = [];
 	export let selected_items: Option[] = [];
@@ -38,7 +44,7 @@
 
 	async function load_param(k_param: QueryParam) {
 		if(k_query_table.type.startsWith('MmsSparql')) {
-			const k_connection = (await k_query_table.getConnection()) as MmsSparqlConnection;
+			const k_connection = (await k_query_table.fetchConnection()) as MmsSparqlConnection;
 
 			const a_rows = await k_connection.execute(/* syntax: sparql */ `
 				select ?value (count(?req) as ?count) from <${k_connection.modelGraph}> {
@@ -76,11 +82,14 @@
 	}
 
 	(async() => {
-		try {
-			await load_param(k_param);
-		}
-		catch(_e_query) {
-			e_query = _e_query;
+		// if(!k_values.size) {
+		if(XC_LOAD_NOT === xc_load) {
+			try {
+				await load_param(k_param);
+			}
+			catch(_e_query) {
+				e_query = _e_query;
+			}
 		}
 		xc_load = XC_LOAD_YES;
 	})();
@@ -116,6 +125,8 @@
 
 	function handle_clear(dv_select: CustomEvent<Option[]>) {
 		k_values.clear();
+
+		dispatch('change');
 	}
 </script>
 
@@ -136,7 +147,7 @@
 	.param-label {
 		color: var(--ve-color-light-text);
 		margin-right: 6em;
-		font-size: 13px;
+		font-size: 14px;
 	}
 
 	.param-values {
@@ -196,14 +207,6 @@
 			margin: 3px 0 3px 4px;
 		}
 	}
-
-	.greyed-out {
-		color: grey;
-	}
-
-	.hidden {
-		display: none;
-	}
 </style>
 
 
@@ -218,11 +221,11 @@
 		<p style="color:red;">{lang.loading_failed}</p>
 	{:else}
 		<Select
+			items={a_options}
+			placeholder="Select Attribute Value(s)"
 			isMulti={true}
 			isClearable={false}
 			showIndicator={true}
-			items={a_options}
-			placeholder="Select Attribute Value(s)"
 			indicatorSvg={/* syntax: html */ `
 				<svg width="7" height="5" viewBox="0 0 7 5" fill="none" xmlns="http://www.w3.org/2000/svg">
 					<path d="M3.5 4.5L0.468911 0.75L6.53109 0.75L3.5 4.5Z" fill="#333333"/>

@@ -18,9 +18,9 @@ import {format} from '#/util/intl';
 import {
 	qs,
 	qsa,
-	dd,
 	dm_main,
 	dm_content,
+	dm_main_header,
 } from '#/util/dom';
 
 import type {SvelteComponent} from 'svelte';
@@ -31,10 +31,6 @@ import DngArtifact from '#/element/DngArtifact/component/DngArtifact.svelte';
 
 import QueryTable from '#/element/QueryTable/component/QueryTable.svelte';
 
-import SparqlEndpoint from '#/util/sparql-endpoint';
-
-import H_PREFIXES from '#/common/prefixes';
-
 import type XhtmlDocument from '#/vendor/confluence/module/xhtml-document';
 
 import {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
@@ -44,6 +40,8 @@ import {ObjectStore} from '#/vendor/confluence/module/object-store';
 import {H_HARDCODED_OBJECTS} from '#/common/hardcoded';
 import type {Serializable} from "#/model/Serializable";
 import Serialized = MmsSparqlQueryTable.Serialized;
+
+import type {Context} from '#/model/Serializable';
 
 // write static css
 {
@@ -60,17 +58,6 @@ import Serialized = MmsSparqlQueryTable.Serialized;
 	document.body.appendChild(dm_script);
 }
 
-// write remote resuorces
-{
-	// document.body.appendChild(dd('link', {
-	// 	rel: 'stylesheet',
-	// 	// href: 'https://ced-cdn-test.s3-us-gov-west-1.amazonaws.com/confluence-ui/fontawesome-free/css/all.min.css',
-	// 	href: 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css',
-	// 	integrity: 'sha512-iBBXm8fW90+nuLcSKlbmrPcLa0OT92xO1BIsZ+ywDWZCvqsWgccV3gFoRBv0z+8dLJgyAHIhR35VZc2oM/gI1w==',
-	// 	crossorigin: 'anonymous',
-	// 	referrerpolicy: 'no-referrer',
-	// }));
-}
 /**
  * tuple of a node's corresponding HTML element and a struct with properties to be used later
  */
@@ -129,7 +116,6 @@ type ControlBarConfig = {
 };
 
 const P_DNG_WEB_PREFIX = process.env.DOORS_NG_PREFIX;
-const SI_DNG_LOOKUP = 'Doors-NG Artifact or Requirement'.replace(/ /g, '+');
 
 // for excluding elements that are within active directives
 const SX_PARAMETER_ID = `ac:parameter[@ac:name="id"][starts-with(text(),"{SI_VIEW_PREFIX}-")]`;
@@ -143,8 +129,11 @@ const A_DIRECTIVE_CORRELATIONS: CorrelationDescriptor[] = [
 		directive: ([ym_anchor, g_link]) => ({
 			component: DngArtifact,
 			props: {
+				ym_anchor,
+				g_link,
 				p_href: ym_anchor.getAttribute('href'),
 				s_label: ym_anchor.textContent?.trim() || '',
+				g_context: G_CONTEXT,
 			},
 		}),
 	},
@@ -152,6 +141,7 @@ const A_DIRECTIVE_CORRELATIONS: CorrelationDescriptor[] = [
 
 let K_OBJECT_STORE: ObjectStore;
 let k_page: ConfluencePage;
+const G_CONTEXT: Context = {} as Context;
 
 let serialized: Serialized<string> = {
 	type: 'MmsSparqlQueryTable',
@@ -179,27 +169,25 @@ let H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 		component: QueryTable,
 		props: {
 			k_query_table: new MmsSparqlQueryTable(
-				serialized,
-				{store: K_OBJECT_STORE}
+				{
+					type: 'MmsSparqlQueryTable',
+					group: 'dng',
+					queryTypePath: 'hardcoded#queryType.sparql.dng.afsr',
+					connectionPath: 'document#connection.sparql.mms.dng',
+					parameterValues: {},
+				},
+				G_CONTEXT,
 			),
 		},
 	}),
 };
 
-const G_CONTEXT: Ve4ComponentContext = {
-	k_page: null as unknown as ConfluencePage,
-	k_sparql: null as unknown as SparqlEndpoint,
-};
-
-/**
- * content mixin
- */
-const GM_CONTEXT = {G_CONTEXT};
-
 const xpath_attrs = (a_attrs: string[]) => a_attrs.map(sx => `[${sx}]`).join('');
 
+let k_page: ConfluencePage;
 let k_document: ConfluenceDocument | null;
 let k_source: XhtmlDocument;
+let gm_page: PageMetadata | null;
 
 function control_bar(gc_bar: ControlBarConfig) {
 	const g_props = {...gc_bar.props};
@@ -232,9 +220,7 @@ function control_bar(gc_bar: ControlBarConfig) {
 	}
 }
 
-function* correlate(
-	gc_correlator: CorrelationDescriptor
-): Generator<ViewBundle> {
+function* correlate(gc_correlator: CorrelationDescriptor): Generator<ViewBundle> {
 	// find all matching page nodes
 	const a_nodes = k_source.select<Node>(gc_correlator.storage);
 	const nl_nodes = a_nodes.length;
@@ -245,19 +231,16 @@ function* correlate(
 	// mismatch
 	if(a_elmts.length !== nl_nodes) {
 		// `XPath selection found ${nl_nodes} matches but DOM query selection found ${a_elmts.length} matches`);
-		throw new Error(
-			format(lang.error.xpath_dom_mismatch, {
-				node_count: nl_nodes,
-				element_count: a_elmts.length,
-			})
+		throw new Error(format(lang.error.xpath_dom_mismatch, {
+			node_count: nl_nodes,
+			element_count: a_elmts.length,
+		})
 		);
 	}
 
 	// apply struct mapper
 	const f_struct = gc_correlator.struct;
-	const a_structs = f_struct
-		? a_nodes.map((ym_node, i_node) => f_struct(ym_node, a_elmts[i_node]))
-		: [];
+	const a_structs = f_struct? a_nodes.map((ym_node, i_node) => f_struct(ym_node, a_elmts[i_node])): [];
 
 	// each match
 	for(let i_match = 0; i_match < nl_nodes; i_match++) {
@@ -282,39 +265,24 @@ function render_component(g_bundle: ViewBundle, b_hide_anchor = false) {
 		props: {
 			...g_bundle.props || {},
 			g_node: g_bundle.node,
-			...GM_CONTEXT,
+			// ...GM_CONTEXT,
 		},
 	});
 }
 
-const H_SOURCE_HANDLERS: Record<SourceKey, (source: Source) => void> = {
-	dng: ((g_source: DngMdkSource) => {
-		// init SPARQL endpoint
-		G_CONTEXT.k_sparql = new SparqlEndpoint({
-			endpoint: g_source.endpoint || 'void://',
-			prefixes: H_PREFIXES,
-			concurrency: 16,
-			variables: {
-				DATA_GRAPH: `<${g_source.graph || 'void://'}>`,
-				LIMIT: '21',
-			},
-		});
-	}) as (source: Source) => void,
-
-	helix: () => {},
-};
-
-export async function main() {
+export async function main(): Promise<void> {
 	if('object' !== typeof lang?.basic) {
-		throw new Error(
-			`ERROR: No lang file defined! Did you forget to set the environment variables when building?`
-		);
+		throw new Error(`ERROR: No lang file defined! Did you forget to set the environment variables when building?`);
 	}
 
 	new ControlBar({
-		target: dm_main.parentElement as HTMLElement,
-		anchor: dm_main,
-		props: GM_CONTEXT,
+		// target: dm_main.parentElement as HTMLElement,
+		// anchor: dm_main,
+		target: dm_main_header as HTMLElement,
+		anchor: qs(dm_main_header, 'div#navigation'),
+		props: {
+			g_context: G_CONTEXT,
+		},
 	});
 
 	// G_CONTEXT.k_page =
@@ -334,8 +302,7 @@ export async function main() {
 
 		(async() => {
 			// load page's XHTML source
-			k_source
-				= (await k_page.getContentAsXhtmlDocument())?.value || null;
+			k_source = (await k_page.getContentAsXhtmlDocument())?.value || null;
 		})(),
 	]);
 
@@ -346,7 +313,7 @@ export async function main() {
 	}
 
 	// initialize object store
-	K_OBJECT_STORE = new ObjectStore(k_page, k_document, H_HARDCODED_OBJECTS);
+	G_CONTEXT.store = new ObjectStore(k_page, k_document, H_HARDCODED_OBJECTS);
 
 	// fetch document metadata
 	const gm_document = await k_document.getMetadata();
@@ -365,25 +332,18 @@ export async function main() {
 				`@ri:space-key="${G_META.space_key}" or not(@ri:space-key)`,
 				`@ri:content-title="${si_page_directive}"`,
 			])}`,
-			live: `a[href="/display/${
-				G_META.space_key
-			}/${si_page_directive.replace(/ /g, '+')}"]`,
+			live: `a[href="/display/${G_META.space_key}/${si_page_directive.replace(/ /g, '+')}"]`,
 			struct: (ym_node) => {
 				const ym_parent = ym_node.parentNode as Node;
 				return {
-					label:
-						('ac:link' === ym_parent.nodeName
-							? ym_parent.textContent
-							: '') || si_page_directive,
+					label: ('ac:link' === ym_parent.nodeName? ym_parent.textContent: '') || si_page_directive,
 				};
 			},
 			directive: f_directive,
 		});
 
 		// page link as absolute url
-		const p_href = `${G_META.base_url}/display/${
-			G_META.space_key
-		}/${si_page_directive.replace(/ /g, '+')}`;
+		const p_href = `${G_META.base_url}/display/${G_META.space_key}/${si_page_directive.replace(/ /g, '+')}`;
 		const dg_links = correlate({
 			storage: `.//a[@href="${p_href}"]`,
 			live: `a[href="${p_href}"]`,
@@ -433,6 +393,8 @@ async function dom_ready() {}
 	}
 	// dom content not yet loaded; add event listener
 	else {
-		document.addEventListener('DOMContentLoaded', dom_ready, false);
+		document.addEventListener('DOMContentLoaded', () => {
+			dom_ready();
+		}, false);
 	}
 }

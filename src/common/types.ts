@@ -131,15 +131,46 @@ export type CompareFunction<Type> = (w_a: Type, w_b: Type) => -1 | 0 | 1;
 
 export type DotFragment = string;
 
+export interface Instantiable<
+	ValueType extends Serializable | Primitive,
+	ClassType extends VeOdm<ValueType>,
+> {
+	new (gc: ValueType, g: Context): ClassType;
+}
+
+export type PathTarget<
+	ValueType extends Serializable | Primitive,
+	ClassType extends VeOdm<ValueType>,
+> = PathOptions<ValueType, ClassType> | ValueType | ClassType;
+
+
+export interface PathOptions<
+	ValueType extends Serializable | Primitive,
+	ClassType extends VeOdm<ValueType>,
+> {
+	[si_frag: string]: PathTarget<ValueType, ClassType>;
+}
+
+
 export interface IObjectStore {
 	idPartSync(sp_path: string): string;
+
+	options<
+		ValueType extends Serializable | Primitive,
+		ClassType extends VeOdm<ValueType>=VeOdm<ValueType>,
+	>(
+		sp_path: string,
+		dc_class?: null | Instantiable<ValueType, ClassType>,
+		g_context?: Context
+	): Promise<PathOptions<ValueType, ClassType>>;
+
 
 	optionsSync<
 		ValueType extends Serializable | Primitive,
 		ClassType extends VeOdm<ValueType>,
 	>(
 		sp_path: string,
-		dc_class: {new (gc: ValueType, g: Context): ClassType;},
+		dc_class: Instantiable<ValueType, ClassType>,
 		g_context: Context
 	): Record<VeoPath.Full, ClassType>;
 

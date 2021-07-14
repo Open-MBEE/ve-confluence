@@ -1,8 +1,50 @@
+const H_PRIMITIVES = {
+	boolean: [
+		'b',
+	],
+	number: [
+		'c', 'i', 'n[l]?', 'x[a-z]?',
+	],
+	string: [
+		's[ipqrx]?', 'p[r]?',
+	],
+	array: [
+		'a[bts]?',
+	],
+	function: [
+		'f[gke]?',
+	],
+};
+
 const A_SNAKE_TYPES = [
-	'a[bts]?', 'b', 'c', 'd[a-z]{0,2}', 'e', 'f[gke]?', 'g[c]?',
-	'h[m]?', 'i', 'k[a-z]{0,2}', 'm', 'n[l]?', 'p[r]?', 'r[t]?',
-	's[rqx]?', 't', 'v', 'w', 'x[a-z]?', 'y[a-z]{0,2}', 'z'
+	...Object.values(H_PRIMITIVES).flat(),
+	'd[a-z]{0,2}', 'e', 'g[ca-z]?',
+	'h[m]?', 'k[a-z]{0,2}', 'm', 'r[t]?',
+	't', 'v', 'w', 'y[a-z]{0,2}', 'z',
 ];
+
+function *snake_types(a_configs) {
+	for(const gc_types of a_configs) {
+		const a_snake_types = gc_types.patterns;
+
+		let s_inner = a_snake_types.join('|');
+		if(gc_types.caps) {
+			s_inner += `|${a_snake_types.map(s => s.toUpperCase()).join('|')}`;
+		}
+
+		const s_post = gc_types.short? '(_|$)': '_';
+
+		yield {
+			selector: gc_types.selector || 'variable',
+			types: gc_types.types,
+			format: ['snake_case'],
+			custom: {
+				regex: `^(${s_inner})${s_post}`,
+				match: true,
+			},
+		};
+	}
+};
 
 const rules = (si_plugin, h_rules) => Object.entries(h_rules)
 	.reduce((h_out, [si_rule, w_options]) => ({
@@ -11,20 +53,40 @@ const rules = (si_plugin, h_rules) => Object.entries(h_rules)
 	}), {});
 
 module.exports = {
-	root: true,
+	// root: true,
 	env: {
+		es6: true,
+		node: true,
 		browser: true,
+	},
+	globals: {
+		globalThis: false,
 	},
 	parser: '@typescript-eslint/parser',
 	parserOptions: {
-		project: './tsconfig.json',
 		ecmaVersion: 2021,
+		sourceType: 'module',
+		tsconfigRootDir: __dirname,
+		project: ['./tsconfig.json'],
+		extraFileExtensions: ['.svelte'],
 	},
 	plugins: [
+		'svelte3',
 		'@typescript-eslint',
 		'modules-newline',
 		'node',
 	],
+	overrides: [
+		{
+			files: ['*.svelte'],
+			processor: 'svelte3/svelte3',
+		},
+	],
+	ignorePatterns: ['node_modules'],
+	settings: {
+		'svelte3/typescript': () => require('typescript'),
+		'svelte3/ignore-styles': () => true,
+	},
 	extends: [
 		'eslint:recommended',
 		'plugin:@typescript-eslint/recommended',
@@ -41,7 +103,11 @@ module.exports = {
 		}),
 
 		...rules('@typescript-eslint', {
-			'no-namespace': 'off',
+			'no-floating-promises': ['warn', {
+				ignoreVoid: true,
+				ignoreIIFE: true,
+			}],
+			'no-namespace': ['off'],
 			'no-this-alias': ['warn', {
 				allowedNames: [
 					'k_self',
@@ -87,16 +153,42 @@ module.exports = {
 					selector: 'variable',
 					format: ['snake_case'],
 					custom: {
-						regex: `^(${A_SNAKE_TYPES.join('|')}|${A_SNAKE_TYPES.map(s => s.toUpperCase()).join('|')})`,
+						regex: `^(${A_SNAKE_TYPES.join('|')}|${A_SNAKE_TYPES.map(s => s.toUpperCase()).join('|')})_`,
 						match: true,
 					},
 				},
+				...snake_types(Object.entries(H_PRIMITIVES).reduce((a_out, [si_type, a_patterns]) => ([
+					...a_out,
+					{
+						selector: 'variable',
+						types: [si_type],
+						patterns: a_patterns,
+						caps: true,
+					},
+				]))),
+				...snake_types(Object.entries(H_PRIMITIVES).reduce((a_out, [si_type, a_patterns]) => ([
+					...a_out,
+					{
+						selector: 'parameter',
+						types: [si_type],
+						patterns: a_patterns,
+						short: true,
+					},
+				]))),
 				{
 					selector: 'variable',
 					modifiers: ['const', 'global'],
 					format: ['UPPER_CASE'],
 					custom: {
-						regex: `^(${A_SNAKE_TYPES.map(s => s.toUpperCase()).join('|')})`,
+						regex: `^(${A_SNAKE_TYPES.map(s => s.toUpperCase()).join('|')})_`,
+						match: true,
+					},
+				},
+				{
+					selector: 'enum',
+					format: ['UPPER_CASE'],
+					custom: {
+						regex: `^(${A_SNAKE_TYPES.map(s => s.toUpperCase()).join('|')})_`,
 						match: true,
 					},
 				},
@@ -109,7 +201,7 @@ module.exports = {
 				{
 					format: ['snake_case'],
 					custom: {
-						regex: `^_?(${A_SNAKE_TYPES.join('|')})`,
+						regex: `^_?(${A_SNAKE_TYPES.join('|')})_`,
 						match: true,
 					},
 					selector: 'parameter',
@@ -192,6 +284,11 @@ module.exports = {
 			'import-declaration-newline': ['warn'],
 			'export-declaration-newline': ['warn'],
 		}),
+
+
+		// ...rules('import', {
+		// 	'newline-after-import': ['warn'],
+		// }),
 
 
 		'for-direction': ['error'],
@@ -298,24 +395,24 @@ module.exports = {
 		}],
 		'no-whitespace-before-property': ['warn'],
 		'nonblock-statement-body-position': ['error', 'beside'],
-		'object-curly-newline': ['warn', {
-			ObjectExpression: {
-				multiline: true,
-				minProperties: 2,
-			},
-			ObjectPattern: {
-				multiline: true,
-				minProperties: 2,
-			},
-			ImportDeclaration: {
-				multiline: true,
-				minProperties: 2,
-			},
-			ExportDeclaration: {
-				multiline: true,
-				minProperties: 2,
-			},
-		}],
+		// 'object-curly-newline': ['warn', {
+		// 	ObjectExpression: {
+		// 		multiline: true,
+		// 		minProperties: 2,
+		// 	},
+		// 	ObjectPattern: {
+		// 		multiline: true,
+		// 		minProperties: 2,
+		// 	},
+		// 	ImportDeclaration: {
+		// 		multiline: true,
+		// 		minProperties: 2,
+		// 	},
+		// 	ExportDeclaration: {
+		// 		multiline: true,
+		// 		minProperties: 2,
+		// 	},
+		// }],
 		'object-property-newline': ['warn', {
 			allowAllPropertiesOnSameLine: true,
 		}],

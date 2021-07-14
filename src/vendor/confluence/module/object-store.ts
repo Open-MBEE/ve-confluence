@@ -2,11 +2,15 @@ import type {HardcodedObjectRoot} from '#/common/hardcoded';
 
 import type {
 	IObjectStore,
+	Instantiable,
+	PrimitiveObject,
 	PrimitiveValue,
+	PathOptions,
 } from '#/common/types';
 
 import {
 	access,
+	NL_PATH_FRAGMENTS,
 	VeoPath,
 } from '#/common/veo';
 
@@ -121,6 +125,35 @@ export class ObjectStore implements IObjectStore {
 		this._h_hardcoded = h_hardcoded;
 	}
 
+	private async _explode<
+		ValueType extends Serializable | Primitive,
+		ClassType extends VeOdm<ValueType>,
+	>(sp_target: VeoPath.Locatable, dc_class: null | Instantiable<ValueType, ClassType>, c_frags: number, g_context: Context={store:this}): Promise<PathOptions<ValueType, ClassType>> {
+		const h_options = await this.resolve<Record<string, ValueType>>(sp_target);
+
+		let h_out: PathOptions<ValueType, ClassType> = {};
+
+		if(c_frags < NL_PATH_FRAGMENTS-1) {
+			for(const si_frag in h_options) {
+				h_out = {
+					...h_out,
+					...await this._explode(`${sp_target}.${si_frag}`, dc_class, c_frags+1, g_context),
+				};
+			}
+		}
+		else {
+			for(const si_frag in h_options) {
+				h_out = {
+					...h_out,
+					[`${sp_target}.${si_frag}`]: dc_class? new dc_class(h_options[si_frag], g_context): h_options[si_frag],
+				};
+			}
+		}
+
+		return h_out;
+	}
+
+
 	// eslint-disable-next-line class-methods-use-this
 	idPartSync(sp_path: string): string {
 		const a_parts = sp_path.split('#');
@@ -136,15 +169,40 @@ export class ObjectStore implements IObjectStore {
 	}
 
 	optionsSync<ValueType extends Serializable | Primitive, ClassType extends VeOdm<ValueType>>(sp_path: VeoPath.HardcodedObject, dc_class: {new (gc: ValueType, g: Context): ClassType;}, g_context: Context): Record<VeoPath.Full, ClassType> {
+	async options<
+		ValueType extends Serializable | Primitive,
+		ClassType extends VeOdm<ValueType>=VeOdm<ValueType>,
+	>(sp_path: VeoPath.Locatable, dc_class: null | Instantiable<ValueType, ClassType>=null, g_context: Context={store:this}): Promise<Record<VeoPath.Full, ClassType>> {
+		const a_frags = sp_path.split('.');
+		const nl_frags = a_frags.length;
+
+		let sp_target!: VeoPath.Locatable;
+
+		if(nl_frags < NL_PATH_FRAGMENTS-1) {
+			if('**' === a_frags[nl_frags-1]) {
+				sp_target = a_frags.slice(0, -1).join('.') as VeoPath.Locatable;
+			}
+			else {
+				throw new Error(`Invalid path target: '${sp_path}'`);
+			}
+		}
+		else {
+			sp_target = sp_path.replace(/\.[^.]+$/, '') as VeoPath.Locatable;
+		}
+
+		return this._explode(sp_target, dc_class, nl_frags, g_context);
+	}
+
+	optionsSync<
+		ValueType extends Serializable | Primitive,
+		ClassType extends VeOdm<ValueType>,
+	>(sp_path: VeoPath.HardcodedObject, dc_class: Instantiable<ValueType, ClassType>, g_context: Context={store:this}): Record<VeoPath.Full, ClassType> {
 		const sp_parent = sp_path.replace(/\.[^.]+$/, '');
 		const h_options = this.resolveSync<Record<string, ValueType>>(sp_parent);
-		return Object.entries(h_options).reduce(
-			(h_out, [si_key, w_value]) => ({
-				...h_out,
-				[`${sp_parent}.${si_key}`]: new dc_class(w_value, g_context),
-			}),
-			{}
-		);
+		return Object.entries(h_options).reduce((h_out, [si_key, w_value]) => ({
+			...h_out,
+			[`${sp_parent}.${si_key}`]: new dc_class(w_value, g_context),
+		}), {});
 	}
 
 	resolveSync<ValueType extends PrimitiveValue, VeoPathType extends VeoPath.HardcodedObject = VeoPath.HardcodedObject>(sp_path: string): ValueType {

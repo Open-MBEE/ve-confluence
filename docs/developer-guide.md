@@ -37,7 +37,6 @@ export SPARQL_ENDPOINT='https://graph.xyz.org/sparql'
 export DOORS_NG_PREFIX='https://jazz.xyz.org/rm/web#'
 ```
 
-
 To build the output javascript bundle:
 
 ```shell
@@ -49,6 +48,13 @@ Or better yet, for development:
 ```shell
 source .env; yarn dev
 ```
+
+## Working with the Typescript
+
+Identifiers for variables and parameters follow the [Snake Typing Variable Prefix naming convention](https://gist.github.com/blake-regalia/375ba4dfa285bee4d94d63e22199f68a).
+
+The project is configured in such a way that importing files can be done relative to the `src/` directory using the mapped path prefix `#/`. For example, the file `src/vendor/confluence/module/my-confluence-module.ts` can use `import AsyncLockPool from '#/util/async-lock-pool';` rather than `[...] from '../../../util/async-lock-pool';`
+
 
 ## Development on Confluence
 

@@ -35,7 +35,7 @@ Layout of directories organizing code within the project:
    └─ util/   # utility modules
 ```
 
-> The project is configured in such a way that importing files can be done relative to the `src/` directory using the mapped path prefix `#/`. For example, the file `src/vendor/confluence/module/my-confluence-module.ts` can use `import AsyncLockPool from '#/util/async-lock-pool';` rather than `[...] from '../../../util/async-lock-pool';`
+> See also ["Working with the Typescript"](docs/developer-guide.md#working-with-the-typescript) to read about project `src/` relative imports.
 
 
 ## Object Metadata
@@ -59,4 +59,29 @@ The output `public/build/bundle.js` file is a self-contained distributable that 
 
 
 ## [Developer Guide](docs/developer-guide.md)
+
+
+## Testing
+
+[Cypress](https://www.cypress.io/) is used for end-to-end testing.
+
+To run Cypress create a `cypress.env.json` file in the project's root directory. Use the sample `cypress-sample.env.json` as a reference for the needed variables.
+
+| Variable | Description                                 |
+| ---- | ---------------------------------------- |
+| confluence_base | Confluence base url |
+| confluence_space | Confluence space, used in URL schema  |
+| confluence_username  | Log in user |
+| confluence_password   | Log in password |
+| username_field | DOM query identifier for the username field. Example: `#username_field`  |
+| password_field | DOM query identifier for the password field. Example: `#password_field`   |
+
+[Opt out of sending exception data to Cypress](https://docs.cypress.io/guides/getting-started/installing-cypress#Opt-out-of-sending-exception-data-to-Cypress)
+
+Run Cypress:
+```shell
+yarn run cypress:open
+```
+
+Once the Cypress window is open, click on the test you would like to run.
 

@@ -286,7 +286,12 @@ export class ConfluencePage {
 		if(this._b_cached_content && !b_force) return this._g_content;
 
 		const d_res = await confluence_get_json<PageContent>(`/content/${this._si_page}`, {
-			search: {expand:['version', 'body.storage'].join(',')},
+			search: {
+				expand: [
+					'version',
+					'body.storage',
+				].join(','),
+			},
 		});
 
 		if(d_res.error) {
@@ -327,10 +332,7 @@ export class ConfluencePage {
 		return g_page?.version.number || 1;
 	}
 
-	async getContentAsString(b_force=false): Promise<{
-		versionNumber: ConfluenceApi.PageVersionNumber;
-		value: Cxhtml;
-	}> {
+	async getContentAsString(b_force=false): Promise<{versionNumber: ConfluenceApi.PageVersionNumber; value: Cxhtml}> {
 		const g_page = await this._content(b_force);
 
 		return {
@@ -339,7 +341,7 @@ export class ConfluencePage {
 		};
 	}
 
-	async getContentAsXhtmlDocument(): Promise<{versionNumber: ConfluenceApi.PageVersionNumber; value: XhtmlDocument;}> {
+	async getContentAsXhtmlDocument(): Promise<{versionNumber: ConfluenceApi.PageVersionNumber; value: XhtmlDocument}> {
 		const {
 			versionNumber: n_version,
 			value: sx_value,
@@ -503,6 +505,7 @@ export class ConfluenceDocument {
 					mms: {
 						dng: {
 							type: 'MmsSparqlConnection',
+							label: 'DNG Requirements',
 							endpoint: 'https://ced.jpl.nasa.gov/sparql',
 							modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/data.europa-clipper',
 							metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/metadata.clipper',
