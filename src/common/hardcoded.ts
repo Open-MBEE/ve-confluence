@@ -14,7 +14,8 @@ import type {
 	QueryParam,
 	QueryType,
 } from '#/element/QueryTable/model/QueryTable';
-import type { SparqlSelectQuery } from '#/util/sparql-endpoint';
+
+import type {SparqlSelectQuery} from '#/util/sparql-endpoint';
 
 import {build_dng_select_query_from_params} from './helper/sparql-code';
 

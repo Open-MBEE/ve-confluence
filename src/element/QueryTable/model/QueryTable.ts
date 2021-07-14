@@ -9,7 +9,8 @@ import type {
 	ValuedObject,
 	TypedKeyedPrimitive,
 	TypedPrimitive,
-	ValuedLabeledObject, Hash,
+	ValuedLabeledObject,
+	Hash,
 } from '#/common/types';
 
 import type {VeoPath} from '#/common/veo';
@@ -26,7 +27,6 @@ import {
 	SparqlConnection,
 	MmsSparqlConnection,
 } from '#/model/Connection';
-import Serialized = MmsSparqlQueryTable.Serialized;
 
 export namespace QueryParamValue {
 	export interface Serialized extends TypedLabeledObject<'QueryParamValue'> {
@@ -246,7 +246,7 @@ export abstract class QueryTable<
 
 	abstract isPublished(): Promise<boolean>;
 
-	abstract publish(publish: Node): Promise<boolean>;
+	abstract publish(yn_node: Node): Promise<boolean>;
 
 	abstract fetchConnection(): Promise<Connection>;
 
@@ -277,7 +277,7 @@ export abstract class QueryTable<
 		const h_param_values = this._h_param_values_lists;
 
 		// no such param
-		if(!this.queryType.queryParametersPaths.map(p => this._k_store.idPartSync(p)).includes(si_param)) {
+		if(!this.queryType.queryParametersPaths.map(sp => this._k_store.idPartSync(sp)).includes(si_param)) {
 			throw new Error(`No such parameter has the id '${si_param}'`);
 		}
 
@@ -295,27 +295,27 @@ export abstract class QueryTable<
 		return this.queryType.queryBuilder.function.call(this);
 	}
 
-	async fromSerialized(serialized: Serialized): Promise<void> {
-		super.fromSerialized(serialized);
+	async fromSerialized(gc_serialized: Serialized): Promise<void> {
+		super.fromSerialized(gc_serialized);
 		await this.init();
 	}
 
 	async getAllRows(): Promise<View> {
-		let g_view: View = {
+		const g_view: View = {
 			rows: [],
 		};
 		const k_connection = await this.fetchConnection();
 		const k_query = await this.fetchQueryBuilder();
 		let nl_rows_total = 0;
-		let limit = 2000;
+		const limit = 2000;
 		await k_connection.execute(k_query.count()).then((a_counts) => {
 			nl_rows_total = +a_counts[0].count.value;
 		});
 
-		let a_rows = await k_connection.execute(k_query.paginate(limit));
-		if (nl_rows_total > limit) {
+		const a_rows = await k_connection.execute(k_query.paginate(limit));
+		if(nl_rows_total > limit) {
 			let offset = 0;
-			while (offset + limit <= nl_rows_total) {
+			while(offset + limit <= nl_rows_total) {
 				offset += limit;
 				a_rows.concat(await k_connection.execute(k_query.paginate(limit, offset)));
 			}
@@ -324,7 +324,7 @@ export abstract class QueryTable<
 		g_view.rows = a_rows.map((g_row) => {
 			const h_out: Record<string, string> = {};
 
-			for (const k_field of this.queryType.fields) {
+			for(const k_field of this.queryType.fields) {
 				h_out[k_field.key] = k_field.cell(g_row);
 			}
 
@@ -415,14 +415,13 @@ export class MmsSparqlQueryTable<
 		return Promise.resolve(this._k_store.isPublished());
 	}
 
-	publish(node: Node): Promise<boolean> {
-		return Promise.resolve(this._k_store.publish(node));
+	publish(yn_node: Node): Promise<boolean> {
+		return Promise.resolve(this._k_store.publish(yn_node));
 	}
 
 	async save(): Promise<boolean> {
 		return Promise.resolve(this._k_store.update(this.toSerialized()));
 	}
-
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars

@@ -86,27 +86,27 @@ export type SparqlString = string;
 
 export type SparqlBinding =
 	| {
-	type: 'uri';
-	value: string;
-}
+		type: 'uri';
+		value: string;
+	}
 	| {
-	type: 'literal';
-	value: string;
-}
+		type: 'literal';
+		value: string;
+	}
 	| {
-	type: 'literal';
-	value: string;
-	'xml:lang': string;
-}
+		type: 'literal';
+		value: string;
+		'xml:lang': string;
+	}
 	| {
-	type: 'literal';
-	value: string;
-	datatype: string;
-}
+		type: 'literal';
+		value: string;
+		datatype: string;
+	}
 	| {
-	type: 'bnode';
-	value: string;
-};
+		type: 'bnode';
+		value: string;
+	};
 
 export interface QueryResult {
 	type: string;
@@ -134,20 +134,20 @@ export type DotFragment = string;
 export interface Instantiable<
 	ValueType extends Serializable | Primitive,
 	ClassType extends VeOdm<ValueType>,
-	> {
+> {
 	new (gc: ValueType, g: Context): ClassType;
 }
 
 export type PathTarget<
 	ValueType extends Serializable | Primitive,
 	ClassType extends VeOdm<ValueType>,
-	> = PathOptions<ValueType, ClassType> | ValueType | ClassType;
+> = PathOptions<ValueType, ClassType> | ValueType | ClassType;
 
 
 export interface PathOptions<
 	ValueType extends Serializable | Primitive,
 	ClassType extends VeOdm<ValueType>,
-	> {
+> {
 	[si_frag: string]: PathTarget<ValueType, ClassType>;
 }
 
@@ -158,7 +158,7 @@ export interface IObjectStore {
 	options<
 		ValueType extends Serializable | Primitive,
 		ClassType extends VeOdm<ValueType>=VeOdm<ValueType>,
-		>(
+	>(
 		sp_path: string,
 		dc_class?: null | Instantiable<ValueType, ClassType>,
 		g_context?: Context
@@ -168,7 +168,7 @@ export interface IObjectStore {
 	optionsSync<
 		ValueType extends Serializable | Primitive,
 		ClassType extends VeOdm<ValueType>,
-		>(
+	>(
 		sp_path: string,
 		dc_class: Instantiable<ValueType, ClassType>,
 		g_context: Context
@@ -177,12 +177,12 @@ export interface IObjectStore {
 	resolveSync<
 		ValueType extends PrimitiveValue,
 		VeoPathType extends VeoPath.HardcodedObject = VeoPath.HardcodedObject,
-		>(sp_path: string): ValueType;
+	>(sp_path: string): ValueType;
 
 	resolve<
 		ValueType extends PrimitiveValue,
 		VeoPathType extends VeoPath.Full = VeoPath.Full,
-		>(sp_path: string): Promise<ValueType>;
+	>(sp_path: string): Promise<ValueType>;
 
 	update(content: any): Promise<boolean>;
 

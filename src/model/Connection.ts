@@ -12,8 +12,6 @@ import type {
 import SparqlEndpoint from '../util/sparql-endpoint';
 
 import {
-	Serializable,
-	VeOdm,
 	VeOdmLabeled,
 	VeOrmClass,
 } from './Serializable';

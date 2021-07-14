@@ -93,26 +93,28 @@ export class XHTMLDocument {
 			.replace(/^\s*<xml[^>]*>\s*|\s<\/xml>\s*$/, '');
 	}
 
-	builder(): (s_tag: string, h_attrs?: Hash, a_children?: Node[]) => Node {
+	builder(): (s_tag: string, h_attrs?: Hash, a_children?: Array<string | Node>) => Node {
 		const y_doc = this._y_doc;
 
 		return function(
 			s_tag: string,
 			h_attrs: Record<string, string> = {},
-			a_children: Node[] = []
+			a_children: Array<string | Node> = []
 		): Node {
 			const ym_node = y_doc.createElement(s_tag);
+
 			for(const si_attr in h_attrs) {
 				ym_node.setAttribute(si_attr, h_attrs[si_attr]);
 			}
+
 			for(const z_child of a_children) {
-				let ym_child = z_child;
+				let ym_child = z_child as Node;
 
 				if('string' === typeof z_child) {
 					ym_child = y_doc.createTextNode(z_child);
 				}
 
-				if (ym_child && ym_child.parentNode == null) {
+				if(ym_child) {  //  && null === ym_child.parentNode
 					ym_node.appendChild(ym_child);
 				}
 			}

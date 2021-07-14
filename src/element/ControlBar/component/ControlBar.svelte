@@ -1,9 +1,7 @@
 <script lang="ts">
-	import type {IObjectStore} from '#/common/types';
-
 	import DatasetsTable from '#/ui/component/DatasetsTable.svelte';
 
-	import type { Context } from '#/model/Serializable';
+	import type {Context} from '#/model/Serializable';
 
 	import {
 		ConfluencePage,
@@ -11,7 +9,6 @@
 	} from '#/vendor/confluence/module/confluence';
 
 	import {
-		getContext,
 		onMount,
 	} from 'svelte';
 
@@ -50,19 +47,19 @@
 	let k_document: ConfluenceDocument | null = null;
 
 	function realign_control_bar() {
-        // when scrolling down the wiki header style changes, so update the control bar margin
-        if('' !== dm_main_header.style.position) {
-            dm_bar.style.marginTop = '0px';
+		// when scrolling down the wiki header style changes, so update the control bar margin
+		if('' !== dm_main_header.style.position) {
+			dm_bar.style.marginTop = '0px';
 
-            // when the 'overlay-header' class is applied for the nav bar, adjust margins
-            if('overlay-header' === dm_main_header.className) {
-                dm_bar.style.marginTop = '-10px';
-            }
-        }
-        else {
-            dm_bar.style.marginTop = '-20px';
-        }
-    }
+			// when the 'overlay-header' class is applied for the nav bar, adjust margins
+			if(dm_main_header.className.split(/\s+/g).includes('overlay-header')) {
+				dm_bar.style.marginTop = '-10px';
+			}
+		}
+		else {
+			dm_bar.style.marginTop = '-20px';
+		}
+	}
 
 	onMount(async() => {
 		b_ready = true;

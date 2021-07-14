@@ -1,33 +1,36 @@
 <script lang="ts">
 	import {createEventDispatcher} from 'svelte';
-	const dispatch = createEventDispatcher();
-	import {lang} from '#/common/static';
-	import Select from 'svelte-select';
 
+	import {lang} from '#/common/static';
+
+	import Select from 'svelte-select';
+	
 	import type {
 		ParamValuesList,
 		QueryParam,
 		QueryTable,
 		SparqlQueryTable,
 	} from '#/element/QueryTable/model/QueryTable';
-
-	import type {MmsSparqlConnection,} from '#/model/Connection';
-
-	import {Sparql,} from '#/util/sparql-endpoint';
-
+	
+	import type {MmsSparqlConnection} from '#/model/Connection';
+	
+	import {Sparql} from '#/util/sparql-endpoint';
+	
 	interface Option {
 		label: string;
 		value: string;
 		count: number;
 		state: number;
 	}
+	
+	const f_dispatch = createEventDispatcher();
 
 	export let k_param: QueryParam;
 	export let k_values: ParamValuesList;
 	export let k_query_table: QueryTable;
 
 	let a_options: Option[] = [];
-	export let selected_items: Option[] = [];
+	export let a_selected_items: Option[] = [];
 
 	const XC_STATE_HIDDEN = 0;
 	const XC_STATE_VISIBLE = 1;
@@ -58,7 +61,7 @@
 			a_options = a_rows.map(({value:g_value, count:g_count}) => ({
 				label: g_value.value,
 				value: g_value.value,
-				count: +(g_count.value),
+				count: +g_count.value,
 				state: XC_STATE_VISIBLE,
 			}));
 
@@ -68,14 +71,13 @@
 		}
 	}
 
-	async function load_values(k_values: ParamValuesList) {
-		console.log("Loading values");
-		console.log(k_values);
-		for (const val of k_values) {
-			console.log('Loading selected value: ' + val.value);
-			selected_items = a_options.filter(e => e.value === val.value).map(function (item) {
-				return item;
-			});
+	function load_values(k_values_list: ParamValuesList) {
+		console.log('Loading values');
+		console.log(k_values_list);
+
+		for(const k_value of k_values_list) {
+			console.log(`Loading selected value: ${k_value.value}`);
+			a_selected_items = a_options.filter(k => k.value === k_value.value);
 		}
 	}
 
@@ -96,7 +98,7 @@
 		const n_count = g_value.count;
 		let s_label = g_value.label;
 
-		if(n_count >= 1000) {
+		if(1000 <= n_count) {
 			s_label += ` [>${Math.floor(n_count / 1000)}k]`;
 		}
 		else {
@@ -118,13 +120,13 @@
 			}
 		}
 
-		dispatch('change');
+		f_dispatch('change');
 	}
 
 	function handle_clear(dv_select: CustomEvent<Option[]>) {
 		k_values.clear();
 
-		dispatch('change');
+		f_dispatch('change');
 	}
 </script>
 

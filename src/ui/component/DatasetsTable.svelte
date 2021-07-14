@@ -1,22 +1,14 @@
 <script lang="ts">
 	import Select from 'svelte-select';
 
-	import Fa from 'svelte-fa';
-
-	import {
-		faCheckCircle,
-		faCircleNotch,
-	} from '@fortawesome/free-solid-svg-icons';
-
 	import {
 		Connection,
 		MmsSparqlConnection,
-} from '#/model/Connection';
+	} from '#/model/Connection';
 
 	import type {
 		Context,
-		VeOdm,
-} from '#/model/Serializable';
+	} from '#/model/Serializable';
 
 	export let g_context: Context;
 	let k_object_store = g_context.store;

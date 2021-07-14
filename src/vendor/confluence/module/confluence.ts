@@ -19,7 +19,8 @@ import {
 import XhtmlDocument from './xhtml-document';
 
 import type {MmsSparqlConnection} from '#/model/Connection';
-import type {MmsSparqlQueryTable} from "#/element/QueryTable/model/QueryTable";
+
+import type {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
 
 import {G_META} from '#/common/meta';
 
@@ -165,10 +166,8 @@ async function fetch_page_properties<
 >(s_page_title: string, si_metadata_key: Ve4MetadataKey=G_VE4_METADATA_KEYS.CONFLUENCE_PAGE): Promise<ConfluenceApi.ContentResult<
 	BasicPageWithAncestorsType,
 	BundleType
-	> | null> {
-	const g_res = await confluence_get_json<
-	ConfluenceApi.ContentResponse<BasicPageWithAncestorsType, BundleType>
-	>(`/content`, {
+> | null> {
+	const g_res = await confluence_get_json<ConfluenceApi.ContentResponse<BasicPageWithAncestorsType, BundleType>>(`/content`, {
 		search: {
 			type: 'page',
 			spaceKey: G_META.space_key,
@@ -307,7 +306,7 @@ export class ConfluencePage {
 	private async _info(b_force = false): Promise<PageInfo | null> {
 		if(this._b_cached_info && !b_force) return this._g_info;
 
-		let g_info = await fetch_page_properties(this._s_page_title);
+		const g_info = await fetch_page_properties(this._s_page_title);
 
 		this._b_cached_info = true;
 
@@ -319,8 +318,8 @@ export class ConfluencePage {
 	}
 
 	async getMetadata(b_force = false): Promise<ConfluenceApi.Info | null> {
-		let g_info = await this._info(b_force);
-		if (!g_info?.metadata.properties[G_VE4_METADATA_KEYS.CONFLUENCE_PAGE]) {
+		const g_info = await this._info(b_force);
+		if(!g_info?.metadata.properties[G_VE4_METADATA_KEYS.CONFLUENCE_PAGE]) {
 			await this.initMetadata();
 		}
 		return normalize_metadata<Ve4MetadataKeyPage, PageMetadata>(g_info?.metadata.properties[G_VE4_METADATA_KEYS.CONFLUENCE_PAGE]);
@@ -353,35 +352,36 @@ export class ConfluencePage {
 		};
 	}
 
-	async postContent(s_content: string, s_message: string = ''): Promise<boolean> {
-		let content = await this.getContentAsXhtmlDocument();
-		let n_version = content?.versionNumber;
-		let page_content = content?.value;
-		let wrapped = page_content.builder()('ac:structured-macro', {
+	async postContent(s_content: string, s_message = ''): Promise<boolean> {
+		const content = await this.getContentAsXhtmlDocument();
+		const n_version = content?.versionNumber;
+		const page_content = content?.value;
+		const wrapped = page_content.builder()('ac:structured-macro', {
 			'ac:name': 'html',
 			'ac:macro-id': 've-table',
 		}, [
 			page_content.builder()('ac:plain-text-body', {}, [
-				page_content.createCDATA(s_content)
-			])
+				page_content.createCDATA(s_content),
+			]),
 		]);
-		let macros = page_content.builder()('p', {
-			'class': 'auto-cursor-target'
+		const macros = page_content.builder()('p', {
+			class: 'auto-cursor-target',
 		}, [
 			page_content.builder()('ac:link', {}, [
 				page_content.builder()('ri:page', {
-					'ri:content-title': 'CAE CED Table Element'
-				}, [])
-			])
+					'ri:content-title': 'CAE CED Table Element',
+				}, []),
+			]),
 		]);
 
-		let found_element = page_content.select<Node>('//ac:structured-macro');
-		let init_element = page_content.select<Node>('//ac:link');
+		const found_element = page_content.select<Node>('//ac:structured-macro');
+		const init_element = page_content.select<Node>('//ac:link');
 
-		if (init_element.length) {
+		if(init_element.length) {
 			page_content.replaceChild(macros, init_element[0]);
 			page_content.appendChild(wrapped);
-		} else if (found_element.length) {
+		}
+		else if(found_element.length) {
 			page_content.replaceChild(wrapped, found_element[0]);
 		}
 
@@ -392,9 +392,9 @@ export class ConfluencePage {
 				title: this.pageTitle,
 				body: {
 					storage: {
-						//value: "<p class=\"auto-cursor-target\"><ac:link><ri:page ri:content-title=\"CAE CED Table Element\" /></ac:link></p><p class=\"auto-cursor-target\"><br /></p><ac:structured-macro ac:name=\"span\" ac:schema-version=\"1\" ac:macro-id=\"b064d0ae-be2a-4ad8-ac8e-24e710f0ed86\"><ac:parameter ac:name=\"style\">display:none</ac:parameter><ac:parameter ac:name=\"atlassian-macro-output-type\">INLINE</ac:parameter><ac:rich-text-body><p class=\"auto-cursor-target\"><strong><span style=\"color: rgb(0,0,255);\">Connected Engineering Document. Do not edit nor delete this macro.</span></strong></p><ac:structured-macro ac:name=\"html\" ac:schema-version=\"1\" ac:macro-id=\"06617957-bc59-4490-9c84-f01440966a31\"><ac:plain-text-body><![CDATA[<script type=\"application/json\" id=\"ve4-init\">{\"schema\":\"1.0\",\"type\":\"document\",\"sources\":[]}</script>\n<script type=\"text/javascript\" src=\"https://ced-uat.jpl.nasa.gov/cdn/uat/bundle.js\"></script>]]></ac:plain-text-body></ac:structured-macro><p class=\"auto-cursor-target\"><br /></p></ac:rich-text-body></ac:structured-macro><p class=\"auto-cursor-target\"><br /></p>",
+						// value: "<p class=\"auto-cursor-target\"><ac:link><ri:page ri:content-title=\"CAE CED Table Element\" /></ac:link></p><p class=\"auto-cursor-target\"><br /></p><ac:structured-macro ac:name=\"span\" ac:schema-version=\"1\" ac:macro-id=\"b064d0ae-be2a-4ad8-ac8e-24e710f0ed86\"><ac:parameter ac:name=\"style\">display:none</ac:parameter><ac:parameter ac:name=\"atlassian-macro-output-type\">INLINE</ac:parameter><ac:rich-text-body><p class=\"auto-cursor-target\"><strong><span style=\"color: rgb(0,0,255);\">Connected Engineering Document. Do not edit nor delete this macro.</span></strong></p><ac:structured-macro ac:name=\"html\" ac:schema-version=\"1\" ac:macro-id=\"06617957-bc59-4490-9c84-f01440966a31\"><ac:plain-text-body><![CDATA[<script type=\"application/json\" id=\"ve4-init\">{\"schema\":\"1.0\",\"type\":\"document\",\"sources\":[]}</script>\n<script type=\"text/javascript\" src=\"https://ced-uat.jpl.nasa.gov/cdn/uat/bundle.js\"></script>]]></ac:plain-text-body></ac:structured-macro><p class=\"auto-cursor-target\"><br /></p></ac:rich-text-body></ac:structured-macro><p class=\"auto-cursor-target\"><br /></p>",
 						value: page_content.toString(),
-						representation: "storage",
+						representation: 'storage',
 					},
 				},
 				version: {
@@ -413,9 +413,10 @@ export class ConfluencePage {
 			schema: '1.0',
 			published: null,
 		};
-		if (await this.postMetadata(gm_page, n_version, 'Initialization')) {
+		if(await this.postMetadata(gm_page, n_version, 'Initialization')) {
 			return this.getMetadata(true);
-		} else {
+		}
+		else {
 			return null;
 		}
 	}
@@ -474,16 +475,16 @@ export class ConfluencePage {
 		return null !== await this.getDocument();
 	}
 
-    escapeSpecialChars(html: string): string {
-		return html.replace(/\\n/g, "\\n")
+	escapeSpecialChars(html: string): string {
+		return html.replace(/\\n/g, '\\n')
 			.replace(/\\'/g, "\\'")
 			.replace(/\\"/g, '\\"')
-			.replace(/\\&/g, "\\&")
-			.replace(/\\r/g, "\\r")
-			.replace(/\\t/g, "\\t")
-			.replace(/\\b/g, "\\b")
-			.replace(/\\f/g, "\\f");
-    };
+			.replace(/\\&/g, '\\&')
+			.replace(/\\r/g, '\\r')
+			.replace(/\\t/g, '\\t')
+			.replace(/\\b/g, '\\b')
+			.replace(/\\f/g, '\\f');
+	}
 }
 
 export class ConfluenceDocument {

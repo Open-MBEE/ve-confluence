@@ -165,7 +165,7 @@ module.exports = {
 						patterns: a_patterns,
 						caps: true,
 					},
-				]))),
+				]), [])),
 				...snake_types(Object.entries(H_PRIMITIVES).reduce((a_out, [si_type, a_patterns]) => ([
 					...a_out,
 					{
@@ -174,7 +174,7 @@ module.exports = {
 						patterns: a_patterns,
 						short: true,
 					},
-				]))),
+				]), [])),
 				{
 					selector: 'variable',
 					modifiers: ['const', 'global'],
@@ -212,6 +212,7 @@ module.exports = {
 			// 'prefer-nullish-coalescing': ['warn'],
 			'prefer-optional-chain': ['warn'],
 			'prefer-ts-expect-error': ['warn'],
+			'restrict-plus-operands': ['off'],
 			'switch-exhaustiveness-check': ['warn'],
 			'type-annotation-spacing': ['warn'],
 			'unified-signatures': ['warn'],

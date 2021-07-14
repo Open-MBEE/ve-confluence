@@ -36,7 +36,6 @@ import {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
 import {ObjectStore} from '#/vendor/confluence/module/object-store';
 
 import {H_HARDCODED_OBJECTS} from '#/common/hardcoded';
-import Serialized = MmsSparqlQueryTable.Serialized;
 
 import type {Context} from '#/model/Serializable';
 
@@ -140,21 +139,7 @@ let K_OBJECT_STORE: ObjectStore;
 let k_page: ConfluencePage;
 const G_CONTEXT: Context = {} as Context;
 
-let serialized: Serialized<string> = {
-	type: 'MmsSparqlQueryTable',
-	group: 'dng',
-	queryTypePath: 'hardcoded#queryType.sparql.dng.afsr',
-	connectionPath: 'document#connection.sparql.mms.dng',
-	fieldGroupPath:
-		'hardcoded#queryFieldGroup.sparql.dng.basic',
-	parameterValues: {},
-	parameterPaths: [
-		'hardcoded#queryParameter.sparql.dng.sysvac',
-		'hardcoded#queryParameter.sparql.dng.maturity',
-	],
-};
-
-let H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
+const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 	// 'Insert Block View': () => ({component:InsertBlockView}),
 	// 'Insert DNG Artifact or Attribute': ([ym_anchor]) => ({
 	// 	component: InsertInlineView,
@@ -173,7 +158,7 @@ let H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 					connectionPath: 'document#connection.sparql.mms.dng',
 					parameterValues: {},
 				},
-				G_CONTEXT,
+				G_CONTEXT
 			),
 		},
 	}),

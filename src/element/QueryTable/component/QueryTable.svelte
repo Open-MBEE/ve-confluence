@@ -1,30 +1,45 @@
 <script lang="ts">
 	import {onMount} from 'svelte';
+
 	import {quadOut} from 'svelte/easing';
+
 	import {slide} from 'svelte/transition';
+
 	import {create_in_transition} from 'svelte/internal';
 
 	import Select from 'svelte-select';
 
 	import Fa from 'svelte-fa';
 
-	import {faCircleNotch, faFilter, faHistory, faQuestionCircle,} from '@fortawesome/free-solid-svg-icons';
+	import {
+		faCircleNotch,
+		faFilter,
+		faHistory,
+		faQuestionCircle,
+	} from '@fortawesome/free-solid-svg-icons';
 
 	import SelectItem from '#/ui/component/SelectItem.svelte';
+
 	import QueryTableParam from './QueryTableParam.svelte';
 
-	import {QueryTable, View} from "../model/QueryTable";
+	import type {
+		QueryTable,
+		View,
+	} from '../model/QueryTable';
 
 	import type {ValuedLabeledObject} from '#/common/types';
-	import type {Connection, ModelVersionDescriptor,} from '#/model/Connection';
 
-	import XHTMLDocument from "#/vendor/confluence/module/xhtml-document";
+	import type {
+		Connection,
+		ModelVersionDescriptor,
+	} from '#/model/Connection';
+
+	import XHTMLDocument from '#/vendor/confluence/module/xhtml-document';
 
 	export let k_query_table: QueryTable;
 
 	let b_published_state = false;
 	let b_published_toggle = b_published_state;
-	let selected;
 
 	(async () => {
 		const k_connection = await k_query_table.fetchConnection();
@@ -37,11 +52,12 @@
 	let g_version: ModelVersionDescriptor;
 
 	onMount(async () => {
-		if (await k_query_table.isPublished()) {
+		if(await k_query_table.isPublished()) {
 			b_published_state = true;
 			b_published_toggle = b_published_state;
 			b_loading = false;
 		}
+
 		await render();
 
 		// get query table's connection
@@ -164,12 +180,14 @@
 	function toggle_parameters() {
 		b_expand = !b_expand;
 		if(!b_expand) {
-			if (b_published_state) {
+			if(b_published_state) {
 				b_published_toggle = true;
 			}
 			return;
 		}
+
 		b_published_toggle = false;
+
 		render();
 
 		queueMicrotask(() => {
@@ -186,51 +204,51 @@
 
 	async function publish_table() {
 		xc_info_mode = G_INFO_MODES.LOADING;
-		save_table().then(async() => {
-			let table = build_table(await k_query_table.getAllRows());
-			if (await k_query_table.publish(table)) {
-				b_published_toggle = true;
-				b_expand = false;
-				xc_info_mode = 0;
-				location.reload();
-			}
-		});
+
+		await save_table();
+
+		const yn_table = build_table(await k_query_table.getAllRows());
+
+		if(await k_query_table.publish(yn_table)) {
+			b_published_toggle = true;
+			b_expand = false;
+			xc_info_mode = 0;
+			location.reload();
+		}
 	}
 
-	function build_table(view: View): Node {
-		let xhtmlDocument = new XHTMLDocument('');
-		return xhtmlDocument.builder()('table', {}, [
-			xhtmlDocument.builder()('thead', {
-				'class': 'tableFloatingHeaderOriginal'
+	function build_table(k_view: View): Node {
+		const k_doc = new XHTMLDocument('');
+		const f_builder = k_doc.builder();
+
+		return f_builder('table', {}, [
+			f_builder('thead', {
+				class: 'tableFloatingHeaderOriginal',
 			}, [
-				xhtmlDocument.builder()('tr', {
-					'role': 'row',
-					'class': 'tablesorter-headerRow'
+				f_builder('tr', {
+					role: 'row',
+					class: 'tablesorter-headerRow',
 				}, [
-					...k_query_table.queryType.fields.map((field, index) => {
-						return xhtmlDocument.builder()('th', {}, [
-								field.label
-						])
-					})
-				])
+					...k_query_table.queryType.fields.map(k_field => f_builder('th', {}, [
+						k_field.label,
+					])),
+				]),
 			]),
-			xhtmlDocument.builder()('tbody', {}, [
-				...view.rows.map((row) => {
-					return xhtmlDocument.builder()('tr', {
-						'role': 'row'
+			f_builder('tbody', {}, [
+				...k_view.rows.map((h_row) => f_builder('tr', {
+					role: 'row',
+				}, [
+					...Object.values(h_row).map(sx_cell => f_builder('td', {
+						class: 'confluenceTd',
 					}, [
-						...Object.values(row).map((cell) => {
-							return xhtmlDocument.builder()('td', {'class': 'confluenceTd'}, [
-								...xhtmlDocument.parseXml(cell)
-							])
-						})
-					])
-				})
-			])
+						...k_doc.parseXml(sx_cell),
+					])),
+				])),
+			]),
 		]);
 	}
 
-	async function reset_table() {
+	function reset_table() {
 		clear_preview();
 	}
 
