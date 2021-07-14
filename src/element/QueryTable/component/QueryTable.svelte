@@ -29,17 +29,6 @@
 	let selected;
 
 	(async () => {
-		k_page = await ConfluencePage.fromCurrentPage();
-		g_metadata = await k_page.getMetadata(true);
-		if (g_metadata?.value.published) {
-			await k_query_table.fromSerialized(g_metadata.value.published);
-			b_published = true;
-			b_loading = false;
-		} else if (g_metadata?.value.last) {
-			await k_query_table.fromSerialized(g_metadata.value.last);
-		}
-		await render();
-
 		const k_connection = await k_query_table.getConnection();
 		const g_version = await k_connection.getVersion();
 		const dt_version = new Date(g_version.dateTime);
@@ -51,6 +40,17 @@
 	let g_metadata: ConfluenceApi.Info<Ve4MetadataKeyConfluencePage, PageMetadata> | null;
 
 	onMount(async () => {
+		k_page = await ConfluencePage.fromCurrentPage();
+		g_metadata = await k_page.getMetadata(true);
+		if (g_metadata?.value.published) {
+			await k_query_table.fromSerialized(g_metadata.value.published);
+			b_published = true;
+			b_loading = false;
+		} else if (g_metadata?.value.last) {
+			await k_query_table.fromSerialized(g_metadata.value.last);
+		}
+		await render();
+
 		// get query table's connection
 		const k_connection_new = await k_query_table.getConnection();
 
@@ -121,9 +121,7 @@
 	let s_status_info = SX_STATUS_INFO_INIT;
 
 	async function render() {
-		console.log('render was called.');
 		xc_info_mode = INFO_MODES.LOADING;
-
 		let b_filtered = false;
 
 		const a_params = await k_query_table.getParameters();
@@ -209,7 +207,6 @@
 	}
 
 	function build_table(view: View): Node {
-		console.log('building table');
 		let xhtmlDocument = new XHTMLDocument('');
 		return xhtmlDocument.builder()('table', {}, [
 			xhtmlDocument.builder()('thead', {

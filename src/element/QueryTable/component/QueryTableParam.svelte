@@ -78,7 +78,6 @@
 	(async() => {
 		try {
 			await load_param(k_param);
-			await load_values(k_values);
 		}
 		catch(_e_query) {
 			e_query = _e_query;
@@ -229,7 +228,6 @@
 					<path d="M3.5 4.5L0.468911 0.75L6.53109 0.75L3.5 4.5Z" fill="#333333"/>
 				</svg>
 			`}
-			value={load_values}
 			on:select={select_value}
 			on:clear={handle_clear}
 		></Select>
