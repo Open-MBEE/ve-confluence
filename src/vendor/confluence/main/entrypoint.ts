@@ -1,5 +1,4 @@
 import {
-	PageMetadata,
 	ConfluencePage,
 	ConfluenceDocument,
 } from '#/vendor/confluence/module/confluence';
@@ -18,7 +17,6 @@ import {format} from '#/util/intl';
 import {
 	qs,
 	qsa,
-	dm_main,
 	dm_content,
 	dm_main_header,
 } from '#/util/dom';
@@ -38,7 +36,6 @@ import {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
 import {ObjectStore} from '#/vendor/confluence/module/object-store';
 
 import {H_HARDCODED_OBJECTS} from '#/common/hardcoded';
-import type {Serializable} from "#/model/Serializable";
 import Serialized = MmsSparqlQueryTable.Serialized;
 
 import type {Context} from '#/model/Serializable';
@@ -184,10 +181,8 @@ let H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 
 const xpath_attrs = (a_attrs: string[]) => a_attrs.map(sx => `[${sx}]`).join('');
 
-let k_page: ConfluencePage;
 let k_document: ConfluenceDocument | null;
 let k_source: XhtmlDocument;
-let gm_page: PageMetadata | null;
 
 function control_bar(gc_bar: ControlBarConfig) {
 	const g_props = {...gc_bar.props};

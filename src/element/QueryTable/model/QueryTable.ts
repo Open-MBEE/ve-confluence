@@ -304,7 +304,7 @@ export abstract class QueryTable<
 		let g_view: View = {
 			rows: [],
 		};
-		const k_connection = await this.getConnection();
+		const k_connection = await this.fetchConnection();
 		const k_query = await this.fetchQueryBuilder();
 		let nl_rows_total = 0;
 		let limit = 2000;
@@ -324,7 +324,7 @@ export abstract class QueryTable<
 		g_view.rows = a_rows.map((g_row) => {
 			const h_out: Record<string, string> = {};
 
-			for (const k_field of this.fields) {
+			for (const k_field of this.queryType.fields) {
 				h_out[k_field.key] = k_field.cell(g_row);
 			}
 
@@ -412,7 +412,7 @@ export class MmsSparqlQueryTable<
 	}
 
 	isPublished(): Promise<boolean> {
-		return Promise.resolve(false);
+		return Promise.resolve(this._k_store.isPublished());
 	}
 
 	publish(node: Node): Promise<boolean> {

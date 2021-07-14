@@ -1,14 +1,5 @@
 <script lang="ts">
 	import {onMount} from 'svelte';
-
-	import {quadOut} from 'svelte/easing';
-
-	import {slide} from 'svelte/transition';
-
-	import {create_in_transition} from 'svelte/internal';
-	import {ConfluenceApi, ConfluencePage, PageMetadata,} from '#/vendor/confluence/module/confluence';
-
-	import {onMount} from 'svelte';
 	import {quadOut} from 'svelte/easing';
 	import {slide} from 'svelte/transition';
 	import {create_in_transition} from 'svelte/internal';
@@ -17,59 +8,39 @@
 
 	import Fa from 'svelte-fa';
 
-	import {
-		faCircleNotch,
-		faFilter,
-		faHistory,
-		faQuestionCircle,
-	} from '@fortawesome/free-solid-svg-icons';
 	import {faCircleNotch, faFilter, faHistory, faQuestionCircle,} from '@fortawesome/free-solid-svg-icons';
 
 	import SelectItem from '#/ui/component/SelectItem.svelte';
 	import QueryTableParam from './QueryTableParam.svelte';
 
-	import type {QueryTable, QueryType} from '../model/QueryTable';
 	import {QueryTable, View} from "../model/QueryTable";
-
-	import type {
-		Connection,
-		ModelVersionDescriptor,
-	} from '#/model/Connection';
 
 	import type {ValuedLabeledObject} from '#/common/types';
 	import type {Connection, ModelVersionDescriptor,} from '#/model/Connection';
 
-	import type {ValuedLabeledObject} from '#/common/types';
-	import type {Ve4MetadataKeyConfluencePage} from "#/common/static";
 	import XHTMLDocument from "#/vendor/confluence/module/xhtml-document";
 
 	export let k_query_table: QueryTable;
 
-	export let k_page: ConfluencePage;
-
-	let b_published = false;
+	let b_published_state = false;
+	let b_published_toggle = b_published_state;
 	let selected;
 
 	(async () => {
-		const k_connection = await k_query_table.getConnection();
-		const g_version = await k_connection.getVersion();
+		const k_connection = await k_query_table.fetchConnection();
+		const g_version = await k_connection.fetchCurrentVersion();
 		const dt_version = new Date(g_version.dateTime);
 		s_display_version = `${dt_version.toDateString()} @${dt_version.toLocaleTimeString() }`;
 	})();
 
 	let k_connection: Connection;
 	let g_version: ModelVersionDescriptor;
-	let g_metadata: ConfluenceApi.Info<Ve4MetadataKeyConfluencePage, PageMetadata> | null;
 
 	onMount(async () => {
-		k_page = await ConfluencePage.fromCurrentPage();
-		g_metadata = await k_page.getMetadata(true);
-		if (g_metadata?.value.published) {
-			await k_query_table.fromSerialized(g_metadata.value.published);
-			b_published = true;
+		if (await k_query_table.isPublished()) {
+			b_published_state = true;
+			b_published_toggle = b_published_state;
 			b_loading = false;
-		} else if (g_metadata?.value.last) {
-			await k_query_table.fromSerialized(g_metadata.value.last);
 		}
 		await render();
 
@@ -141,14 +112,10 @@
 	}
 
 	async function render() {
-		xc_info_mode = INFO_MODES.LOADING;
 		xc_info_mode = G_INFO_MODES.LOADING;
 
 		let b_filtered = false;
 
-		const a_params = await k_query_table.getParameters();
-		for (const g_param of a_params) {
-			if (k_query_table.parameterValuesList(g_param.key).size) {
 		const a_params = await k_query_table.queryType.fetchParameters();
 		for(const g_param of a_params) {
 			if(k_query_table.parameterValuesList(g_param.key).size) {
@@ -196,11 +163,13 @@
 
 	function toggle_parameters() {
 		b_expand = !b_expand;
-		if(!b_expand) return;
-		if (!b_expand) {
+		if(!b_expand) {
+			if (b_published_state) {
+				b_published_toggle = true;
+			}
 			return;
 		}
-		b_published = false;
+		b_published_toggle = false;
 		render();
 
 		queueMicrotask(() => {
@@ -216,11 +185,11 @@
 	}
 
 	async function publish_table() {
-		xc_info_mode = INFO_MODES.LOADING;
+		xc_info_mode = G_INFO_MODES.LOADING;
 		save_table().then(async() => {
 			let table = build_table(await k_query_table.getAllRows());
 			if (await k_query_table.publish(table)) {
-				b_published = true;
+				b_published_toggle = true;
 				b_expand = false;
 				xc_info_mode = 0;
 				location.reload();
@@ -238,7 +207,7 @@
 					'role': 'row',
 					'class': 'tablesorter-headerRow'
 				}, [
-					...k_query_table.fields.map((field, index) => {
+					...k_query_table.queryType.fields.map((field, index) => {
 						return xhtmlDocument.builder()('th', {}, [
 								field.label
 						])
@@ -262,14 +231,7 @@
 	}
 
 	async function reset_table() {
-		xc_info_mode = INFO_MODES.LOADING;
-		const n_version = (await k_page.getMetadata(true))?.version.number + 1 || 1;
-		if (await k_page.initMetadata(n_version)) {
-			b_published = false;
-			b_expand = false;
-			xc_info_mode = 0;
-		}
-		g_metadata = (await k_page.getMetadata(true))?.value;
+		clear_preview();
 	}
 
 	function select_query_type(dv_select: CustomEvent<ValuedLabeledObject>) {
@@ -523,7 +485,7 @@
 		</span>
 	</div>
 
-	<div class="ve-table" class:expanded={b_expand}>
+	<div class="ve-table" class:published={b_published_toggle} class:expanded={b_expand}>
 		<div class="config">
 			<span class="tabs">
 				<span class="parameters" on:click={toggle_parameters} class:active={b_expand}>
@@ -536,9 +498,9 @@
 				</span>
 			</span>
 			<span class="info">
-				{#if G_INFO_MODES.PREVIEW === xc_info_mode}
+				{#if G_INFO_MODES.PREVIEW === xc_info_mode && !b_published_toggle}
 					{s_status_info}
-				{:else if G_INFO_MODES.LOADING === xc_info_mode}
+				{:else if G_INFO_MODES.LOADING === xc_info_mode && !b_published_toggle}
 					<Fa icon={faCircleNotch} class="fa-spin" /> LOADING PREVIEW
 				{/if}
 			</span>
@@ -574,6 +536,7 @@
 				{/await}
 			</div>
 		</div>
+		{#if !b_published_toggle}
 		<div class="table-wrap">
 			<!-- svelte-ignore a11y-resolved -->
 			<table class="wrapped confluenceTable tablesorter tablesorter-default stickyTableHeaders" role="grid" style="padding: 0px;" resolved="">
@@ -627,5 +590,6 @@
 				</tbody>
 			</table>
 		</div>
+		{/if}
 	</div>
 </div>

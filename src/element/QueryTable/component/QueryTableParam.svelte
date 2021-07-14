@@ -15,8 +15,6 @@
 
 	import {Sparql,} from '#/util/sparql-endpoint';
 
-	const dispatch = createEventDispatcher();
-
 	interface Option {
 		label: string;
 		value: string;

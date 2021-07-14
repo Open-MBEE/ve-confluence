@@ -128,7 +128,7 @@ export class ObjectStore implements IObjectStore {
 	private async _explode<
 		ValueType extends Serializable | Primitive,
 		ClassType extends VeOdm<ValueType>,
-	>(sp_target: VeoPath.Locatable, dc_class: null | Instantiable<ValueType, ClassType>, c_frags: number, g_context: Context={store:this}): Promise<PathOptions<ValueType, ClassType>> {
+		>(sp_target: VeoPath.Locatable, dc_class: null | Instantiable<ValueType, ClassType>, c_frags: number, g_context: Context={store:this}): Promise<PathOptions<ValueType, ClassType>> {
 		const h_options = await this.resolve<Record<string, ValueType>>(sp_target);
 
 		let h_out: PathOptions<ValueType, ClassType> = {};
@@ -168,11 +168,10 @@ export class ObjectStore implements IObjectStore {
 		return a_frags[3];
 	}
 
-	optionsSync<ValueType extends Serializable | Primitive, ClassType extends VeOdm<ValueType>>(sp_path: VeoPath.HardcodedObject, dc_class: {new (gc: ValueType, g: Context): ClassType;}, g_context: Context): Record<VeoPath.Full, ClassType> {
 	async options<
 		ValueType extends Serializable | Primitive,
 		ClassType extends VeOdm<ValueType>=VeOdm<ValueType>,
-	>(sp_path: VeoPath.Locatable, dc_class: null | Instantiable<ValueType, ClassType>=null, g_context: Context={store:this}): Promise<Record<VeoPath.Full, ClassType>> {
+		>(sp_path: VeoPath.Locatable, dc_class: null | Instantiable<ValueType, ClassType>=null, g_context: Context={store:this}): Promise<Record<VeoPath.Full, ClassType>> {
 		const a_frags = sp_path.split('.');
 		const nl_frags = a_frags.length;
 
@@ -196,7 +195,7 @@ export class ObjectStore implements IObjectStore {
 	optionsSync<
 		ValueType extends Serializable | Primitive,
 		ClassType extends VeOdm<ValueType>,
-	>(sp_path: VeoPath.HardcodedObject, dc_class: Instantiable<ValueType, ClassType>, g_context: Context={store:this}): Record<VeoPath.Full, ClassType> {
+		>(sp_path: VeoPath.HardcodedObject, dc_class: Instantiable<ValueType, ClassType>, g_context: Context={store:this}): Record<VeoPath.Full, ClassType> {
 		const sp_parent = sp_path.replace(/\.[^.]+$/, '');
 		const h_options = this.resolveSync<Record<string, ValueType>>(sp_parent);
 		return Object.entries(h_options).reduce((h_out, [si_key, w_value]) => ({
@@ -205,7 +204,10 @@ export class ObjectStore implements IObjectStore {
 		}), {});
 	}
 
-	resolveSync<ValueType extends PrimitiveValue, VeoPathType extends VeoPath.HardcodedObject = VeoPath.HardcodedObject>(sp_path: string): ValueType {
+	resolveSync<
+		ValueType extends PrimitiveValue,
+		VeoPathType extends VeoPath.HardcodedObject = VeoPath.HardcodedObject,
+		>(sp_path: string): ValueType {
 		const a_parts = sp_path.split('#');
 
 		if(2 !== a_parts.length) {
@@ -222,7 +224,10 @@ export class ObjectStore implements IObjectStore {
 		return access<ValueType>(this._h_hardcoded, a_frags);
 	}
 
-	async resolve<ValueType extends PrimitiveValue, VeoPathType extends VeoPath.Full = VeoPath.Full>(sp_path: string): Promise<ValueType> {
+	async resolve<
+		ValueType extends PrimitiveValue,
+		VeoPathType extends VeoPath.Full = VeoPath.Full,
+		>(sp_path: string): Promise<ValueType> {
 		const a_parts = sp_path.split('#');
 		if(2 !== a_parts.length) {
 			throw new TypeError(`Invalid path string: '${sp_path}'; no storage parameter`);
@@ -297,5 +302,12 @@ export class ObjectStore implements IObjectStore {
 		k_target = this._k_page;
 
 		return k_target.postContent(content.toString(), "Updated CAE CED Table Element");
+	}
+
+	async isPublished(): Promise<boolean> {
+		let k_target: ConfluencePage;
+		k_target = this._k_page;
+		let g_metadata = await k_target.getMetadata(true);
+		return !!g_metadata?.value.published;
 	}
 }
