@@ -61,12 +61,36 @@ export class XHTMLDocument {
 		return select(sx_xpath, this._y_doc, true)[0] as T;
 	}
 
+	replaceChild(new_child: Node, old_child: Node): Node {
+		return this._y_doc.replaceChild(new_child, old_child);
+	}
+
+	appendChild(new_child: Node): Node {
+		return this._y_doc.appendChild(new_child);
+	}
+
+	createCDATA(child: string): Node {
+		return this._y_doc.createCDATASection(child);
+	}
+
+	parseXml(xml_string: string): Node[] {
+		let result: Node[] = [];
+		const dom_doc = new DOMParser().parseFromString(
+			`<xml ${SX_NAMESPACES}>${xml_string}</xml>`
+		);
+		for(let i = 0; i < dom_doc.childNodes.length; i++) {
+			let item = dom_doc.childNodes.item(i);
+			result[i] = item.cloneNode(true);
+		}
+		return result;
+	}
+
 	toString(): string {
 		const y_serializer = new XMLSerializer();
 
 		return y_serializer
 			.serializeToString(this._y_doc)
-			.replace(/^\s*<xml[^>]*>\s*|\s*<\/xml>\s*$/, '');
+			.replace(/^\s*<xml[^>]*>\s*|\s<\/xml>\s*$/, '');
 	}
 
 	builder(): (s_tag: string, h_attrs?: Hash, a_children?: Node[]) => Node {
@@ -78,11 +102,9 @@ export class XHTMLDocument {
 			a_children: Node[] = []
 		): Node {
 			const ym_node = y_doc.createElement(s_tag);
-
 			for(const si_attr in h_attrs) {
 				ym_node.setAttribute(si_attr, h_attrs[si_attr]);
 			}
-
 			for(const z_child of a_children) {
 				let ym_child = z_child;
 
@@ -90,7 +112,9 @@ export class XHTMLDocument {
 					ym_child = y_doc.createTextNode(z_child);
 				}
 
-				ym_node.appendChild(ym_child);
+				if (ym_child && ym_child.parentNode == null) {
+					ym_node.appendChild(ym_child);
+				}
 			}
 
 			return ym_node;

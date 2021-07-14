@@ -74,6 +74,10 @@ export abstract class VeOdm<Serialized extends Serializable | Primitive> {
 		return this._gc_serialized.type;
 	}
 
+	getContext(): Context {
+		return this._g_context;
+	}
+
 	// protected _create<CreationSerialized extends Serializable>(
 	//     dc_class: {new(gc_serialized: CreationSerialized, g_context: Context): VeOdm<CreationSerialized>},
 	//     gc_serialized: CreationSerialized,
@@ -82,7 +86,6 @@ export abstract class VeOdm<Serialized extends Serializable | Primitive> {
 	// }
 
 	async save(): Promise<boolean> {
-		console.log("It's saving.");
 		return true;
 	}
 

@@ -180,7 +180,7 @@ let H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 		props: {
 			k_query_table: new MmsSparqlQueryTable(
 				serialized,
-				{store:K_OBJECT_STORE}
+				{store: K_OBJECT_STORE}
 			),
 		},
 	}),

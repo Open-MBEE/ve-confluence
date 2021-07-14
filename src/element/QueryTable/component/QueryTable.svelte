@@ -12,16 +12,15 @@
 	import {faCircleNotch, faFilter, faHistory, faQuestionCircle,} from '@fortawesome/free-solid-svg-icons';
 
 	import SelectItem from '#/ui/component/SelectItem.svelte';
-
 	import QueryTableParam from './QueryTableParam.svelte';
 
-	import type {QueryTable} from '../model/QueryTable';
+	import {QueryTable, View} from "../model/QueryTable";
 
 	import type {Connection, ModelVersionDescriptor,} from '#/model/Connection';
 
 	import type {ValuedLabeledObject} from '#/common/types';
-	import {MmsSparqlQueryTable} from "../model/QueryTable";
 	import type {Ve4MetadataKeyConfluencePage} from "#/common/static";
+	import XHTMLDocument from "#/vendor/confluence/module/xhtml-document";
 
 	export let k_query_table: QueryTable;
 	export let k_page: ConfluencePage;
@@ -33,12 +32,12 @@
 		k_page = await ConfluencePage.fromCurrentPage();
 		g_metadata = await k_page.getMetadata(true);
 		if (g_metadata?.value.published) {
-			k_query_table = <QueryTable> await (<MmsSparqlQueryTable> k_query_table).fromSerialized(g_metadata.value.published);
+			await k_query_table.fromSerialized(g_metadata.value.published);
 			b_published = true;
+			b_loading = false;
 		} else if (g_metadata?.value.last) {
-			k_query_table = <QueryTable> await (<MmsSparqlQueryTable> k_query_table).fromSerialized(g_metadata.value.last);
+			await k_query_table.fromSerialized(g_metadata.value.last);
 		}
-		//await build_selected(k_query_table);
 		await render();
 
 		const k_connection = await k_query_table.getConnection();
@@ -135,7 +134,7 @@
 			}
 		}
 
-		if (!b_filtered) {
+		if (!b_filtered || b_published) {
 			b_loading = false;
 			b_showing = false;
 			return;
@@ -182,6 +181,7 @@
 			return;
 		}
 		b_published = false;
+		render();
 
 		queueMicrotask(() => {
 			create_in_transition(dm_parameters, slide, {
@@ -192,23 +192,55 @@
 	}
 
 	async function save_table() {
-		await (<MmsSparqlQueryTable> k_query_table).save();
+		await k_query_table.save();
 	}
 
 	async function publish_table() {
 		xc_info_mode = INFO_MODES.LOADING;
 		save_table().then(async() => {
-			let table = (await k_page.getContentAsString())?.value;
-			// Hack to update the date without posting new data
-			table += "<!--" + k_query_table.toSerialized() + "-->"
-			if (await k_page.postContent(table, "Updated CAE CED Table Element")) {
+			let table = build_table(await k_query_table.getAllRows());
+			if (await k_query_table.publish(table)) {
 				b_published = true;
 				b_expand = false;
 				xc_info_mode = 0;
+				location.reload();
 			}
 		});
 	}
 
+	function build_table(view: View): Node {
+		console.log('building table');
+		let xhtmlDocument = new XHTMLDocument('');
+		return xhtmlDocument.builder()('table', {}, [
+			xhtmlDocument.builder()('thead', {
+				'class': 'tableFloatingHeaderOriginal'
+			}, [
+				xhtmlDocument.builder()('tr', {
+					'role': 'row',
+					'class': 'tablesorter-headerRow'
+				}, [
+					...k_query_table.fields.map((field, index) => {
+						return xhtmlDocument.builder()('th', {}, [
+								field.label
+						])
+					})
+				])
+			]),
+			xhtmlDocument.builder()('tbody', {}, [
+				...view.rows.map((row) => {
+					return xhtmlDocument.builder()('tr', {
+						'role': 'row'
+					}, [
+						...Object.values(row).map((cell) => {
+							return xhtmlDocument.builder()('td', {'class': 'confluenceTd'}, [
+								...xhtmlDocument.parseXml(cell)
+							])
+						})
+					])
+				})
+			])
+		]);
+	}
 
 	async function reset_table() {
 		xc_info_mode = INFO_MODES.LOADING;
@@ -219,15 +251,6 @@
 			xc_info_mode = 0;
 		}
 		g_metadata = (await k_page.getMetadata(true))?.value;
-	}
-
-	async function build_selected(k_query_table) {
-		for(const n_param of await k_query_table.getParameters()) {
-			selected[n_param.key] = k_query_table.parameterValuesList(
-					n_param.key,
-			)
-		}
-		return selected;
 	}
 
 	function select_query_type(dv_select: CustomEvent<ValuedLabeledObject>) {
@@ -270,7 +293,7 @@
 			<span class="info">
 				{#if INFO_MODES.PREVIEW === xc_info_mode && !b_published}
 					{s_status_info}
-				{:else if INFO_MODES.LOADING === xc_info_mode}
+				{:else if INFO_MODES.LOADING === xc_info_mode && !b_published}
 					<Fa icon={faCircleNotch} class="fa-spin" /> LOADING PREVIEW
 				{/if}
 			</span>
@@ -317,6 +340,7 @@
 				{/await}
 			</div>
 		</div>
+		{#if !b_published}
 		<div class="table-wrap" id="table-wrapper">
 			<table
 				class="wrapped confluenceTable tablesorter tablesorter-default stickyTableHeaders"
@@ -400,6 +424,7 @@
 				</tbody>
 			</table>
 		</div>
+		{/if}
 	</div>
 </div>
 

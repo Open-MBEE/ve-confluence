@@ -1,5 +1,5 @@
 <script lang="ts">
-	import {createEventDispatcher, tick} from 'svelte';
+	import {createEventDispatcher} from 'svelte';
 	import {lang} from '#/common/static';
 	import Select from 'svelte-select';
 

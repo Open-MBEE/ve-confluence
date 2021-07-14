@@ -9,7 +9,7 @@ import type {
 	ValuedObject,
 	TypedKeyedPrimitive,
 	TypedPrimitive,
-	ValuedLabeledObject,
+	ValuedLabeledObject, Hash,
 } from '#/common/types';
 
 import type {VeoPath} from '#/common/veo';
@@ -225,7 +225,7 @@ export abstract class QueryTable<
 
 	abstract isPublished(): Promise<boolean>;
 
-	abstract publish(published: boolean): Promise<boolean>;
+	abstract publish(publish: Node): Promise<boolean>;
 
 	abstract getConnection(): Promise<Connection>;
 
@@ -282,6 +282,49 @@ export abstract class QueryTable<
 	fetchQueryBuilder(): Promise<ConnectionQuery> {
 		return this.queryType.queryBuilder.function.call(this);
 	}
+
+	async fromSerialized(serialized: Serialized): Promise<void> {
+		super.fromSerialized(serialized);
+		await this.init();
+	}
+
+	async getAllRows(): Promise<View> {
+		let g_view: View = {
+			rows: [],
+		};
+		const k_connection = await this.getConnection();
+		const k_query = await this.fetchQueryBuilder();
+		let nl_rows_total = 0;
+		let limit = 2000;
+		await k_connection.execute(k_query.count()).then((a_counts) => {
+			nl_rows_total = +a_counts[0].count.value;
+		});
+
+		let a_rows = await k_connection.execute(k_query.paginate(limit));
+		if (nl_rows_total > limit) {
+			let offset = 0;
+			while (offset + limit <= nl_rows_total) {
+				offset += limit;
+				a_rows.concat(await k_connection.execute(k_query.paginate(limit, offset)));
+			}
+		}
+
+		g_view.rows = a_rows.map((g_row) => {
+			const h_out: Record<string, string> = {};
+
+			for (const k_field of this.fields) {
+				h_out[k_field.key] = k_field.cell(g_row);
+			}
+
+			return h_out;
+		});
+
+		return g_view;
+	}
+}
+
+export interface View {
+	rows: Array<Hash>;
 }
 
 export interface ConnectionQuery {
@@ -371,14 +414,8 @@ export class MmsSparqlQueryTable<
 		return Promise.resolve(false);
 	}
 
-	publish(published: boolean): Promise<boolean> {
-		return Promise.resolve(this._k_store.update(this.toSerialized()));
-	}
-
-	async fromSerialized(serialized: Serialized): Promise<MmsSparqlQueryTable> {
-		const table = new MmsSparqlQueryTable(serialized, {store: this._k_store});
-		await table.init();
-		return table;
+	publish(node: Node): Promise<boolean> {
+		return Promise.resolve(this._k_store.publish(node));
 	}
 
 	async save(): Promise<boolean> {

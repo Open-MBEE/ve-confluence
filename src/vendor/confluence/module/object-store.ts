@@ -233,4 +233,11 @@ export class ObjectStore implements IObjectStore {
 
 		return k_target.postMetadata(g_metadata, n_version + 1, '');
 	}
+
+	async publish(content: Node): Promise<boolean> {
+		let k_target: ConfluencePage;
+		k_target = this._k_page;
+
+		return k_target.postContent(content.toString(), "Updated CAE CED Table Element");
+	}
 }

@@ -154,4 +154,6 @@ export interface IObjectStore {
 	>(sp_path: string): Promise<ValueType>;
 
 	update(content: any): Promise<boolean>;
+
+	publish(content: any): Promise<boolean>;
 }
