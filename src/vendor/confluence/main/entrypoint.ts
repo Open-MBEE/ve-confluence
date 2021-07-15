@@ -135,7 +135,6 @@ const A_DIRECTIVE_CORRELATIONS: CorrelationDescriptor[] = [
 	},
 ];
 
-let K_OBJECT_STORE: ObjectStore;
 let k_page: ConfluencePage;
 const G_CONTEXT: Context = {} as Context;
 

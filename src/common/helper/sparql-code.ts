@@ -18,6 +18,18 @@ function attr(h_props: Hash, si_attr: string, s_attr_key: string, b_many=false) 
 	`;
 }
 
+function attr_oslc(h_props: Hash, si_attr: string, s_attr_key: string, s_name_key: string, b_many=false) {
+	const sx_prop = h_props[si_attr] = `?_${si_attr}`;
+
+	if(!s_attr_key) debugger;
+	return /* syntax: sparql */ `
+		${sx_prop} a oslc:Property ;
+			${s_name_key} ${terse_lit(s_attr_key)} .
+
+		?artifact ${sx_prop} [${s_name_key} ?${si_attr}Value] .
+	`;
+}
+
 const H_NATIVE_DNG_PATTERNS: Record<string, string> = {
 	id: /* syntax: sparql */ `
 		?artifact dct:identifier ?idValue .
@@ -118,6 +130,13 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 			a_bgp.push(/* syntax: sparql */ `
 				optional {
 					${attr(h_props, si_param, s_value, b_many)}
+				}
+			`);
+		}
+		else if('oslc' === s_source) {
+			a_bgp.push(/* syntax: sparql */ `
+				optional {
+					${attr_oslc(h_props, si_param, s_value, s_header, b_many)}
 				}
 			`);
 		}

@@ -101,6 +101,14 @@ const A_QUERY_FIELD_PATHS_BASIC = [
 	'hardcoded#queryField.sparql.dng.maturity',
 ];
 
+const A_QUERY_FIELD_PATHS_MSR = [
+	'hardcoded#queryField.sparql.dng.id',
+	'hardcoded#queryField.sparql.dng.requirementName',
+	'hardcoded#queryField.sparql.dng.requirementText',
+	'hardcoded#queryField.sparql.dng.affectedSystems',
+	'hardcoded#queryField.sparql.dng.state',
+];
+
 /* eslint-disable object-curly-newline */
 export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 	queryParameter: auto_key<QueryParam.Serialized>({
@@ -116,6 +124,14 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 				},
 				maturity: {
 					value: 'Maturity',
+					sortPath: null,
+				},
+				project: {
+					value: '<https://jpl.nasa.gov/msr/rm#project>',
+					// sortPath: null,
+				},
+				state: {
+					value: 'ibm_workflow:Requirement_Workflow',
 					sortPath: null,
 				},
 			},
@@ -143,6 +159,15 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basic',
 					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.basicParamsL3ChildrenAndL4s',
 				},
+				msr_asr: {
+					label: 'MSR Appendix Subsystem Requirements',
+					queryParametersPaths: [
+						'hardcoded#queryParameter.sparql.dng.project',
+						'hardcoded#queryParameter.sparql.dng.state',
+					],
+					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.msr',
+					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.msrParamsL3ChildrenAndL4s',
+				},
 			},
 		},
 	}),
@@ -152,6 +177,9 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 			dng: {
 				basic: {
 					queryFieldsPaths: A_QUERY_FIELD_PATHS_BASIC,
+				},
+				msr: {
+					queryFieldsPaths: A_QUERY_FIELD_PATHS_MSR,
 				},
 				basicWithChildren: {
 					queryFieldsPaths: [
@@ -205,6 +233,13 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					value: 'Maturity',
 					label: null, // inherit from value
 					source: 'attribute',
+					hasMany: false,
+					cell: (g: QueryRow) => g.maturityValue?.value || '',
+				},
+				state: {
+					value: 'ibm_workflow:Requirement_Workflow',
+					label: 'rdfs:label', // intentional misuse
+					source: 'oslc',
 					hasMany: false,
 					cell: (g: QueryRow) => g.maturityValue?.value || '',
 				},
@@ -264,6 +299,23 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 						});
 					},
 				},
+				msrParamsL3ChildrenAndL4s: {
+					function(this: MmsSparqlQueryTable): Promise<SparqlSelectQuery> {
+						return build_dng_select_query_from_params.call(this, {
+							bgp: /* syntax: js */ `
+								{
+									?artifact <https://jpl.nasa.gov/msr/rm#level> <https://jpl.nasa.gov/msr/rm#levelListType/L4> .
+								} union {
+									?artifact a oslc_rm:Requirement ;
+										ibm_type:Decomposition ?parent ;
+										.
+
+									?parent <https://jpl.nasa.gov/msr/rm#level> <https://jpl.nasa.gov/msr/rm#levelListType/L3> .
+								}
+							`,
+						});
+					},
+				},
 			},
 		},
 	},
@@ -287,3 +339,4 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 	},
 });
 /* eslint-enable object-curly-newline */
+
