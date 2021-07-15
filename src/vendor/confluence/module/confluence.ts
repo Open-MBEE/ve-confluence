@@ -374,15 +374,15 @@ export class ConfluencePage {
 			]),
 		]);
 
-		const found_element = page_content.select<Node>('//ac:structured-macro');
+		const found_element = page_content.select<Node>('//ac:structured-macro[@ac:macro-id="ve-table"]');
 		const init_element = page_content.select<Node>('//ac:link');
 
-		if(init_element.length) {
+		if(found_element.length) {
+			page_content.replaceChild(wrapped, found_element[0]);
+		}
+		else if(init_element.length) {
 			page_content.replaceChild(macros, init_element[0]);
 			page_content.appendChild(wrapped);
-		}
-		else if(found_element.length) {
-			page_content.replaceChild(wrapped, found_element[0]);
 		}
 
 		const response = await confluence_put_json(`/content/${this._si_page}`, {
