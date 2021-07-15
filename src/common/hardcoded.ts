@@ -128,10 +128,12 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 				},
 				project: {
 					value: '<https://jpl.nasa.gov/msr/rm#project>',
+					label: 'Project',
 					// sortPath: null,
 				},
 				state: {
 					value: 'ibm_workflow:Requirement_Workflow',
+					label: 'State (Requirement Workflow)',
 					sortPath: null,
 				},
 			},
