@@ -161,6 +161,21 @@ const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 			),
 		},
 	}),
+	'MSR Table Element': () => ({
+		component: QueryTable,
+		props: {
+			k_query_table: new MmsSparqlQueryTable(
+				{
+					type: 'MmsSparqlQueryTable',
+					group: 'dng',
+					queryTypePath: 'hardcoded#queryType.sparql.dng.msr_asr',
+					connectionPath: 'document#connection.sparql.mms.dng',
+					parameterValues: {},
+				},
+				G_CONTEXT
+			),
+		},
+	}),
 };
 
 const xpath_attrs = (a_attrs: string[]) => a_attrs.map(sx => `[${sx}]`).join('');
