@@ -23,6 +23,7 @@ import type {MmsSparqlConnection} from '#/model/Connection';
 import type {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
 
 import {G_META} from '#/common/meta';
+import { WritableSerializationLocation } from '#/model/Serializable';
 
 const P_API_DEFAULT = '/rest/api';
 
@@ -217,7 +218,7 @@ function normalize_metadata<
 
 const H_CACHE_PAGES: Record<string, ConfluencePage> = {};
 
-export class ConfluencePage {
+export class ConfluencePage extends WritableSerializationLocation {
 	static async fromCurrentPage(): Promise<ConfluencePage> {
 		const k_page = new ConfluencePage(G_META.page_id, G_META.page_title);
 		const dm_modified = document.querySelector('a.last-modified') as HTMLAnchorElement;
@@ -317,7 +318,7 @@ export class ConfluencePage {
 		return (await this._info(b_force))?.ancestors || [];
 	}
 
-	async getMetadata(b_force = false): Promise<ConfluenceApi.Info | null> {
+	async fetchMetadata(b_force=false): Promise<ConfluenceApi.Info | null> {
 		const g_info = await this._info(b_force);
 		if(!g_info?.metadata.properties[G_VE4_METADATA_KEYS.CONFLUENCE_PAGE]) {
 			await this.initMetadata();
@@ -414,7 +415,7 @@ export class ConfluencePage {
 			published: null,
 		};
 		if(await this.postMetadata(gm_page, n_version, 'Initialization')) {
-			return this.getMetadata(true);
+			return this.fetchMetadata(true);
 		}
 		else {
 			return null;

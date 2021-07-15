@@ -9,6 +9,7 @@
 	import type {
 		Context,
 	} from '#/model/Serializable';
+import type { VeoPath } from '#/common/veo';
 
 	export let g_context: Context;
 	let k_object_store = g_context.store;
@@ -87,7 +88,7 @@
 			const gc_connection = (h_connections as Record<string, Connection.Serialized>)[sp_connection];
 			switch(gc_connection.type) {
 				case 'MmsSparqlConnection': {
-					A_CONNECTIONS.push(new MmsSparqlConnection(gc_connection as MmsSparqlConnection.Serialized, g_context));
+					A_CONNECTIONS.push(new MmsSparqlConnection(sp_connection as VeoPath.MmsSparqlConnection, gc_connection as MmsSparqlConnection.Serialized, g_context));
 					break;
 				}
 

@@ -1,4 +1,5 @@
-import type {IObjectStore} from '#/common/types';
+import type {IObjectStore, JsonValue, PrimitiveValue} from '#/common/types';
+import type { VeoPath } from '#/common/veo';
 
 import type {
 	TypedKeyedLabeledObject,
@@ -22,11 +23,13 @@ export abstract class VeOdm<Serialized extends Serializable | Primitive> {
 	private _b_ready = false;
 	private _a_awaits: (() => void)[] = [];
 
+	protected _sp_path: VeoPath.Full;
 	protected _gc_serialized: Serialized;
 	protected _g_context: Context;
 	protected _k_store: IObjectStore;
 
-	constructor(gc_serialized: Serialized, g_context: Context) {
+	constructor(sp_path: VeoPath.Full, gc_serialized: Serialized, g_context: Context) {
+		this._sp_path = sp_path;
 		this._gc_serialized = gc_serialized;
 		this._g_context = g_context;
 		this._k_store = g_context.store;
@@ -87,7 +90,7 @@ export abstract class VeOdm<Serialized extends Serializable | Primitive> {
 	// }
 
 	async save(): Promise<boolean> {
-		return true;
+		return this._k_store.commit(this._sp_path, this.toSerialized());
 	}
 
 	fromSerialized(gc_serialized: Serialized): void {
@@ -130,4 +133,32 @@ export abstract class VeOdmKeyedLabeled<
 
 export interface VeOrmClass<Serialized extends Serializable | Primitive> {
 	new (gc_serialized: Serialized, g_context: Context): VeOdm<Serialized>;
+}
+
+
+
+export abstract class SerializationLocation {
+	readonly isReadOnly!: boolean;
+	readonly isSynchronous!: boolean;
+
+	abstract fetchMetadata(b_force?: boolean): Promise<JsonValue | PrimitiveValue>;
+}
+
+export abstract class SynchronousSerializationLocation extends SerializationLocation {
+	abstract getMetadata(): JsonValue | PrimitiveValue;
+}
+
+export abstract class ReadonlySynchronousSerializationLocation extends SynchronousSerializationLocation {
+	readonly isReadOnly: true = true;
+	readonly isSynchronous: true = true;
+}
+
+export abstract class AsynchronousSerializationLocation extends SerializationLocation {
+	readonly isSynchronous: false = false;
+}
+
+export abstract class WritableAsynchronousSerializationLocation extends AsynchronousSerializationLocation {
+	readonly isReadOnly: false = false;
+
+	abstract writeMetadata(): Promise<boolean>;
 }

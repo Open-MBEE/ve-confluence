@@ -162,7 +162,7 @@ export namespace QueryFieldGroup {
 
 export class QueryFieldGroup extends VeOdm<QueryFieldGroup.Serialized> {
 	get fields(): QueryField[] {
-		return this._gc_serialized.queryFieldsPaths.map(sp => new QueryField(this._k_store.resolveSync(sp), this._g_context));
+		return this._gc_serialized.queryFieldsPaths.map(sp => new QueryField(sp, this._k_store.resolveSync(sp), this._g_context));
 	}
 }
 
@@ -192,10 +192,9 @@ export namespace QueryType {
 
 export class QueryType<ConnectionType extends DotFragment=DotFragment> extends VeOdmKeyedLabeled<QueryType.Serialized<ConnectionType>> {
 	get queryBuilder(): QueryBuilder {
-		const gc_builder = this._k_store.resolveSync<QueryBuilder.Serialized>(
-			this._gc_serialized.queryBuilderPath
-		);
-		return new QueryBuilder(gc_builder, this._g_context);
+		const sp_builder = this._gc_serialized.queryBuilderPath;
+		const gc_builder = this._k_store.resolveSync<QueryBuilder.Serialized>(sp_builder);
+		return new QueryBuilder(sp_builder, gc_builder, this._g_context);
 	}
 
 	get value(): string {
@@ -212,7 +211,7 @@ export class QueryType<ConnectionType extends DotFragment=DotFragment> extends V
 	fetchParameters(): Promise<QueryParam[]> {
 		return Promise.all(this._gc_serialized.queryParametersPaths.map(async(sp_parameter) => {
 			const gc_query_param = await this._k_store.resolve<QueryParam.Serialized>(sp_parameter);
-			return new QueryParam(gc_query_param, this._g_context);
+			return new QueryParam(sp_parameter, gc_query_param, this._g_context);
 		}));
 	}
 
@@ -221,8 +220,9 @@ export class QueryType<ConnectionType extends DotFragment=DotFragment> extends V
 	}
 
 	get fields(): QueryField[] {
-		const gc_field_group = this._k_store.resolveSync<QueryFieldGroup.Serialized>(this._gc_serialized.queryFieldGroupPath);
-		return new QueryFieldGroup(gc_field_group, this._g_context).fields;
+		const sp_group = this._gc_serialized.queryFieldGroupPath;
+		const gc_field_group = this._k_store.resolveSync<QueryFieldGroup.Serialized>(sp_group);
+		return new QueryFieldGroup(sp_group, gc_field_group, this._g_context).fields;
 	}
 }
 
@@ -407,8 +407,9 @@ export class MmsSparqlQueryTable<
 	Group extends DotFragment=DotFragment,
 > extends SparqlQueryTable<MmsSparqlQueryTable.Serialized<Group>> {
 	async fetchConnection(): Promise<MmsSparqlConnection> {
-		const g_serialized = await this._k_store.resolve<MmsSparqlConnection.Serialized>(this._gc_serialized.connectionPath);
-		return new MmsSparqlConnection(g_serialized, this._g_context);
+		const sp_connection = this._gc_serialized.connectionPath;
+		const gc_serialized = await this._k_store.resolve<MmsSparqlConnection.Serialized>(sp_connection);
+		return new MmsSparqlConnection(sp_connection, gc_serialized, this._g_context);
 	}
 
 	isPublished(): Promise<boolean> {

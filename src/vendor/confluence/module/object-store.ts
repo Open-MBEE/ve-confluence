@@ -5,6 +5,7 @@ import type {
 	Instantiable,
 	PrimitiveValue,
 	PathOptions,
+	DotFragment,
 } from '#/common/types';
 
 import {
@@ -17,6 +18,7 @@ import type {
 	Context,
 	Primitive,
 	Serializable,
+	SerializationLocation,
 	VeOdm,
 } from '#/model/Serializable';
 
@@ -26,6 +28,8 @@ import type {
 } from './confluence';
 
 import type {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
+import type { Ve4MetadataKeyStruct } from '#/common/static';
+import { ObjectStore } from '#/model/ObjectStore';
 
 // const G_SHAPE = {
 // 	document: [
@@ -108,8 +112,9 @@ import type {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
 // 	],
 // } as const;
 
+export class ConfluenceObjectStore extends ObjectStore {
+	protected _h_locations: Record<VeoPath.Location, SerializationLocation>;
 
-export class ObjectStore implements IObjectStore {
 	protected _k_page: ConfluencePage;
 	protected _k_document: ConfluenceDocument;
 	protected _h_hardcoded: HardcodedObjectRoot;
@@ -119,88 +124,15 @@ export class ObjectStore implements IObjectStore {
 		k_document: ConfluenceDocument,
 		h_hardcoded: HardcodedObjectRoot
 	) {
+		this._h_locations = {
+			page: k_page,
+			document: k_document,
+			hardcoded: h_hardcoded,
+		};
+
 		this._k_page = k_page;
 		this._k_document = k_document;
 		this._h_hardcoded = h_hardcoded;
-	}
-
-	private async _explode<
-		ValueType extends Serializable | Primitive,
-		ClassType extends VeOdm<ValueType>,
-	>(sp_target: VeoPath.Locatable, dc_class: null | Instantiable<ValueType, ClassType>, c_frags: number, g_context: Context={store:this}): Promise<PathOptions<ValueType, ClassType>> {
-		const h_options = await this.resolve<Record<string, ValueType>>(sp_target);
-
-		let h_out: PathOptions<ValueType, ClassType> = {};
-
-		if(c_frags < NL_PATH_FRAGMENTS-1) {
-			for(const si_frag in h_options) {
-				h_out = {
-					...h_out,
-					...await this._explode(`${sp_target}.${si_frag}`, dc_class, c_frags+1, g_context),
-				};
-			}
-		}
-		else {
-			for(const si_frag in h_options) {
-				h_out = {
-					...h_out,
-					[`${sp_target}.${si_frag}`]: dc_class? new dc_class(h_options[si_frag], g_context): h_options[si_frag],
-				};
-			}
-		}
-
-		return h_out;
-	}
-
-
-	// eslint-disable-next-line class-methods-use-this
-	idPartSync(sp_path: string): string {
-		const a_parts = sp_path.split('#');
-
-		if(2 !== a_parts.length) {
-			throw new TypeError(`Invalid path string: '${sp_path}'; no storage parameter`);
-		}
-
-		const [, s_frags] = a_parts as [VeoPath.Location, string];
-		const a_frags = s_frags.split('.');
-
-		return a_frags[3];
-	}
-
-	async options<
-		ValueType extends Serializable | Primitive,
-		ClassType extends VeOdm<ValueType>=VeOdm<ValueType>,
-	>(sp_path: VeoPath.Locatable, dc_class: null | Instantiable<ValueType, ClassType>=null, g_context: Context={store:this}): Promise<Record<VeoPath.Full, ClassType>> {
-		const a_frags = sp_path.split('.');
-		const nl_frags = a_frags.length;
-
-		let sp_target!: VeoPath.Locatable;
-
-		if(nl_frags < NL_PATH_FRAGMENTS-1) {
-			if('**' === a_frags[nl_frags-1]) {
-				sp_target = a_frags.slice(0, -1).join('.') as VeoPath.Locatable;
-			}
-			else {
-				throw new Error(`Invalid path target: '${sp_path}'`);
-			}
-		}
-		else {
-			sp_target = sp_path.replace(/\.[^.]+$/, '') as VeoPath.Locatable;
-		}
-
-		return this._explode(sp_target, dc_class, nl_frags, g_context);
-	}
-
-	optionsSync<
-		ValueType extends Serializable | Primitive,
-		ClassType extends VeOdm<ValueType>,
-	>(sp_path: VeoPath.HardcodedObject, dc_class: Instantiable<ValueType, ClassType>, g_context: Context={store:this}): Record<VeoPath.Full, ClassType> {
-		const sp_parent = sp_path.replace(/\.[^.]+$/, '');
-		const h_options = this.resolveSync<Record<string, ValueType>>(sp_parent);
-		return Object.entries(h_options).reduce((h_out, [si_key, w_value]) => ({
-			...h_out,
-			[`${sp_parent}.${si_key}`]: new dc_class(w_value, g_context),
-		}), {});
 	}
 
 	resolveSync<
@@ -226,43 +158,31 @@ export class ObjectStore implements IObjectStore {
 	async resolve<
 		ValueType extends PrimitiveValue,
 		VeoPathType extends VeoPath.Full = VeoPath.Full,
-	>(sp_path: string): Promise<ValueType> {
-		const a_parts = sp_path.split('#');
-		if(2 !== a_parts.length) {
-			throw new TypeError(`Invalid path string: '${sp_path}'; no storage parameter`);
+	>(sp_path: VeoPath.Locatable): Promise<ValueType> {
+		let k_target, si_storage, a_frags;
+		try {
+			[k_target, si_storage, a_frags] = locate_path<ConfluencePage | ConfluenceDocument>(sp_path, {
+				page: () => this._k_page,
+				document: () => this._k_document,
+				hardcoded: (a_frags) => {
+					throw new HardcodedException(a_frags);
+				},
+			});
 		}
-
-		const [si_storage, s_frags] = a_parts as [VeoPath.Location, string];
-		const a_frags = s_frags.split('.');
-
-		let k_target: ConfluencePage | ConfluenceDocument;
-
-		switch(si_storage) {
-			case 'page': {
-				k_target = this._k_page;
-				break;
+		catch(e_locate) {
+			if(e_locate instanceof HardcodedException) {
+				return access<ValueType>(this._h_hardcoded, e_locate.frags);
 			}
 
-			case 'document': {
-				k_target = this._k_document;
-				break;
-			}
-
-			case 'hardcoded': {
-				return access<ValueType>(this._h_hardcoded, a_frags);
-			}
-
-			default: {
-				throw new Error(`Unmapped VeoPath storage parameter '${si_storage}'`);  // eslint-disable-line @typescript-eslint/restrict-template-expressions
-			}
+			throw e_locate;
 		}
 
 		// fetch ve4 data
-		const g_ve4 = await k_target.getMetadata();
+		const g_ve4 = await k_target.fetchMetadata();
 
 		// no metadata; error
 		if(!g_ve4) {
-			throw new Error(`${si_storage[0].toUpperCase() + si_storage.slice(1)} exists but no metadata`);
+			throw new Error(`${si_storage[0].toUpperCase()+si_storage.slice(1)} exists but no metadata`);
 		}
 
 		// fetch metadata
@@ -275,9 +195,31 @@ export class ObjectStore implements IObjectStore {
 		return access<ValueType>(g_metadata, a_frags);
 	}
 
+	async commit(sp_path: VeoPath.Full, gc_serialized: Serializable): Promise<boolean> {
+		let k_target, si_storage, a_frags;
+		try {
+			[k_target, si_storage, a_frags] = locate_path<ConfluencePage | ConfluenceDocument>(sp_path, {
+				page: () => this._k_page,
+				document: () => this._k_document,
+			});
+		}
+		catch(e_locate) {
+			if(e_locate instanceof UnhandledLocationError) {
+				throw new Error(`Cannot write to ${e_locate.location} location '${sp_path}'`);
+			}
+
+			throw e_locate;
+		}
+
+		// fetch metadata
+		const g_meta = await k_target.fetchMetadata(true);
+
+		g_meta?.value.
+	}
+
 	async update(k_content: Serializable): Promise<boolean> {
 		// fetch ve4 data
-		const g_ve4 = await this._k_page.getMetadata(true);
+		const g_ve4 = await this._k_page.fetchMetadata(true);
 
 		// fetch metadata
 		const g_metadata = g_ve4?.value || null;
@@ -299,7 +241,7 @@ export class ObjectStore implements IObjectStore {
 	}
 
 	async isPublished(): Promise<boolean> {
-		const g_metadata = await this._k_page.getMetadata(true);
+		const g_metadata = await this._k_page.fetchMetadata(true);
 		return !!g_metadata?.value.published;
 	}
 }

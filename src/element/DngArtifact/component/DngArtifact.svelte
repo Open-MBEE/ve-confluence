@@ -68,8 +68,9 @@
 			}
 
 			// resolve connection path
-			const gc_sparql_connection = await g_context.store.resolve<MmsSparqlConnection.Serialized>('document#connection.sparql.mms.dng');
-			const k_sparql = new MmsSparqlConnection(gc_sparql_connection, g_context);
+			const sr_connection = 'document#connection.sparql.mms.dng';
+			const gc_sparql_connection = await g_context.store.resolve<MmsSparqlConnection.Serialized>(sr_connection);
+			const k_sparql = new MmsSparqlConnection(sr_connection, gc_sparql_connection, g_context);
 
 			// find artifact by IRI
 			const a_artifacts = await k_sparql.execute(/* syntax: sparql */ `
