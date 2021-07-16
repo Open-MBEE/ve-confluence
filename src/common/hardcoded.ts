@@ -15,16 +15,59 @@ import type {
 	QueryType,
 } from '#/element/QueryTable/model/QueryTable';
 
+import {
+	MetadataBundle,
+	MetadataShape,
+	ReadonlySynchronousSerializationLocation,
+} from '#/model/Serializable';
+
 import type {SparqlSelectQuery} from '#/util/sparql-endpoint';
 
 import {build_dng_select_query_from_params} from './helper/sparql-code';
 
 import H_PREFIXES from './prefixes';
 
-export type HardcodedGroup<ValueType extends PrimitiveValue = PrimitiveValue> = Record<DotFragment, ValueType>;
-export type HardcodedObjectType<ValueType extends PrimitiveValue = PrimitiveValue> = Record<DotFragment, HardcodedGroup<ValueType>>;
-export type HardcodedObjectCategory<ValueType extends PrimitiveValue = PrimitiveValue> = Record<DotFragment, HardcodedObjectType<ValueType>>;
-export type HardcodedObjectRoot<ValueType extends PrimitiveValue = PrimitiveValue> = Record<DotFragment, HardcodedObjectCategory<ValueType>>;
+export interface HardcodedGroup<ValueType extends PrimitiveValue=PrimitiveValue> extends PrimitiveObject {
+	[si_frag: string]: ValueType;
+}
+
+export interface HardcodedObjectType<ValueType extends PrimitiveValue=PrimitiveValue> extends PrimitiveObject {
+	[si_frag: string]: HardcodedGroup<ValueType>;
+}
+
+export interface HardcodedObjectCategory<ValueType extends PrimitiveValue=PrimitiveValue> extends PrimitiveObject {
+	[si_frag: string]: HardcodedObjectType<ValueType>;
+}
+
+export interface HardcodedObjectRoot<ValueType extends PrimitiveValue=PrimitiveValue> extends PrimitiveObject {
+	[si_frag: string]: HardcodedObjectCategory<ValueType>;
+}
+
+export interface HardcodedShape extends MetadataShape<'Hardcoded'> {
+	schema: '1.0';
+	paths: HardcodedObjectRoot;
+}
+
+export class HardcodedLocation extends ReadonlySynchronousSerializationLocation<HardcodedShape> {
+	// eslint-disable-next-line class-methods-use-this
+	getMetadataBundle(): MetadataBundle<HardcodedShape> {
+		return {
+			schema: '1.0',
+			version: {
+				number: 0,
+				message: 'Static hardcoded version',
+			},
+			storage: {},
+			data: {
+				type: 'Hardcoded',
+				schema: '1.0',
+				paths: H_HARDCODED_OBJECTS,
+			},
+		};
+	}
+}
+
+export const K_HARDCODED = new HardcodedLocation();
 
 function auto_type(h_tree: Record<DotFragment, HardcodedObjectCategory>): HardcodedObjectRoot<TypedObject | PrimitiveValue> {
 	for(const si_category in h_tree) {

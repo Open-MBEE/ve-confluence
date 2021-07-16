@@ -1,15 +1,13 @@
 
 import type {
-	IObjectStore,
 	Instantiable,
 	PrimitiveValue,
 	PathOptions,
 	DotFragment,
-    PrimitiveObject,
+	PrimitiveObject,
 } from '#/common/types';
 
 import {
-	access,
 	NL_PATH_FRAGMENTS,
 	VeoPath,
 } from '#/common/veo';
@@ -19,7 +17,9 @@ import type {
 	Primitive,
 	Serializable,
 	SerializationLocation,
+	SynchronousSerializationLocation,
 	VeOdm,
+	WritableAsynchronousSerializationLocation,
 } from '#/model/Serializable';
 
 
@@ -43,43 +43,20 @@ class UnhandledLocationError extends Error {
 	}
 }
 
-class HardcodedException extends Error {
-	_a_frags: DotFragment[];
-
-	constructor(a_frags: DotFragment[]) {
-		super();
-		this._a_frags = a_frags;
-	}
-
-	get frags() {
-		return this._a_frags;
-	}
-}
 
 function parse_path(sp_path: VeoPath.Locatable): [VeoPath.Location, DotFragment[]] {
-    const a_parts = sp_path.split('#');
+	const a_parts = sp_path.split('#');
 
-    if(2 !== a_parts.length) {
-        throw new TypeError(`Invalid path string: '${sp_path}'; no storage parameter`);
-    }
+	if(2 !== a_parts.length) {
+		throw new TypeError(`Invalid path string: '${sp_path}'; no storage parameter`);
+	}
 
-    const [si_storage, s_frags] = a_parts as [VeoPath.Location, string];
-    const a_frags = s_frags.split('.');
+	const [si_storage, s_frags] = a_parts as [VeoPath.Location, string];
+	const a_frags = s_frags.split('.');
 
-    return [si_storage, a_frags];
+	return [si_storage, a_frags];
 }
 
-function locate_path<ReturnType>(sp_path: VeoPath.Locatable, g_route: {[s_location in VeoPath.Location]?: (a_frags: DotFragment[]) => ReturnType}): [ReturnType, VeoPath.Location, DotFragment[]] {
-	const [si_storage, a_frags] = parse_path(sp_path);
-    
-	const f_route = g_route[si_storage];
-	if(f_route) {
-		return [f_route(a_frags), si_storage, a_frags];
-	}
-	else {
-		throw new UnhandledLocationError(sp_path, si_storage, a_frags);
-	}
-}
 
 type LocationHash = Record<VeoPath.Location, SerializationLocation>;
 
@@ -181,6 +158,10 @@ export function access<Type extends PrimitiveValue>(h_map: PrimitiveObject, a_fr
 export class ObjectStore {
 	protected _h_locations!: LocationHash;
 
+	constructor(h_locations: LocationHash) {
+		this._h_locations = h_locations;
+	}
+
 	protected async _explode<
 		ValueType extends Serializable | Primitive,
 		ClassType extends VeOdm<ValueType>,
@@ -224,15 +205,25 @@ export class ObjectStore {
 		return a_frags[3];
 	}
 
-    _parse_path(sp_path: VeoPath.Locatable): [VeoPath.Location, DotFragment[], SerializationLocation] {
-        const [si_storage, a_frags] = parse_path(sp_path);
+	_parse_path(sp_path: VeoPath.Locatable): [VeoPath.Location, DotFragment[], SerializationLocation] {
+		const [si_storage, a_frags] = parse_path(sp_path);
 
-        if(!(si_storage in this._h_locations)) {
-            throw new Error(`No such location '${si_storage}'`);
-        }
+		if(!(si_storage in this._h_locations)) {
+			throw new Error(`No such location '${si_storage}'`);
+		}
 
-        return [si_storage, a_frags, this._h_locations[si_storage]];
-    }
+		return [si_storage, a_frags, this._h_locations[si_storage]];
+	}
+
+	_parse_path_sync(sp_path: VeoPath.Locatable): [VeoPath.Location, DotFragment[], SynchronousSerializationLocation] {
+		const [si_storage, a_frags, k_location] = this._parse_path(sp_path);
+
+		if(!k_location.isSynchronous) {
+			throw new Error(`Cannot synchronously access asynchronous storage type '${si_storage}'`);
+		}
+
+		return [si_storage, a_frags, k_location as SynchronousSerializationLocation];
+	}
 
 	async options<
 		ValueType extends Serializable | Primitive,
@@ -274,102 +265,61 @@ export class ObjectStore {
 		ValueType extends PrimitiveValue,
 		VeoPathType extends VeoPath.HardcodedObject = VeoPath.HardcodedObject,
 	>(sp_path: VeoPath.Locatable): ValueType {
-        const [si_storage, a_frags, k_location] = this._parse_path(sp_path);
+		const [si_storage, a_frags, k_location] = this._parse_path_sync(sp_path);
 
-        if(!k_location.isSynchronous) {
-			throw new Error(`Cannot synchronously access asynchronous storage type '${si_storage}'`);
+		// fetch ve4 data
+		const g_bundle = k_location.getMetadataBundle();
+
+		// no metadata bundle; error
+		if(!g_bundle) {
+			throw new Error(`Location '${si_storage}' exists but is missing a metadata bundle`);
 		}
 
-		return access<ValueType>(k_location, a_frags);
+		// fetch metadata
+		const g_metadata = g_bundle.data || null;
+
+		// no data
+		if(!g_metadata) {
+			throw new Error(`Location '${si_storage}' has a metadata bundle but its data is emtpy`);
+		}
+
+		return access<ValueType>(g_metadata.paths, a_frags);
 	}
 
 	async resolve<
 		ValueType extends PrimitiveValue,
 		VeoPathType extends VeoPath.Full = VeoPath.Full,
 	>(sp_path: VeoPath.Locatable): Promise<ValueType> {
-		let k_target, si_storage, a_frags;
-		try {
-			[k_target, si_storage, a_frags] = locate_path(sp_path, {
-				page: () => this._k_page,
-				document: () => this._k_document,
-				hardcoded: (a_frags) => {
-					throw new HardcodedException(a_frags);
-				},
-			});
-		}
-		catch(e_locate) {
-			if(e_locate instanceof HardcodedException) {
-				return access<ValueType>(this._h_hardcoded, e_locate.frags);
-			}
-
-			throw e_locate;
-		}
+		const [si_storage, a_frags, k_location] = this._parse_path(sp_path);
 
 		// fetch ve4 data
-		const g_ve4 = await k_target.fetchMetadata();
+		const g_bundle = await k_location.fetchMetadataBundle();
 
-		// no metadata; error
-		if(!g_ve4) {
-			throw new Error(`${si_storage[0].toUpperCase()+si_storage.slice(1)} exists but no metadata`);
+		// no metadata bundle; error
+		if(!g_bundle) {
+			throw new Error(`Location '${si_storage}' exists but is missing a metadata bundle`);
 		}
 
 		// fetch metadata
-		const g_metadata = g_ve4.value || null;
+		const g_metadata = g_bundle.data || null;
 
+		// no data
 		if(!g_metadata) {
-			throw new Error(`Cannot access ${si_storage} metadata`);
+			throw new Error(`Location '${si_storage}' has a metadata bundle but its data is emtpy`);
 		}
 
-		return access<ValueType>(g_metadata, a_frags);
+		return access<ValueType>(g_metadata.paths, a_frags);
 	}
 
 	async commit(sp_path: VeoPath.Full, gc_serialized: Serializable): Promise<boolean> {
-		let k_target, si_storage, a_frags;
-		try {
-			[k_target, si_storage, a_frags] = locate_path<ConfluencePage | ConfluenceDocument>(sp_path, {
-				page: () => this._k_page,
-				document: () => this._k_document,
-			});
-		}
-		catch(e_locate) {
-			if(e_locate instanceof UnhandledLocationError) {
-				throw new Error(`Cannot write to ${e_locate.location} location '${sp_path}'`);
-			}
+		const [si_storage, a_frags, k_location] = this._parse_path(sp_path);
 
-			throw e_locate;
+		if(k_location.isReadOnly) {
+			throw new Error(`Cannot write to readonly location '${si_storage}'`);
 		}
 
-		// fetch metadata
-		const g_meta = await k_target.fetchMetadata(true);
+		const k_writable = k_location as WritableAsynchronousSerializationLocation;
 
-		g_meta?.value.
-	}
-
-	async update(k_content: Serializable): Promise<boolean> {
-		// fetch ve4 data
-		const g_ve4 = await this._k_page.fetchMetadata(true);
-
-		// fetch metadata
-		const g_metadata = g_ve4?.value || null;
-		if(g_metadata) {
-			g_metadata.published = <MmsSparqlQueryTable.Serialized> k_content;
-		}
-
-		if(!g_metadata) {
-			throw new Error(`Cannot access ${this._k_page.pageId} metadata`);
-		}
-
-		const n_version = g_ve4?.version.number || 1;
-
-		return this._k_page.postMetadata(g_metadata, n_version + 1, '');
-	}
-
-	async publish(yn_content: Node): Promise<boolean> {
-		return this._k_page.postContent(yn_content.toString(), 'Updated CAE CED Table Element');
-	}
-
-	async isPublished(): Promise<boolean> {
-		const g_metadata = await this._k_page.fetchMetadata(true);
-		return !!g_metadata?.value.published;
+		return await k_writable.writeMetadataValue(gc_serialized, a_frags);
 	}
 }

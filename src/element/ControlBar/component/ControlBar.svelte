@@ -33,6 +33,7 @@
 		TabPanel,
 		Tab,
 	} from 'svelte-tabs';
+import type { JsonObject } from '#/common/types';
 
 	export let g_context: Context;
 
@@ -108,17 +109,57 @@
 		}
 	}
 
-	async function create_document() {
+	async function create_document(h_paths: JsonObject) {
 		if(k_page) {
-			k_document = await ConfluenceDocument.createNew(k_page);
+			k_document = await ConfluenceDocument.createNew(k_page, h_paths, true);
+
+			// reload
+			location.reload();
 		}
 	}
 
-	async function reset_document() {
+	async function reset_document(h_paths: JsonObject) {
 		if(k_page) {
-			k_document = await ConfluenceDocument.createNew(k_page, true);
+			k_document = await ConfluenceDocument.createNew(k_page, h_paths, true);
+
+			// reload
+			location.reload();
 		}
 	}
+
+	const H_PATHS_CLIPPER = {
+		connection: {
+			sparql: {
+				mms: {
+					dng: {
+						type: 'MmsSparqlConnection',
+						label: 'DNG Requirements',
+						endpoint: 'https://ced.jpl.nasa.gov/sparql',
+						modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/data.europa-clipper',
+						metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/metadata.clipper',
+						contextPath: 'hardcoded#queryContext.sparql.dng.common',
+					},
+				},
+			},
+		},
+	};
+
+	const H_PATHS_MSR = {
+		connection: {
+			sparql: {
+				mms: {
+					dng: {
+						type: 'MmsSparqlConnection',
+						label: 'DNG Requirements',
+						endpoint: 'https://ced.jpl.nasa.gov/sparql',
+						modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/data.msr',
+						metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/metadata.msr',
+						contextPath: 'hardcoded#queryContext.sparql.dng.common',
+					},
+				},
+			},
+		},
+	};
 </script>
 
 <style lang="less">
@@ -277,12 +318,15 @@
 						<TabPanel>
 							<div class="tab-body">
 								<p>New updates are available every Friday at 10:00 PM</p>
-								<button on:click={reset_document}>Reset this document's metadata</button>
+								<button on:click={() => reset_document(H_PATHS_CLIPPER)}>Reset this document's metadata to Clipper preset</button>
+								<button on:click={() => reset_document(H_PATHS_MSR)}>Reset this document's metadata to MSR preset</button>
 								<DatasetsTable {g_context}></DatasetsTable>
 							</div>
 						</TabPanel>
 					{:else}
-						<button on:click={create_document}>Convert this page to become the document cover page of a new document</button>
+						<h4>Convert this page to become the document cover page of a new document</h4><br>
+						<button on:click={() => create_document(H_PATHS_CLIPPER)}>Europa Clipper</button>
+						<button on:click={() => create_document(H_PATHS_MSR)}>Mars Sample Return</button>
 					{/if}
 				</Tabs>
 			</div>

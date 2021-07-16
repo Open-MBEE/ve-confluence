@@ -1,7 +1,5 @@
 import type {
 	DotFragment,
-	PrimitiveValue,
-	PrimitiveObject,
 } from '#/common/types';
 
 export const NL_PATH_FRAGMENTS = 5;
@@ -10,6 +8,8 @@ export namespace VeoPath {
 	export type Location = 'document' | 'page' | 'hardcoded';
 
 	export type Locatable = `${Location}#${string}`;
+
+	export type Frags = `${DotFragment}.${DotFragment}.${DotFragment}.${DotFragment}`;
 
 	export type Full<
 		Storage extends Location = Location,

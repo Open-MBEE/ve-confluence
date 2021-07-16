@@ -33,11 +33,27 @@ import type XhtmlDocument from '#/vendor/confluence/module/xhtml-document';
 
 import {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
 
-import {ObjectStore} from '#/vendor/confluence/module/object-store';
 
-import {H_HARDCODED_OBJECTS} from '#/common/hardcoded';
+import {K_HARDCODED} from '#/common/hardcoded';
 
 import type {Context} from '#/model/Serializable';
+
+import {ObjectStore} from '#/model/ObjectStore';
+
+
+const S_UUID_V4 = 'xxxxxxxx_xxxx_4xxx_yxxx_xxxxxxxxxxxx';
+const R_UUID_V4 = /[xy]/g;
+
+const uuid_v4 = () => {
+	let dt_now = Date.now();
+	if('undefined' !== typeof performance) dt_now += performance.now();
+	return S_UUID_V4.replace(R_UUID_V4, (s) => {
+		const x_r = (dt_now + (Math.random()*16)) % 16 | 0;
+		dt_now = Math.floor(dt_now / 16);
+		return ('x' === s? x_r: ((x_r & 0x3) | 0x8)).toString(16);
+	});
+};
+
 
 // write static css
 {
@@ -147,21 +163,26 @@ const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 	// 		p_url: ym_anchor.getAttribute('href'),
 	// 	},
 	// }),
-	'CAE CED Table Element': () => ({
-		component: QueryTable,
-		props: {
-			k_query_table: new MmsSparqlQueryTable(
-				{
-					type: 'MmsSparqlQueryTable',
-					group: 'dng',
-					queryTypePath: 'hardcoded#queryType.sparql.dng.afsr',
-					connectionPath: 'document#connection.sparql.mms.dng',
-					parameterValues: {},
-				},
-				G_CONTEXT
-			),
-		},
-	}),
+	'CAE CED Table Element': ([, g_struct]: [HTMLElement, Record<string, any>]) => {
+		const si_uuid = (g_struct.uuid as string) || uuid_v4();
+
+		return {
+			component: QueryTable,
+			props: {
+				k_query_table: new MmsSparqlQueryTable(`page#elements.serialized.queryTable.${si_uuid}`,
+					{
+						type: 'MmsSparqlQueryTable',
+						uuid: si_uuid,
+						group: 'dng',
+						queryTypePath: 'hardcoded#queryType.sparql.dng.afsr',
+						connectionPath: 'document#connection.sparql.mms.dng',
+						parameterValues: {},
+					},
+					G_CONTEXT
+				),
+			},
+		};
+	},
 };
 
 const xpath_attrs = (a_attrs: string[]) => a_attrs.map(sx => `[${sx}]`).join('');
@@ -214,8 +235,7 @@ function* correlate(gc_correlator: CorrelationDescriptor): Generator<ViewBundle>
 		throw new Error(format(lang.error.xpath_dom_mismatch, {
 			node_count: nl_nodes,
 			element_count: a_elmts.length,
-		})
-		);
+		}));
 	}
 
 	// apply struct mapper
@@ -271,7 +291,8 @@ export async function main(): Promise<void> {
 	await Promise.allSettled([
 		(async() => {
 			// fetch page metadata
-			const g_meta = await k_page.getMetadata(true);
+			const g_meta = await k_page.fetchMetadataBundle(true);
+
 			// get or initialize page metadata
 		})(),
 
@@ -293,10 +314,14 @@ export async function main(): Promise<void> {
 	}
 
 	// initialize object store
-	G_CONTEXT.store = new ObjectStore(k_page, k_document, H_HARDCODED_OBJECTS);
+	G_CONTEXT.store = new ObjectStore({
+		page: k_page,
+		document: k_document,
+		hardcoded: K_HARDCODED,
+	});
 
 	// fetch document metadata
-	const gm_document = await k_document.getMetadata();
+	const gm_document = await k_document.fetchMetadataBundle();
 
 	// no metadata; error
 	if(!gm_document) {
@@ -315,8 +340,10 @@ export async function main(): Promise<void> {
 			live: `a[href="/display/${G_META.space_key}/${si_page_directive.replace(/ /g, '+')}"]`,
 			struct: (ym_node) => {
 				const ym_parent = ym_node.parentNode as Node;
+				debugger;
 				return {
 					label: ('ac:link' === ym_parent.nodeName? ym_parent.textContent: '') || si_page_directive,
+					// macro_id: (ym_parent 'ac:macro-id')
 				};
 			},
 			directive: f_directive,
@@ -360,7 +387,9 @@ export async function main(): Promise<void> {
 	// ])
 }
 
-async function dom_ready() {}
+function dom_ready() {
+	console.log('dom ready');
+}
 
 // entry point
 {

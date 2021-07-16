@@ -1,5 +1,14 @@
-import type {IObjectStore, JsonValue, PrimitiveValue} from '#/common/types';
-import type { VeoPath } from '#/common/veo';
+import type {
+	DotFragment,
+	JsonObject,
+	JsonValue,
+	PrimitiveObject,
+	PrimitiveValue,
+} from '#/common/types';
+
+import type {VeoPath} from '#/common/veo';
+
+import type {ObjectStore} from '#/model/ObjectStore';
 
 import type {
 	TypedKeyedLabeledObject,
@@ -16,7 +25,7 @@ export type Serializable = TypedObject;
 export type Primitive = TypedPrimitive;
 
 export interface Context {
-	store: IObjectStore;
+	store: ObjectStore;
 }
 
 export abstract class VeOdm<Serialized extends Serializable | Primitive> {
@@ -26,7 +35,7 @@ export abstract class VeOdm<Serialized extends Serializable | Primitive> {
 	protected _sp_path: VeoPath.Full;
 	protected _gc_serialized: Serialized;
 	protected _g_context: Context;
-	protected _k_store: IObjectStore;
+	protected _k_store: ObjectStore;
 
 	constructor(sp_path: VeoPath.Full, gc_serialized: Serialized, g_context: Context) {
 		this._sp_path = sp_path;
@@ -90,7 +99,7 @@ export abstract class VeOdm<Serialized extends Serializable | Primitive> {
 	// }
 
 	async save(): Promise<boolean> {
-		return this._k_store.commit(this._sp_path, this.toSerialized());
+		return this._k_store.commit(this._sp_path, this.toSerialized() as Serializable);
 	}
 
 	fromSerialized(gc_serialized: Serialized): void {
@@ -136,29 +145,84 @@ export interface VeOrmClass<Serialized extends Serializable | Primitive> {
 }
 
 
+export type SchemaVersion = `${number}.${number}`;
 
-export abstract class SerializationLocation {
+export interface MetadataBundleVersionDescriptor extends JsonObject {
+	number: number;
+	message: string;
+}
+
+export interface MetadataShape<TypeString extends string=string> extends PrimitiveObject {
+	type: TypeString;
+	schema: SchemaVersion;
+	paths: Record<VeoPath.Full, PrimitiveValue>;
+}
+
+export interface MetadataBundle<
+	ObjectType extends MetadataShape,
+	StorageInfoType extends JsonObject=JsonObject,
+> extends PrimitiveObject {
+	schema: SchemaVersion;
+	version: MetadataBundleVersionDescriptor;
+	storage: StorageInfoType;
+	data: ObjectType;
+}
+
+export interface JsonMetadataShape<TypeString extends string=string> extends JsonObject {
+	type: TypeString;
+	schema: SchemaVersion;
+	paths: Record<VeoPath.Full, JsonValue>;
+}
+
+export interface JsonMetadataBundle<
+	ObjectType extends JsonMetadataShape=JsonMetadataShape,
+	StorageInfoType extends JsonObject=JsonObject,
+> extends JsonObject {
+	schema: SchemaVersion;
+	version: MetadataBundleVersionDescriptor;
+	storage: StorageInfoType;
+	data: ObjectType;
+}
+
+
+export abstract class SerializationLocation<
+	ObjectType extends MetadataShape=MetadataShape,
+> {
 	readonly isReadOnly!: boolean;
 	readonly isSynchronous!: boolean;
 
-	abstract fetchMetadata(b_force?: boolean): Promise<JsonValue | PrimitiveValue>;
+	abstract fetchMetadataBundle(b_force?: boolean): Promise<MetadataBundle<ObjectType> | null>;
 }
 
-export abstract class SynchronousSerializationLocation extends SerializationLocation {
-	abstract getMetadata(): JsonValue | PrimitiveValue;
+export abstract class SynchronousSerializationLocation<
+	ObjectType extends MetadataShape=MetadataShape,
+> extends SerializationLocation<ObjectType> {
+	abstract getMetadataBundle(): MetadataBundle<ObjectType> | null;
+
+	fetchMetadataBundle(): Promise<MetadataBundle<ObjectType> | null> {
+		return Promise.resolve(this.getMetadataBundle());
+	}
 }
 
-export abstract class ReadonlySynchronousSerializationLocation extends SynchronousSerializationLocation {
+export abstract class ReadonlySynchronousSerializationLocation<
+	ObjectType extends MetadataShape=MetadataShape,
+> extends SynchronousSerializationLocation<ObjectType> {
 	readonly isReadOnly: true = true;
 	readonly isSynchronous: true = true;
 }
 
-export abstract class AsynchronousSerializationLocation extends SerializationLocation {
+export abstract class AsynchronousSerializationLocation<
+	ObjectType extends JsonMetadataShape=JsonMetadataShape,
+> extends SerializationLocation<ObjectType> {
 	readonly isSynchronous: false = false;
 }
 
-export abstract class WritableAsynchronousSerializationLocation extends AsynchronousSerializationLocation {
+export abstract class WritableAsynchronousSerializationLocation<
+	ObjectType extends JsonMetadataShape=JsonMetadataShape,
+> extends AsynchronousSerializationLocation<ObjectType> {
 	readonly isReadOnly: false = false;
 
-	abstract writeMetadata(): Promise<boolean>;
+	abstract writeMetadataObject(g_bundle: ObjectType, g_version: MetadataBundleVersionDescriptor): Promise<boolean>;
+
+	abstract writeMetadataValue(w_value: PrimitiveValue, a_frags: DotFragment[]): Promise<boolean>;
 }

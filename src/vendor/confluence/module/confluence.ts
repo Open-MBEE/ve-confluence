@@ -1,6 +1,8 @@
 import type {
+	DotFragment,
 	JsonObject,
 	JsonValue,
+	PrimitiveObject,
 } from '#/common/types';
 
 import {
@@ -20,10 +22,18 @@ import XhtmlDocument from './xhtml-document';
 
 import type {MmsSparqlConnection} from '#/model/Connection';
 
-import type {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
-
 import {G_META} from '#/common/meta';
-import { WritableSerializationLocation } from '#/model/Serializable';
+
+import {
+	JsonMetadataBundle,
+	JsonMetadataShape,
+	MetadataBundleVersionDescriptor,
+	WritableAsynchronousSerializationLocation,
+} from '#/model/Serializable';
+
+import type {VeoPath} from '#/common/veo';
+
+import type {QueryTable} from '#/element/QueryTable/model/QueryTable';
 
 const P_API_DEFAULT = '/rest/api';
 
@@ -31,40 +41,49 @@ type Hash = Record<string, string>;
 
 export type Cxhtml = `${string}`;
 
-export interface PageMetadata extends JsonObject {
-	type: 'Page';
-	schema: '1.0';
-	published?: MmsSparqlQueryTable.Serialized | null;
-	last?: MmsSparqlQueryTable.Serialized | null;
-}
+export type MacroId = `${string}`;
 
-export interface DocumentMetadata extends JsonObject {
-	type: 'Document';
+export type ElementMap = Record<MacroId, VeoPath.Full>;
+
+export interface PageMetadata extends JsonMetadataShape<'Page'> {
 	schema: '1.0';
-	connection?: {
-		sparql?: {
-			mms?: {
-				dng?: MmsSparqlConnection.Serialized;
+	elements: ElementMap;
+	paths: {
+		elements?: {
+			serialized?: {
+				queryTable?: QueryTable.Serialized;
 			};
 		};
 	};
 }
 
-type Metadata = PageMetadata | DocumentMetadata;
-
-export type PageMetadataBundle = {
-	[T in Ve4MetadataKeyPage]: ConfluenceApi.Info;
+const G_DEFAULT_PAGE_METADATA: PageMetadata = {
+	type: 'Page',
+	schema: '1.0',
+	elements: {},
+	paths: {},
 };
 
-export type DocumentMetadataBundle = {
-	[T in Ve4MetadataKeyDocument]: ConfluenceApi.Info<
-		Ve4MetadataKeyDocument,
-		DocumentMetadata
-	>;
+export interface DocumentMetadata extends JsonMetadataShape<'Document'> {
+	schema: '1.0';
+	paths: {
+		connection?: {
+			sparql?: {
+				mms?: {
+					dng?: MmsSparqlConnection.Serialized;
+				};
+			};
+		};
+	};
+}
+
+const G_DEFAULT_DOCUMENT_METADATA: DocumentMetadata = {
+	type: 'Document',
+	schema: '1.0',
+	paths: {},
 };
 
-type MetadataBundle = PageMetadataBundle | DocumentMetadataBundle;
-
+type PageOrDocumentMetadata = PageMetadata | DocumentMetadata;
 
 export namespace ConfluenceApi {
 	export type PageId = `${string}`;
@@ -97,18 +116,25 @@ export namespace ConfluenceApi {
 	}
 
 	export type Info<
-		Key extends Ve4MetadataKey = Ve4MetadataKeyPage,
-		MetadataType extends JsonValue = PageMetadata,
+		MetadataType extends JsonMetadataShape=JsonMetadataShape,
+		KeyString extends Ve4MetadataKey=Ve4MetadataKey,
 	> = {
 		id: PageId;
-		key: Key;
+		key: KeyString;
 		value: MetadataType;
 		version: Version;
 	};
 
+	export type KeyedInfo<
+		MetadataType extends JsonMetadataShape=JsonMetadataShape,
+		KeyString extends Ve4MetadataKey=Ve4MetadataKey,
+	> = {
+		[si_key in Ve4MetadataKey]: Info<MetadataType, KeyString>;
+	};
+
 	export interface ContentResponse<
-		PageType extends BasicPage = BasicPage,
-		MetadataWrapper extends JsonObject = {},  // eslint-disable-line @typescript-eslint/ban-types
+		PageType extends BasicPage=BasicPage,
+		MetadataWrapper extends KeyedInfo=KeyedInfo,  // eslint-disable-line @typescript-eslint/ban-types
 	> extends JsonObject {
 		results: ContentResult<PageType, MetadataWrapper>[];
 		start: number;
@@ -118,8 +144,8 @@ export namespace ConfluenceApi {
 	}
 
 	export type ContentResult<
-		PageType extends BasicPage = BasicPage,
-		MetadataWrapper extends JsonObject = {},  // eslint-disable-line @typescript-eslint/ban-types
+		PageType extends BasicPage=BasicPage,
+		MetadataWrapper extends KeyedInfo=KeyedInfo,  // eslint-disable-line @typescript-eslint/ban-types
 	> = PageType & {
 		metadata: {
 			properties: MetadataWrapper & {
@@ -130,20 +156,40 @@ export namespace ConfluenceApi {
 	};
 }
 
+type PageMetadataBundle = JsonMetadataBundle<PageMetadata>;
+type DocumentMetadataBundle = JsonMetadataBundle<DocumentMetadata>;
+
+// export type GenericConfluenceWrappedMetadataBundle<
+// 	ObjectType extends PageOrDocumentMetadata=PageOrDocumentMetadata,
+// 	KeyString extends Ve4MetadataKey=Ve4MetadataKey,
+// > = {
+// 	[T in KeyString]: JsonMetadataBundle<ObjectType>;
+// } & JsonObject;
+
+export type GenericConfluenceWrappedMetadataBundle<
+	ObjectType extends PageOrDocumentMetadata=PageOrDocumentMetadata,
+	KeyString extends Ve4MetadataKey=Ve4MetadataKey,
+> = ConfluenceApi.KeyedInfo<ObjectType, KeyString>;
+
+type ConfluenceWrappedPageMetadataBundle = GenericConfluenceWrappedMetadataBundle<PageMetadata, Ve4MetadataKeyPage>;
+type ConfluenceWrappedDocumentMetadataBundle = GenericConfluenceWrappedMetadataBundle<DocumentMetadata, Ve4MetadataKeyDocument>;
+type ConfluenceWrappedMetadataBundle = ConfluenceWrappedPageMetadataBundle | ConfluenceWrappedDocumentMetadataBundle;
+
+
 type BasicPageWithAncestorsType = ConfluenceApi.BasicPage & {
 	ancestors: ConfluenceApi.BasicPage[];
 };
 
 type PageInfo = ConfluenceApi.ContentResult<
 	BasicPageWithAncestorsType,
-	PageMetadataBundle
+	ConfluenceApi.KeyedInfo<PageMetadata, Ve4MetadataKeyPage>
 >;
 
 type PageContent = ConfluenceApi.ContentResult<ConfluenceApi.PageWithContent>;
 
 type DocumentInfo = ConfluenceApi.ContentResult<
 	BasicPageWithAncestorsType,
-	DocumentMetadataBundle
+	ConfluenceApi.KeyedInfo<DocumentMetadata, Ve4MetadataKeyDocument>
 >;
 
 async function confluence_get_json<Data extends JsonObject>(pr_path: string, gc_get?: {search?: Hash}): Promise<Response<Data>> {
@@ -163,11 +209,8 @@ async function confluence_put_json<Data extends JsonObject>(pr_path: string, gc_
 }
 
 async function fetch_page_properties<
-	BundleType extends MetadataBundle = PageMetadataBundle,
->(s_page_title: string, si_metadata_key: Ve4MetadataKey=G_VE4_METADATA_KEYS.CONFLUENCE_PAGE): Promise<ConfluenceApi.ContentResult<
-	BasicPageWithAncestorsType,
-	BundleType
-> | null> {
+	BundleType extends ConfluenceWrappedMetadataBundle,
+>(s_page_title: string, si_metadata_key: Ve4MetadataKey=G_VE4_METADATA_KEYS.CONFLUENCE_PAGE): Promise<ConfluenceApi.ContentResult<BasicPageWithAncestorsType, BundleType> | null> {
 	const g_res = await confluence_get_json<ConfluenceApi.ContentResponse<BasicPageWithAncestorsType, BundleType>>(`/content`, {
 		search: {
 			type: 'page',
@@ -179,7 +222,7 @@ async function fetch_page_properties<
 
 	if(g_res.error) {
 		debugger;
-		console.error(`Unhandled HTTP error response: ${g_res.error}`);
+		console.error(`Unhandled HTTP error response: ${g_res.error.errors.join('\n')}`);
 		return null;
 	}
 
@@ -193,14 +236,13 @@ async function fetch_page_properties<
 }
 
 function normalize_metadata<
-	Key extends Ve4MetadataKey,
-	MetadataType extends Metadata,
->(g_metadata?: ConfluenceApi.Info<Key, MetadataType>) {
+	ObjectType extends PageOrDocumentMetadata,
+>(g_info?: ConfluenceApi.Info<ObjectType>): JsonMetadataBundle<ObjectType> | null {
 	// no ve4 metadata
-	if(!g_metadata) return null;
+	if(!g_info || !g_info.value) return null;
 
 	// check schema version
-	switch(g_metadata.value.schema) {
+	switch(g_info.value.schema) {
 		// OK (latest)
 		case '1.0': {
 			break;
@@ -208,17 +250,70 @@ function normalize_metadata<
 
 		// unrecognized version; metadata is corrupt
 		default: {
-			throw new Error(`Unrecognized VE4 schema version: ${g_metadata.value.schema as string}`);
+			throw new Error(`Unrecognized VE4 schema version: ${g_info.value.schema as string}`);
 		}
 	}
 
 	// return property
-	return g_metadata;
+	return {
+		schema: '1.0',
+		version: g_info.version,
+		data: g_info.value,
+		storage: g_info,
+	};
 }
 
 const H_CACHE_PAGES: Record<string, ConfluencePage> = {};
 
-export class ConfluencePage extends WritableSerializationLocation {
+export abstract class ConfluenceEntity<MetadataType extends PageOrDocumentMetadata> extends WritableAsynchronousSerializationLocation<MetadataType> {
+	abstract postMetadata(gm_document: MetadataType, n_version: number, s_message: string): Promise<boolean>;
+
+	writeMetadataObject(g_metadata: MetadataType, g_version: MetadataBundleVersionDescriptor): Promise<boolean> {
+		return this.postMetadata(g_metadata, g_version.number, g_version.message);
+	}
+
+	async writeMetadataValue(w_value: JsonValue, a_frags: DotFragment[]): Promise<boolean> {
+		// start at metadata object root
+		const g_bundle = await this.fetchMetadataBundle();
+
+		// no existing metadata object
+		if(!g_bundle) {
+			throw new Error(`Cannot create page/document metadata ad-hoc as part of value write operation`);
+		}
+
+		// should be full path
+		if(4 !== a_frags.length) {
+			throw new Error(`Refusing to overwrite non-leaf node`);
+		}
+
+		const h_root = g_bundle.data;
+		let h_node: JsonObject = h_root;
+
+		for(let i_frag=0, nl_frags=a_frags.length; i_frag<nl_frags-1; i_frag++) {
+			const si_frag = a_frags[i_frag];
+
+			// branch does not yet exist, create it
+			if(!(si_frag in h_node)) {
+				h_node = h_node[si_frag] = {};
+			}
+			// use existing branch
+			else {
+				h_node = h_node[si_frag] as JsonObject;
+			}
+		}
+
+		// assign value to proper place
+		h_node[a_frags.length-1] = w_value;
+
+		// write object
+		return await this.writeMetadataObject(h_root, {
+			number: g_bundle.version.number+1,
+			message: `PUT ${a_frags.join('.')}`,
+		});
+	}
+}
+
+export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 	static async fromCurrentPage(): Promise<ConfluencePage> {
 		const k_page = new ConfluencePage(G_META.page_id, G_META.page_title);
 		const dm_modified = document.querySelector('a.last-modified') as HTMLAnchorElement;
@@ -260,6 +355,8 @@ export class ConfluencePage extends WritableSerializationLocation {
 	private _k_document: ConfluenceDocument | null = null;
 
 	constructor(si_page: ConfluenceApi.PageId, s_page_title: string) {
+		super();
+
 		// args signature
 		const si_args = `${si_page}:${s_page_title}`;
 
@@ -282,7 +379,7 @@ export class ConfluencePage extends WritableSerializationLocation {
 		return this._s_page_title;
 	}
 
-	private async _content(b_force = false): Promise<PageContent | null> {
+	private async _content(b_force=false): Promise<PageContent | null> {
 		if(this._b_cached_content && !b_force) return this._g_content;
 
 		const d_res = await confluence_get_json<PageContent>(`/content/${this._si_page}`, {
@@ -304,26 +401,32 @@ export class ConfluencePage extends WritableSerializationLocation {
 		return (this._g_content = d_res.data || null);
 	}
 
-	private async _info(b_force = false): Promise<PageInfo | null> {
+	private async _info(b_force=false): Promise<PageInfo | null> {
+		// info already cached and not a force fetch; return cached copy
 		if(this._b_cached_info && !b_force) return this._g_info;
 
-		const g_info = await fetch_page_properties(this._s_page_title);
+		// fetch properties
+		const g_info = await fetch_page_properties<ConfluenceWrappedPageMetadataBundle>(this._s_page_title, G_VE4_METADATA_KEYS.CONFLUENCE_PAGE);
 
+		// now there is cached copy
 		this._b_cached_info = true;
 
+		// save to field and return
 		return (this._g_info = g_info);
 	}
 
-	async getAncestry(b_force = false): Promise<ConfluenceApi.BasicPage[]> {
+	async getAncestry(b_force=false): Promise<ConfluenceApi.BasicPage[]> {
 		return (await this._info(b_force))?.ancestors || [];
 	}
 
-	async fetchMetadata(b_force=false): Promise<ConfluenceApi.Info | null> {
+	async fetchMetadataBundle(b_force=false): Promise<PageMetadataBundle | null> {
 		const g_info = await this._info(b_force);
+
 		if(!g_info?.metadata.properties[G_VE4_METADATA_KEYS.CONFLUENCE_PAGE]) {
 			await this.initMetadata();
 		}
-		return normalize_metadata<Ve4MetadataKeyPage, PageMetadata>(g_info?.metadata.properties[G_VE4_METADATA_KEYS.CONFLUENCE_PAGE]);
+
+		return normalize_metadata<PageMetadata>(g_info?.metadata.properties[G_VE4_METADATA_KEYS.CONFLUENCE_PAGE]);
 	}
 
 	async getVersionNumber(b_force=false): Promise<ConfluenceApi.PageVersionNumber> {
@@ -353,7 +456,7 @@ export class ConfluencePage extends WritableSerializationLocation {
 		};
 	}
 
-	async postContent(s_content: string, s_message = ''): Promise<boolean> {
+	async postContent(s_content: string, s_message=''): Promise<boolean> {
 		const content = await this.getContentAsXhtmlDocument();
 		const n_version = content?.versionNumber;
 		const page_content = content?.value;
@@ -408,14 +511,11 @@ export class ConfluencePage extends WritableSerializationLocation {
 		return true;
 	}
 
-	async initMetadata(n_version: ConfluenceApi.PageVersionNumber = 1): Promise<ConfluenceApi.Info | null> {
-		const gm_page: PageMetadata = {
-			type: 'Page',
-			schema: '1.0',
-			published: null,
-		};
+	async initMetadata(n_version: ConfluenceApi.PageVersionNumber=1): Promise<PageMetadataBundle | null> {
+		const gm_page: PageMetadata = G_DEFAULT_PAGE_METADATA;
+
 		if(await this.postMetadata(gm_page, n_version, 'Initialization')) {
-			return this.fetchMetadata(true);
+			return this.fetchMetadataBundle(true);
 		}
 		else {
 			return null;
@@ -442,7 +542,7 @@ export class ConfluencePage extends WritableSerializationLocation {
 		return await new ConfluenceDocument(this._si_page, this._s_page_title).isDocumentCoverPage();
 	}
 
-	async getDocument(b_force = false): Promise<ConfluenceDocument | null> {
+	async getDocument(b_force=false): Promise<ConfluenceDocument | null> {
 		// already cached and not forced; return answer
 		if(this._b_cached_document && !b_force) return this._k_document;
 
@@ -475,50 +575,25 @@ export class ConfluencePage extends WritableSerializationLocation {
 	async isDocumentMember(): Promise<boolean> {
 		return null !== await this.getDocument();
 	}
-
-	escapeSpecialChars(html: string): string {
-		return html.replace(/\\n/g, '\\n')
-			.replace(/\\'/g, "\\'")
-			.replace(/\\"/g, '\\"')
-			.replace(/\\&/g, '\\&')
-			.replace(/\\r/g, '\\r')
-			.replace(/\\t/g, '\\t')
-			.replace(/\\b/g, '\\b')
-			.replace(/\\f/g, '\\f');
-	}
 }
 
-export class ConfluenceDocument {
+export class ConfluenceDocument extends ConfluenceEntity<DocumentMetadata> {
 	static fromPage(k_page: ConfluencePage): ConfluenceDocument {
 		return new ConfluenceDocument(k_page.pageId, k_page.pageTitle);
 	}
 
-	static async createNew(k_page: ConfluencePage, b_bypass = false): Promise<ConfluenceDocument> {
+	static async createNew(k_page: ConfluencePage, h_paths: JsonObject={}, b_bypass=false): Promise<ConfluenceDocument> {
 		if(!b_bypass && await k_page.isDocumentMember()) {
 			throw new Error(`Cannot create document from page which is already member of a document`);
 		}
 
 		const k_document = ConfluenceDocument.fromPage(k_page);
 		const gm_document: DocumentMetadata = {
-			type: 'Document',
-			schema: '1.0',
-			connection: {
-				sparql: {
-					mms: {
-						dng: {
-							type: 'MmsSparqlConnection',
-							label: 'DNG Requirements',
-							endpoint: 'https://ced.jpl.nasa.gov/sparql',
-							modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/data.europa-clipper',
-							metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/metadata.clipper',
-							contextPath: 'hardcoded#queryContext.sparql.dng.common',
-						},
-					},
-				},
-			},
+			...G_DEFAULT_DOCUMENT_METADATA,
+			paths: h_paths,
 		};
 
-		const n_version = (await k_document.getMetadata())?.version.number || 0;
+		const n_version = (await k_document.fetchMetadataBundle())?.version.number || 0;
 		await k_document.postMetadata(gm_document, n_version + 1);
 
 		return k_document;
@@ -533,15 +608,24 @@ export class ConfluenceDocument {
 	private _g_info: DocumentInfo | null = null;
 
 	constructor(si_cover_page: ConfluenceApi.PageId, s_cover_page_title: string) {
+		super();
+
 		this._si_cover_page = si_cover_page;
 		this._s_cover_page_title = s_cover_page_title;
 	}
 
-	private async _info(b_force = false): Promise<DocumentInfo | null> {
+	private async _info(b_force=false): Promise<DocumentInfo | null> {
+		// info already cached and not a force fetch; return cached copy
 		if(this._b_cached_info && !b_force) return this._g_info;
+
+		// fetch properties
+		const g_info = await fetch_page_properties<ConfluenceWrappedDocumentMetadataBundle>(this._s_cover_page_title, G_VE4_METADATA_KEYS.CONFLUENCE_DOCUMENT);
+
+		// now there is cached copy
 		this._b_cached_info = true;
-		return (this._g_info
-			= await fetch_page_properties<DocumentMetadataBundle>(this._s_cover_page_title, G_VE4_METADATA_KEYS.CONFLUENCE_DOCUMENT));
+
+		// save to field and return
+		return (this._g_info = g_info);
 	}
 
 	get coverPageId(): ConfluenceApi.PageId {
@@ -552,11 +636,8 @@ export class ConfluenceDocument {
 		return new ConfluencePage(this._si_cover_page, this._s_cover_page_title);
 	}
 
-	async getMetadata(b_force = false): Promise<ConfluenceApi.Info<
-		Ve4MetadataKeyDocument,
-		DocumentMetadata
-	> | null> {
-		return normalize_metadata<Ve4MetadataKeyDocument, DocumentMetadata>(
+	async fetchMetadataBundle(b_force=false): Promise<DocumentMetadataBundle | null> {
+		return normalize_metadata<DocumentMetadata>(
 			(await this._info(b_force))?.metadata.properties[G_VE4_METADATA_KEYS.CONFLUENCE_DOCUMENT]
 		);
 	}
@@ -577,8 +658,8 @@ export class ConfluenceDocument {
 		return true;
 	}
 
-	async isDocumentCoverPage(b_force = false): Promise<boolean> {
-		return !!(await this.getMetadata(b_force))?.value;
+	async isDocumentCoverPage(b_force=false): Promise<boolean> {
+		return !!(await this.fetchMetadataBundle(b_force))?.data;
 	}
 
 	// async getDataSource<SourceType extends Source>(si_key: SourceKey, b_force=false): Promise<SourceType | null> {
