@@ -36,6 +36,9 @@ import { MmsSparqlConnection } from '#/model/Connection';
 	// tooltip display text
 	let s_tooltip = '';
 
+	// title of the dng artifact
+	let s_title = '';
+
 	// primary text of the dng artifact
 	let s_primary_text = '';
 
@@ -84,7 +87,7 @@ import { MmsSparqlConnection } from '#/model/Connection';
 			// found it
 			if(a_artifacts.length) {
 				const {
-					title: {value:s_title},
+					title: {value:_s_title},
 					identifier: {value:s_identifier},
 					types: {value:s_types},
 					primaryText: {value:_s_primary_text},
@@ -96,16 +99,25 @@ import { MmsSparqlConnection } from '#/model/Connection';
 				// requirement
 				if(a_types.includes(H_PREFIXES.oslc_rm+'Requirement')) {
 					si_artifact = s_identifier;
-					s_label = s_title;
 					s_type = 'Requirement';
+					s_title = _s_title;
 					s_primary_text = _s_primary_text;
+
+					// use requirement title in place of pasted link
+					if(ym_anchor.textContent === p_href) {
+						s_label = s_title
+					}
+					// use narrative text if present
+					else {
+						s_label = String(ym_anchor.textContent)
+					}
 				}
 			}
 		}
 	});
 
 	// reactively assign tooltip text based on query result
-	$: s_tooltip = `DNG ${si_artifact}: `+((() => {
+	$: s_tooltip = `DNG ${si_artifact}, ${s_title}: `+((() => {
 		const dm = dd('div');
 		dm.innerHTML = s_primary_text;
 		return dm;
@@ -129,7 +141,7 @@ import { MmsSparqlConnection } from '#/model/Connection';
 		<span class="label">{s_label}</span>
 	</span> -->
 	<span class="preview">
-		<span bind:this={dm_macro} style="background-color:lemonchiffon;" id="ve4-directive-tooltip-d2b512da419f477f801de24b5c336546" class="inline-first-p conf-macro output-inline" data-hasbody="true" data-macro-name="span" original-title="{s_tooltip}">
+		<span bind:this={dm_macro} id="ve4-directive-tooltip-d2b512da419f477f801de24b5c336546" class="inline-first-p conf-macro output-inline" data-hasbody="true" data-macro-name="span" original-title="{s_tooltip}">
 			<a href="{p_artifact}" class="external-link" rel="nofollow">{s_label}</a>
 		</span>
 	</span>
