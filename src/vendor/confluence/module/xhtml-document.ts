@@ -43,22 +43,26 @@ const select = (sx_xpath: string, ...a_args: any[]) => select_ns(sx_xpath.replac
 
 export class XHTMLDocument {
 	_sx_doc: string;
-	_y_doc: Document;
+	_y_doc: XMLDocument;
 
-	constructor(sx_doc: string) {
+	constructor(sx_doc='') {
 		this._sx_doc = sx_doc;
 
-		this._y_doc = new DOMParser().parseFromString(
-			`<xml ${SX_NAMESPACES}>${sx_doc}</xml>`
-		);
+		this._y_doc = (new DOMParser()).parseFromString(`<xml ${SX_NAMESPACES}>${sx_doc}</xml>`);
 	}
 
-	select<T extends SelectedValue = SelectedValue>(sx_xpath: string): T[] {
-		return select(sx_xpath, this._y_doc) as T[];
+	* [Symbol.iterator]<ElementType extends ChildNode>(): Generator<ElementType> {
+		for(const yn_child of [].slice.call(this._y_doc.childNodes[0].childNodes) as ElementType[]) {
+			yield yn_child;
+		}
 	}
 
-	select1<T extends SelectedValue = SelectedValue>(sx_xpath: string): T {
-		return select(sx_xpath, this._y_doc, true)[0] as T;
+	select<NodeType extends SelectedValue=SelectedValue>(sx_xpath: string): NodeType[] {
+		return select(sx_xpath, this._y_doc) as NodeType[];
+	}
+
+	select1<NodeType extends SelectedValue=SelectedValue>(sx_xpath: string): NodeType {
+		return select(sx_xpath, this._y_doc, true)[0] as NodeType;
 	}
 
 	replaceChild(new_child: Node, old_child: Node): Node {
@@ -69,26 +73,12 @@ export class XHTMLDocument {
 		return this._y_doc.appendChild(new_child);
 	}
 
-	createCDATA(child: string): Node {
-		return this._y_doc.createCDATASection(child);
-	}
-
-	parseXml(xml_string: string): Node[] {
-		let result: Node[] = [];
-		const dom_doc = new DOMParser().parseFromString(
-			`<xml ${SX_NAMESPACES}>${xml_string}</xml>`
-		);
-		for(let i = 0; i < dom_doc.childNodes.length; i++) {
-			let item = dom_doc.childNodes.item(i);
-			result[i] = item.cloneNode(true);
-		}
-		return result;
+	createCDATA(s_cdata: string): CDATASection {
+		return this._y_doc.createCDATASection(s_cdata);
 	}
 
 	toString(): string {
-		const y_serializer = new XMLSerializer();
-
-		return y_serializer
+		return (new XMLSerializer())
 			.serializeToString(this._y_doc)
 			.replace(/^\s*<xml[^>]*>\s*|\s<\/xml>\s*$/, '');
 	}

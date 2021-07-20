@@ -19,6 +19,7 @@ import {
 	qsa,
 	dm_content,
 	dm_main_header,
+	uuid_v4,
 } from '#/util/dom';
 
 import type {SvelteComponent} from 'svelte';
@@ -39,20 +40,6 @@ import {K_HARDCODED} from '#/common/hardcoded';
 import type {Context} from '#/model/Serializable';
 
 import {ObjectStore} from '#/model/ObjectStore';
-
-
-const S_UUID_V4 = 'xxxxxxxx_xxxx_4xxx_yxxx_xxxxxxxxxxxx';
-const R_UUID_V4 = /[xy]/g;
-
-const uuid_v4 = () => {
-	let dt_now = Date.now();
-	if('undefined' !== typeof performance) dt_now += performance.now();
-	return S_UUID_V4.replace(R_UUID_V4, (s) => {
-		const x_r = (dt_now + (Math.random()*16)) % 16 | 0;
-		dt_now = Math.floor(dt_now / 16);
-		return ('x' === s? x_r: ((x_r & 0x3) | 0x8)).toString(16);
-	});
-};
 
 
 // write static css
@@ -339,7 +326,8 @@ export async function main(): Promise<void> {
 			])}`,
 			live: `a[href="/display/${G_META.space_key}/${si_page_directive.replace(/ /g, '+')}"]`,
 			struct: (ym_node) => {
-				const ym_parent = ym_node.parentNode as Node;
+				const ym_parent = ym_node.parentNode as Element;
+				// ym_parent.getAttribute('');
 				debugger;
 				return {
 					label: ('ac:link' === ym_parent.nodeName? ym_parent.textContent: '') || si_page_directive,

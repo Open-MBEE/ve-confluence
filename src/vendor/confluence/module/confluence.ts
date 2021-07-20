@@ -18,7 +18,7 @@ import {
 	Response,
 } from '#/util/fetch';
 
-import XhtmlDocument from './xhtml-document';
+import XhtmlDocument, { XHTMLDocument } from './xhtml-document';
 
 import type {MmsSparqlConnection} from '#/model/Connection';
 
@@ -34,6 +34,7 @@ import {
 import type {VeoPath} from '#/common/veo';
 
 import type {QueryTable} from '#/element/QueryTable/model/QueryTable';
+import { uuid_v4 } from '#/util/dom';
 
 const P_API_DEFAULT = '/rest/api';
 
@@ -313,7 +314,43 @@ export abstract class ConfluenceEntity<MetadataType extends PageOrDocumentMetada
 	}
 }
 
+export interface MacroConfig {
+	uuid?: string;
+	params?: Hash;
+	body: Node;
+}
+
 export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
+	static buildMacro(gc_macro: MacroConfig): Node {
+		const k_doc = new XHTMLDocument();
+		const f_builder = k_doc.builder();
+
+		const auto_cursor_target = () => f_builder('p', {
+			class: 'auto-cursor-target',
+		}, [f_builder('br')]);
+
+		return f_builder('ac:structured-macro', {
+			'ac:name': 'span',
+			'ac:schema-version': '1',
+			'ac:macro-id': `${gc_macro.uuid || uuid_v4()}`,
+		}, [
+			...Object.entries(gc_macro.params || {}).reduce((a_out: Node[], [si_param, s_value]) => [
+				...a_out,
+				f_builder('ac:parameter', {
+					'ac:name': si_param,
+				}, [s_value]),
+			], []),
+			f_builder('ac:parameter', {
+				'ac:name': 'atlassian-macro-output-type',
+			}, ['INLINE']),
+			f_builder('ac:rich-text-body', {}, [
+				auto_cursor_target(),
+				gc_macro.body,
+				auto_cursor_target(),
+			]),
+		]);
+	}
+
 	static async fromCurrentPage(): Promise<ConfluencePage> {
 		const k_page = new ConfluencePage(G_META.page_id, G_META.page_title);
 		const dm_modified = document.querySelector('a.last-modified') as HTMLAnchorElement;
@@ -457,36 +494,41 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 	}
 
 	async postContent(s_content: string, s_message=''): Promise<boolean> {
-		const content = await this.getContentAsXhtmlDocument();
-		const n_version = content?.versionNumber;
-		const page_content = content?.value;
-		const wrapped = page_content.builder()('ac:structured-macro', {
+		const {
+			value: k_content,
+			versionNumber: n_version,
+		} = await this.getContentAsXhtmlDocument();
+
+		const f_builder = k_content.builder();
+
+		const yn_wrapped = f_builder('ac:structured-macro', {
 			'ac:name': 'html',
 			'ac:macro-id': 've-table',
 		}, [
-			page_content.builder()('ac:plain-text-body', {}, [
-				page_content.createCDATA(s_content),
+			f_builder('ac:plain-text-body', {}, [
+				k_content.createCDATA(s_content),
 			]),
 		]);
-		const macros = page_content.builder()('p', {
+
+		const yn_macros = f_builder('p', {
 			class: 'auto-cursor-target',
 		}, [
-			page_content.builder()('ac:link', {}, [
-				page_content.builder()('ri:page', {
+			f_builder('ac:link', {}, [
+				f_builder('ri:page', {
 					'ri:content-title': 'CAE CED Table Element',
-				}, []),
+				}),
 			]),
 		]);
 
-		const found_element = page_content.select<Node>('//ac:structured-macro');
-		const init_element = page_content.select<Node>('//ac:link');
+		const found_element = k_content.select<Element>('//ac:structured-macro');
+		const init_element = k_content.select<Node>('//ac:link');
 
 		if(init_element.length) {
-			page_content.replaceChild(macros, init_element[0]);
-			page_content.appendChild(wrapped);
+			k_content.replaceChild(yn_macros, init_element[0]);
+			k_content.appendChild(yn_wrapped);
 		}
 		else if(found_element.length) {
-			page_content.replaceChild(wrapped, found_element[0]);
+			k_content.replaceChild(yn_wrapped, found_element[0]);
 		}
 
 		const response = await confluence_put_json(`/content/${this._si_page}`, {
@@ -497,7 +539,7 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 				body: {
 					storage: {
 						// value: "<p class=\"auto-cursor-target\"><ac:link><ri:page ri:content-title=\"CAE CED Table Element\" /></ac:link></p><p class=\"auto-cursor-target\"><br /></p><ac:structured-macro ac:name=\"span\" ac:schema-version=\"1\" ac:macro-id=\"b064d0ae-be2a-4ad8-ac8e-24e710f0ed86\"><ac:parameter ac:name=\"style\">display:none</ac:parameter><ac:parameter ac:name=\"atlassian-macro-output-type\">INLINE</ac:parameter><ac:rich-text-body><p class=\"auto-cursor-target\"><strong><span style=\"color: rgb(0,0,255);\">Connected Engineering Document. Do not edit nor delete this macro.</span></strong></p><ac:structured-macro ac:name=\"html\" ac:schema-version=\"1\" ac:macro-id=\"06617957-bc59-4490-9c84-f01440966a31\"><ac:plain-text-body><![CDATA[<script type=\"application/json\" id=\"ve4-init\">{\"schema\":\"1.0\",\"type\":\"document\",\"sources\":[]}</script>\n<script type=\"text/javascript\" src=\"https://ced-uat.jpl.nasa.gov/cdn/uat/bundle.js\"></script>]]></ac:plain-text-body></ac:structured-macro><p class=\"auto-cursor-target\"><br /></p></ac:rich-text-body></ac:structured-macro><p class=\"auto-cursor-target\"><br /></p>",
-						value: page_content.toString(),
+						value: k_content.toString(),
 						representation: 'storage',
 					},
 				},

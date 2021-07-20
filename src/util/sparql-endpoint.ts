@@ -163,10 +163,7 @@ export class SparqlSelectQuery implements ConnectionQuery {
 	}
 
 	paginate(n_limit: number, n_offset = 0): string {
-		return (
-			stringify_select_query_descriptor(this._gc_query)
-			+ ` limit ${n_limit} offset ${n_offset}`
-		);
+		return stringify_select_query_descriptor(this._gc_query)+` limit ${n_limit} offset ${n_offset}`;
 	}
 
 	count(): string {
@@ -177,6 +174,10 @@ export class SparqlSelectQuery implements ConnectionQuery {
 			...g_desc,
 			select: [`(count(${g_desc.count || '*'}) as ?count)`],
 		});
+	}
+
+	all(): string {
+		return stringify_select_query_descriptor(this._gc_query);
 	}
 }
 

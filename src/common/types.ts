@@ -135,7 +135,7 @@ export interface Instantiable<
 	ValueType extends Serializable | Primitive,
 	ClassType extends VeOdm<ValueType>,
 > {
-	new (gc: ValueType, g: Context): ClassType;
+	new (sp: VeoPath.Full, gc: ValueType, g: Context): ClassType;
 }
 
 export type PathTarget<

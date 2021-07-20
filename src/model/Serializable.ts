@@ -45,6 +45,10 @@ export abstract class VeOdm<Serialized extends Serializable | Primitive> {
 		this.bootstrap();
 	}
 
+	get path(): VeoPath.Full {
+		return this._sp_path;
+	}
+
 	bootstrap(): void {
 		this.initSync();
 

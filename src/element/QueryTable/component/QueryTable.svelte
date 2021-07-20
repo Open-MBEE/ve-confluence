@@ -23,11 +23,14 @@
 	import QueryTableParam from './QueryTableParam.svelte';
 
 	import type {
+QueryField,
 		QueryTable,
-		View,
 	} from '../model/QueryTable';
 
-	import type {ValuedLabeledObject} from '#/common/types';
+	import type {
+		QueryRow,
+		ValuedLabeledObject,
+	} from '#/common/types';
 
 	import type {
 		Connection,
@@ -35,30 +38,31 @@
 	} from '#/model/Connection';
 
 	import XHTMLDocument from '#/vendor/confluence/module/xhtml-document';
+import { ConfluencePage } from '#/vendor/confluence/module/confluence';
 
 	export let k_query_table: QueryTable;
 
 	let b_published_state = false;
 	let b_published_toggle = b_published_state;
 
-	(async () => {
+	(async() => {
 		const k_connection = await k_query_table.fetchConnection();
 		const g_version = await k_connection.fetchCurrentVersion();
 		const dt_version = new Date(g_version.dateTime);
-		s_display_version = `${dt_version.toDateString()} @${dt_version.toLocaleTimeString() }`;
+		s_display_version = `${dt_version.toDateString()} @${dt_version.toLocaleTimeString()}`;
 	})();
 
 	let k_connection: Connection;
 	let g_version: ModelVersionDescriptor;
 
-	onMount(async () => {
-		if(await k_query_table.isPublished()) {
-			b_published_state = true;
-			b_published_toggle = b_published_state;
-			b_loading = false;
-		}
+	onMount(async() => {
+		// if(await k_query_table.isPublished()) {
+		// 	b_published_state = true;
+		// 	b_published_toggle = b_published_state;
+		// 	b_loading = false;
+		// }
 
-		await render();
+		// await render();
 
 		// get query table's connection
 		const k_connection_new = await k_query_table.fetchConnection();
@@ -177,13 +181,17 @@
 		xc_info_mode = G_INFO_MODES.PREVIEW;
 	}
 
+	function close_parameters() {
+		if(b_published_state) {
+			b_published_toggle = true;
+		}
+		return;
+	}
+
 	function toggle_parameters() {
 		b_expand = !b_expand;
 		if(!b_expand) {
-			if(b_published_state) {
-				b_published_toggle = true;
-			}
-			return;
+			close_parameters();
 		}
 
 		b_published_toggle = false;
@@ -198,50 +206,52 @@
 		});
 	}
 
-	async function save_table() {
-		await k_query_table.save();
-	}
-
 	async function publish_table() {
 		xc_info_mode = G_INFO_MODES.LOADING;
 
-		await save_table();
+		// save query table state
+		await k_query_table.save();
 
-		const yn_table = build_table(await k_query_table.getAllRows());
+		// fetch query builder
+		const k_query = await k_query_table.fetchQueryBuilder();
 
-		if(await k_query_table.publish(yn_table)) {
-			b_published_toggle = true;
-			b_expand = false;
-			xc_info_mode = 0;
-			location.reload();
-		}
+		// execute query and download all rows
+		const a_rows = await k_connection.execute(k_query.all());
+
+		// build XHTML table
+		const yn_table = build_xhtml_table(k_query_table.queryType.fields, a_rows);
+
+		// wrap in confluence macro
+		const yn_macro = ConfluencePage.buildMacro({
+			params: {
+				id: k_query_table.path,
+			},
+			body: yn_table,
+		});
+
+		console.warn(yn_macro.toString());
+		debugger;
+
+		// if(await k_query.publish(yn_table)) {
+		// 	b_published_toggle = true;
+		// 	b_expand = false;
+		// 	xc_info_mode = 0;
+		// 	location.reload();
+		// }
 	}
 
-	function build_table(k_view: View): Node {
-		const k_doc = new XHTMLDocument('');
-		const f_builder = k_doc.builder();
+	function build_xhtml_table(a_fields: QueryField[], a_rows: QueryRow[]): Node {
+		const f_builder = new XHTMLDocument().builder();
 
 		return f_builder('table', {}, [
-			f_builder('thead', {
-				class: 'tableFloatingHeaderOriginal',
-			}, [
-				f_builder('tr', {
-					role: 'row',
-					class: 'tablesorter-headerRow',
-				}, [
-					...k_query_table.queryType.fields.map(k_field => f_builder('th', {}, [
-						k_field.label,
-					])),
-				]),
-			]),
+			f_builder('colgroup', {}, a_fields.map(() => f_builder('col'))),
 			f_builder('tbody', {}, [
-				...k_view.rows.map((h_row) => f_builder('tr', {
-					role: 'row',
-				}, [
-					...Object.values(h_row).map(sx_cell => f_builder('td', {
-						class: 'confluenceTd',
-					}, [
-						...k_doc.parseXml(sx_cell),
+				f_builder('tr', {}, a_fields.map(g_field => f_builder('th', {}, [
+					g_field.label,
+				]))),
+				...a_rows.map(h_row => f_builder('tr', {}, [
+					...Object.values(h_row).map(g_var => f_builder('td', {}, [
+						...(new XHTMLDocument(g_var.value)),
 					])),
 				])),
 			]),
@@ -494,12 +504,8 @@
 			<Fa icon={faQuestionCircle} />
 		</span>
 		<span class="buttons">
-			<button class="ve-button-primary" on:click={publish_table}
-				>Publish</button
-			>
-			<button class="ve-button-secondary" on:click={reset_table}
-				>Cancel</button
-			>
+			<button class="ve-button-primary" on:click={publish_table}>Publish</button>
+			<button class="ve-button-secondary" on:click={reset_table}>Cancel</button>
 		</span>
 	</div>
 

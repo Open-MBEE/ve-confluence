@@ -238,15 +238,14 @@ export namespace QueryTable {
 	}
 }
 
+
+const N_QUERY_TABLE_BUILD_RESULTS_LIMIT = 1 << 10;
+
 export abstract class QueryTable<
 	ConnectionType extends string=string,
 	Serialized extends QueryTable.Serialized<ConnectionType>=QueryTable.Serialized<ConnectionType>,
 > extends VeOdm<Serialized> {
 	protected _h_param_values_lists: Record<string, ParamValuesList> = {};
-
-	abstract isPublished(): Promise<boolean>;
-
-	abstract publish(yn_node: Node): Promise<boolean>;
 
 	abstract fetchConnection(): Promise<Connection>;
 
@@ -299,50 +298,14 @@ export abstract class QueryTable<
 		super.fromSerialized(gc_serialized);
 		await this.init();
 	}
-
-	async getAllRows(): Promise<View> {
-		const g_view: View = {
-			rows: [],
-		};
-		const k_connection = await this.fetchConnection();
-		const k_query = await this.fetchQueryBuilder();
-		let nl_rows_total = 0;
-		const limit = 2000;
-		await k_connection.execute(k_query.count()).then((a_counts) => {
-			nl_rows_total = +a_counts[0].count.value;
-		});
-
-		const a_rows = await k_connection.execute(k_query.paginate(limit));
-		if(nl_rows_total > limit) {
-			let offset = 0;
-			while(offset + limit <= nl_rows_total) {
-				offset += limit;
-				a_rows.concat(await k_connection.execute(k_query.paginate(limit, offset)));
-			}
-		}
-
-		g_view.rows = a_rows.map((g_row) => {
-			const h_out: Record<string, string> = {};
-
-			for(const k_field of this.queryType.fields) {
-				h_out[k_field.key] = k_field.cell(g_row);
-			}
-
-			return h_out;
-		});
-
-		return g_view;
-	}
-}
-
-export interface View {
-	rows: Array<Hash>;
 }
 
 export interface ConnectionQuery {
 	paginate(n_limit: number, n_offset?: number): string;
 
 	count(): string;
+
+	all(): string;
 }
 
 export namespace SparqlQueryTable {
@@ -410,18 +373,6 @@ export class MmsSparqlQueryTable<
 		const sp_connection = this._gc_serialized.connectionPath;
 		const gc_serialized = await this._k_store.resolve<MmsSparqlConnection.Serialized>(sp_connection);
 		return new MmsSparqlConnection(sp_connection, gc_serialized, this._g_context);
-	}
-
-	isPublished(): Promise<boolean> {
-		return Promise.resolve(this._k_store.isPublished());
-	}
-
-	publish(yn_node: Node): Promise<boolean> {
-		return Promise.resolve(this._k_store.publish(yn_node));
-	}
-
-	async save(): Promise<boolean> {
-		return Promise.resolve(this._k_store.update(this.toSerialized()));
 	}
 }
 

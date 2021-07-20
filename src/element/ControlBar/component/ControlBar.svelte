@@ -111,7 +111,7 @@ import type { JsonObject } from '#/common/types';
 
 	async function create_document(h_paths: JsonObject) {
 		if(k_page) {
-			k_document = await ConfluenceDocument.createNew(k_page, h_paths, true);
+			k_document = await ConfluenceDocument.createNew(k_page, h_paths);
 
 			// reload
 			location.reload();

@@ -180,9 +180,10 @@ export class ObjectStore {
 		}
 		else {
 			for(const si_frag in h_options) {
+				const sp_full = `${sp_target}.${si_frag}` as VeoPath.Full;
 				h_out = {
 					...h_out,
-					[`${sp_target}.${si_frag}`]: dc_class? new dc_class(h_options[si_frag], g_context): h_options[si_frag],
+					[sp_full]: dc_class? new dc_class(sp_full, h_options[si_frag], g_context): h_options[si_frag],
 				};
 			}
 		}
@@ -257,7 +258,7 @@ export class ObjectStore {
 		const h_options = this.resolveSync<Record<string, ValueType>>(sp_parent as VeoPath.Locatable);
 		return Object.entries(h_options).reduce((h_out, [si_key, w_value]) => ({
 			...h_out,
-			[`${sp_parent}.${si_key}`]: new dc_class(w_value, g_context),
+			[`${sp_parent}.${si_key}`]: new dc_class(`${sp_parent}.${si_key}` as VeoPath.Full, w_value, g_context),
 		}), {});
 	}
 
@@ -281,6 +282,25 @@ export class ObjectStore {
 		// no data
 		if(!g_metadata) {
 			throw new Error(`Location '${si_storage}' has a metadata bundle but its data is emtpy`);
+		}
+
+		// no paths
+		if(!g_metadata.paths) {
+			debugger;
+
+			// auto-migrate old schema
+			const as_keys = new Set(Object.keys(g_metadata));
+			as_keys.delete('type');
+			as_keys.delete('schema');
+
+			const h_paths: Record<string, any> = {};
+
+			for(const si_key of as_keys) {
+				h_paths[si_key] = g_metadata[si_key];
+				delete g_metadata[si_key];
+			}
+
+			g_metadata.paths = h_paths;
 		}
 
 		return access<ValueType>(g_metadata.paths, a_frags);
