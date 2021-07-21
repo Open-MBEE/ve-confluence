@@ -267,13 +267,13 @@ function normalize_metadata<
 const H_CACHE_PAGES: Record<string, ConfluencePage> = {};
 
 export abstract class ConfluenceEntity<MetadataType extends PageOrDocumentMetadata> extends WritableAsynchronousSerializationLocation<MetadataType> {
-	abstract postMetadata(gm_document: MetadataType, n_version: number, s_message: string): Promise<boolean>;
+	abstract postMetadata(gm_document: MetadataType, n_version: number, s_message: string): Promise<JsonObject>;
 
-	writeMetadataObject(g_metadata: MetadataType, g_version: MetadataBundleVersionDescriptor): Promise<boolean> {
+	writeMetadataObject(g_metadata: MetadataType, g_version: MetadataBundleVersionDescriptor): Promise<JsonObject> {
 		return this.postMetadata(g_metadata, g_version.number, g_version.message);
 	}
 
-	async writeMetadataValue(w_value: JsonValue, a_frags: DotFragment[]): Promise<boolean> {
+	async writeMetadataValue(w_value: JsonValue, a_frags: DotFragment[], s_message=''): Promise<JsonObject> {
 		// start at metadata object root
 		const g_bundle = await this.fetchMetadataBundle();
 
@@ -304,12 +304,12 @@ export abstract class ConfluenceEntity<MetadataType extends PageOrDocumentMetada
 		}
 
 		// assign value to proper place
-		h_node[a_frags.length-1] = w_value;
+		h_node[a_frags[a_frags.length-1]] = w_value;
 
 		// write object
 		return await this.writeMetadataObject(h_root, {
 			number: g_bundle.version.number+1,
-			message: `PUT ${a_frags.join('.')}`,
+			message: `PUT ${a_frags.join('.')}`+(s_message? `: ${s_message}`: ''),
 		});
 	}
 }
@@ -320,19 +320,84 @@ export interface MacroConfig {
 	body: Node;
 }
 
-export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
-	static buildMacro(gc_macro: MacroConfig): Node {
-		const k_doc = new XHTMLDocument();
-		const f_builder = k_doc.builder();
+export function autoCursorMutate(yn_node: Node, k_contents: XhtmlDocument): void {
+	const a_add = autoCursor(yn_node, k_contents);
+	console.assert(a_add.length);
 
-		const auto_cursor_target = () => f_builder('p', {
+	// no siblings added
+	if(a_add.length <= 1) return;
+
+	// shift from beginning
+	let yn_shift = a_add.shift();
+
+	// sibling added before
+	if(yn_shift && yn_node !== yn_shift) {
+		yn_node.parentNode?.insertBefore(yn_shift, yn_node);
+
+		// shift past self
+		a_add.shift();
+	}
+
+	// shift from beginning again
+	yn_shift = a_add.shift();
+
+	// sibling added after
+	if(yn_shift && yn_node !== yn_shift) {
+		yn_node.parentNode?.appendChild(yn_shift);
+	}
+}
+
+export function autoCursor(yn_node: Node, k_contents: XhtmlDocument): Node[] {
+	const f_builder = k_contents.builder();
+
+	const a_nodes = [];
+
+	const yn_sibling_prev = yn_node.previousSibling;
+	if(!yn_sibling_prev || 'p' !== yn_sibling_prev.nodeName) {
+		a_nodes.push(f_builder('p', {
 			class: 'auto-cursor-target',
-		}, [f_builder('br')]);
+		}, [f_builder('br')]));
+	}
+
+	a_nodes.push(yn_node);
+
+	const yn_sibling_next = yn_node.nextSibling;
+	if(!yn_sibling_next || 'p' !== yn_sibling_next?.nodeName) {
+		a_nodes.push(f_builder('p', {
+			class: 'auto-cursor-target',
+		}, [f_builder('br')]));
+	}
+
+	return a_nodes;
+}
+
+export function wrapCellInHtmlMacro(s_html: string, k_contents: XhtmlDocument): Node {
+	const f_builder = k_contents.builder();
+
+	return f_builder('div', {
+		class: 'content-wrapper',
+	}, [
+		...autoCursor(f_builder('ac:structured-macro', {
+			'ac:name': 'html',
+			'ac:schema-version': '1',
+			'ac:macro-id': uuid_v4().replace(/_/g, '-'),
+		}, [
+			f_builder('ac:plain-text-body', {}, [
+				k_contents.createCDATA(s_html),
+			]),
+		]), k_contents),
+	]);
+}
+
+
+export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
+	static annotatedSpan(gc_macro: MacroConfig, k_contents: XhtmlDocument): Node {
+		const f_builder = k_contents.builder();
 
 		return f_builder('ac:structured-macro', {
 			'ac:name': 'span',
 			'ac:schema-version': '1',
-			'ac:macro-id': `${gc_macro.uuid || uuid_v4()}`,
+			'ac:macro-id': `${gc_macro.uuid || uuid_v4().replace(/_/g, '-')}`,
 		}, [
 			...Object.entries(gc_macro.params || {}).reduce((a_out: Node[], [si_param, s_value]) => [
 				...a_out,
@@ -344,9 +409,7 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 				'ac:name': 'atlassian-macro-output-type',
 			}, ['INLINE']),
 			f_builder('ac:rich-text-body', {}, [
-				auto_cursor_target(),
-				gc_macro.body,
-				auto_cursor_target(),
+				...autoCursor(gc_macro.body, k_contents),
 			]),
 		]);
 	}
@@ -481,7 +544,7 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 		};
 	}
 
-	async getContentAsXhtmlDocument(): Promise<{versionNumber: ConfluenceApi.PageVersionNumber; value: XhtmlDocument}> {
+	async getContentAsXhtmlDocument(): Promise<{versionNumber: ConfluenceApi.PageVersionNumber; document: XhtmlDocument}> {
 		const {
 			versionNumber: n_version,
 			value: sx_value,
@@ -489,58 +552,64 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 
 		return {
 			versionNumber: n_version,
-			value: new XhtmlDocument(sx_value),
+			document: new XhtmlDocument(sx_value),
 		};
 	}
 
-	async postContent(s_content: string, s_message=''): Promise<boolean> {
+	async postContent(k_contents: XhtmlDocument, s_message=''): Promise<Response<JsonObject>> {
 		const {
-			value: k_content,
 			versionNumber: n_version,
 		} = await this.getContentAsXhtmlDocument();
 
-		const f_builder = k_content.builder();
+		// const f_builder = k_content.builder();
 
-		const yn_wrapped = f_builder('ac:structured-macro', {
-			'ac:name': 'html',
-			'ac:macro-id': 've-table',
-		}, [
-			f_builder('ac:plain-text-body', {}, [
-				k_content.createCDATA(s_content),
-			]),
-		]);
+		// const yn_wrapped = f_builder('ac:structured-macro', {
+		// 	'ac:name': 'html',
+		// 	'ac:macro-id': 've-table',
+		// }, [
+		// 	f_builder('ac:plain-text-body', {}, [
+		// 		k_content.createCDATA(s_content),
+		// 	]),
+		// ]);
 
-		const yn_macros = f_builder('p', {
-			class: 'auto-cursor-target',
-		}, [
-			f_builder('ac:link', {}, [
-				f_builder('ri:page', {
-					'ri:content-title': 'CAE CED Table Element',
-				}),
-			]),
-		]);
+		// const yn_macros = f_builder('p', {
+		// 	class: 'auto-cursor-target',
+		// }, [
+		// 	f_builder('ac:link', {}, [
+		// 		f_builder('ri:page', {
+		// 			'ri:content-title': 'CAE CED Table Element',
+		// 		}),
+		// 	]),
+		// ]);
 
-		const found_element = k_content.select<Element>('//ac:structured-macro');
-		const init_element = k_content.select<Node>('//ac:link');
+		// const found_element = k_content.select<Element>('//ac:structured-macro');
+		// const init_element = k_content.select<Node>('//ac:link');
 
-		if(init_element.length) {
-			k_content.replaceChild(yn_macros, init_element[0]);
-			k_content.appendChild(yn_wrapped);
-		}
-		else if(found_element.length) {
-			k_content.replaceChild(yn_wrapped, found_element[0]);
-		}
+		// if(init_element.length) {
+		// 	k_content.replaceChild(yn_macros, init_element[0]);
+		// 	k_content.appendChild(yn_wrapped);
+		// }
+		// else if(found_element.length) {
+		// 	k_content.replaceChild(yn_wrapped, found_element[0]);
+		// }
 
-		const response = await confluence_put_json(`/content/${this._si_page}`, {
+		// if(k_contents.root.childNodes)
+
+		const s_contents = k_contents.toString();
+
+
+		return await confluence_put_json(`/content/${this._si_page}`, {
 			json: {
-				id: this._si_page,
+				id: this.pageId,
 				type: 'page',
 				title: this.pageTitle,
+				space: {
+					key: G_META.space_key,
+				},
 				body: {
 					storage: {
-						// value: "<p class=\"auto-cursor-target\"><ac:link><ri:page ri:content-title=\"CAE CED Table Element\" /></ac:link></p><p class=\"auto-cursor-target\"><br /></p><ac:structured-macro ac:name=\"span\" ac:schema-version=\"1\" ac:macro-id=\"b064d0ae-be2a-4ad8-ac8e-24e710f0ed86\"><ac:parameter ac:name=\"style\">display:none</ac:parameter><ac:parameter ac:name=\"atlassian-macro-output-type\">INLINE</ac:parameter><ac:rich-text-body><p class=\"auto-cursor-target\"><strong><span style=\"color: rgb(0,0,255);\">Connected Engineering Document. Do not edit nor delete this macro.</span></strong></p><ac:structured-macro ac:name=\"html\" ac:schema-version=\"1\" ac:macro-id=\"06617957-bc59-4490-9c84-f01440966a31\"><ac:plain-text-body><![CDATA[<script type=\"application/json\" id=\"ve4-init\">{\"schema\":\"1.0\",\"type\":\"document\",\"sources\":[]}</script>\n<script type=\"text/javascript\" src=\"https://ced-uat.jpl.nasa.gov/cdn/uat/bundle.js\"></script>]]></ac:plain-text-body></ac:structured-macro><p class=\"auto-cursor-target\"><br /></p></ac:rich-text-body></ac:structured-macro><p class=\"auto-cursor-target\"><br /></p>",
-						value: k_content.toString(),
 						representation: 'storage',
+						value: s_contents,
 					},
 				},
 				version: {
@@ -549,8 +618,6 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 				},
 			},
 		});
-
-		return true;
 	}
 
 	async initMetadata(n_version: ConfluenceApi.PageVersionNumber=1): Promise<PageMetadataBundle | null> {
@@ -564,8 +631,8 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 		}
 	}
 
-	async postMetadata(gm_page: PageMetadata, n_version=1, s_message=''): Promise<boolean> {
-		await confluence_put_json(`/content/${this._si_page}/property/${G_VE4_METADATA_KEYS.CONFLUENCE_PAGE}`, {
+	async postMetadata(gm_page: PageMetadata, n_version=1, s_message=''): Promise<JsonObject> {
+		const g_payload = {
 			json: {
 				key: G_VE4_METADATA_KEYS.CONFLUENCE_PAGE,
 				value: gm_page,
@@ -575,9 +642,11 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 					message: s_message,
 				},
 			},
-		});
+		};
 
-		return true;
+		await confluence_put_json(`/content/${this._si_page}/property/${G_VE4_METADATA_KEYS.CONFLUENCE_PAGE}`, g_payload);
+
+		return g_payload;
 	}
 
 	async isDocumentCoverPage(): Promise<boolean> {
@@ -684,8 +753,8 @@ export class ConfluenceDocument extends ConfluenceEntity<DocumentMetadata> {
 		);
 	}
 
-	async postMetadata(gm_document: DocumentMetadata, n_version=1, s_message=''): Promise<boolean> {
-		await confluence_put_json(`/content/${this._si_cover_page}/property/${G_VE4_METADATA_KEYS.CONFLUENCE_DOCUMENT}`, {
+	async postMetadata(gm_document: DocumentMetadata, n_version=1, s_message=''): Promise<JsonObject> {
+		const g_payload = {
 			json: {
 				key: G_VE4_METADATA_KEYS.CONFLUENCE_DOCUMENT,
 				value: gm_document,
@@ -695,9 +764,11 @@ export class ConfluenceDocument extends ConfluenceEntity<DocumentMetadata> {
 					message: s_message,
 				},
 			},
-		});
+		};
 
-		return true;
+		await confluence_put_json(`/content/${this._si_cover_page}/property/${G_VE4_METADATA_KEYS.CONFLUENCE_DOCUMENT}`, g_payload);
+
+		return g_payload;
 	}
 
 	async isDocumentCoverPage(b_force=false): Promise<boolean> {

@@ -51,6 +51,10 @@ export class XHTMLDocument {
 		this._y_doc = (new DOMParser()).parseFromString(`<xml ${SX_NAMESPACES}>${sx_doc}</xml>`);
 	}
 
+	get root(): Node {
+		return this._y_doc.childNodes[0];
+	}
+
 	* [Symbol.iterator]<ElementType extends ChildNode>(): Generator<ElementType> {
 		for(const yn_child of [].slice.call(this._y_doc.childNodes[0].childNodes) as ElementType[]) {
 			yield yn_child;
@@ -65,22 +69,14 @@ export class XHTMLDocument {
 		return select(sx_xpath, this._y_doc, true)[0] as NodeType;
 	}
 
-	replaceChild(new_child: Node, old_child: Node): Node {
-		return this._y_doc.replaceChild(new_child, old_child);
-	}
-
-	appendChild(new_child: Node): Node {
-		return this._y_doc.appendChild(new_child);
-	}
-
 	createCDATA(s_cdata: string): CDATASection {
 		return this._y_doc.createCDATASection(s_cdata);
 	}
 
 	toString(): string {
-		return (new XMLSerializer())
-			.serializeToString(this._y_doc)
-			.replace(/^\s*<xml[^>]*>\s*|\s<\/xml>\s*$/, '');
+		return new XMLSerializer()
+			.serializeToString(this.root)
+			.replace(/^\s*<xml[^>]*>\s*|\s*<\/xml>\s*$/g, '');
 	}
 
 	builder(): (s_tag: string, h_attrs?: Hash, a_children?: Array<string | Node>) => Node {

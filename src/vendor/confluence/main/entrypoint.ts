@@ -124,7 +124,7 @@ const A_DIRECTIVE_CORRELATIONS: CorrelationDescriptor[] = [
 	// dng web link
 	{
 		storage: /* syntax: xpath */ `.//a[starts-with(@href,"${P_DNG_WEB_PREFIX}")]${SX_EXCLUDE_ACTIVE_DIRECTIVES}`,
-		live: `a[href^="${P_DNG_WEB_PREFIX}"]`,
+		live: `a[href^="${P_DNG_WEB_PREFIX}"]:not([data-ve4])`,
 		directive: ([ym_anchor, g_link]) => ({
 			component: DngArtifact,
 			props: {
@@ -150,8 +150,9 @@ const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 	// 		p_url: ym_anchor.getAttribute('href'),
 	// 	},
 	// }),
+
 	'CAE CED Table Element': ([, g_struct]: [HTMLElement, Record<string, any>]) => {
-		const si_uuid = (g_struct.uuid as string) || uuid_v4();
+		const si_uuid = (g_struct.uuid as string) || uuid_v4().replace(/_/g, '-');
 
 		return {
 			component: QueryTable,
@@ -290,7 +291,7 @@ export async function main(): Promise<void> {
 
 		(async() => {
 			// load page's XHTML source
-			k_source = (await k_page.getContentAsXhtmlDocument())?.value || null;
+			k_source = (await k_page.getContentAsXhtmlDocument()).document || null;
 		})(),
 	]);
 
@@ -306,6 +307,15 @@ export async function main(): Promise<void> {
 		document: k_document,
 		hardcoded: K_HARDCODED,
 	});
+
+	// set page source
+	G_CONTEXT.source = k_source;
+
+	// set page
+	G_CONTEXT.page = k_page;
+
+	// set document
+	G_CONTEXT.document = k_document;
 
 	// fetch document metadata
 	const gm_document = await k_document.fetchMetadataBundle();
@@ -328,7 +338,7 @@ export async function main(): Promise<void> {
 			struct: (ym_node) => {
 				const ym_parent = ym_node.parentNode as Element;
 				// ym_parent.getAttribute('');
-				debugger;
+				// debugger;
 				return {
 					label: ('ac:link' === ym_parent.nodeName? ym_parent.textContent: '') || si_page_directive,
 					// macro_id: (ym_parent 'ac:macro-id')

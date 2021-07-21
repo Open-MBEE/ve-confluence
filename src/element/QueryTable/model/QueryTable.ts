@@ -35,9 +35,9 @@ export namespace QueryParamValue {
 }
 
 export class ParamValuesList {
-	private _a_values: ValuedObject[];
+	private _a_values: ValuedLabeledObject[];
 
-	constructor(a_values: ValuedObject[]) {
+	constructor(a_values: ValuedLabeledObject[]) {
 		this._a_values = a_values;
 	}
 
@@ -45,13 +45,13 @@ export class ParamValuesList {
 		return this._a_values.length;
 	}
 
-	* [Symbol.iterator](): Generator<ValuedObject> {
+	* [Symbol.iterator](): Generator<ValuedLabeledObject> {
 		for(const g_value of this._a_values) {
 			yield g_value;
 		}
 	}
 
-	has(k_value: ValuedObject): boolean {
+	has(k_value: ValuedLabeledObject): boolean {
 		// ref value
 		const si_value = k_value.value;
 
@@ -59,7 +59,7 @@ export class ParamValuesList {
 		return -1 !== this._a_values.findIndex(k => si_value === k.value);
 	}
 
-	add(k_value: ValuedObject): boolean {
+	add(k_value: ValuedLabeledObject): boolean {
 		// already in list, return false
 		if(this.has(k_value)) return false;
 
@@ -68,7 +68,7 @@ export class ParamValuesList {
 		return true;
 	}
 
-	delete(k_value: ValuedObject): boolean {
+	delete(k_value: ValuedLabeledObject): boolean {
 		const si_value = k_value.value;
 
 		// find value

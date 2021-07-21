@@ -9,6 +9,8 @@ import type {
 import type {VeoPath} from '#/common/veo';
 
 import type {ObjectStore} from '#/model/ObjectStore';
+import type { ConfluenceDocument, ConfluencePage } from '#/vendor/confluence/module/confluence';
+import type XHTMLDocument from '#/vendor/confluence/module/xhtml-document';
 
 import type {
 	TypedKeyedLabeledObject,
@@ -26,6 +28,9 @@ export type Primitive = TypedPrimitive;
 
 export interface Context {
 	store: ObjectStore;
+	source: XHTMLDocument;
+	page: ConfluencePage;
+	document: ConfluenceDocument;
 }
 
 export abstract class VeOdm<Serialized extends Serializable | Primitive> {
@@ -102,8 +107,8 @@ export abstract class VeOdm<Serialized extends Serializable | Primitive> {
 	//     return new dc_class(gc_serialized, this._g_context);
 	// }
 
-	async save(): Promise<boolean> {
-		return this._k_store.commit(this._sp_path, this.toSerialized() as Serializable);
+	async save(s_message=''): Promise<JsonObject> {
+		return this._k_store.commit(this._sp_path, this.toSerialized() as Serializable, s_message);
 	}
 
 	fromSerialized(gc_serialized: Serialized): void {
@@ -226,7 +231,7 @@ export abstract class WritableAsynchronousSerializationLocation<
 > extends AsynchronousSerializationLocation<ObjectType> {
 	readonly isReadOnly: false = false;
 
-	abstract writeMetadataObject(g_bundle: ObjectType, g_version: MetadataBundleVersionDescriptor): Promise<boolean>;
+	abstract writeMetadataObject(g_bundle: ObjectType, g_version: MetadataBundleVersionDescriptor): Promise<JsonObject>;
 
-	abstract writeMetadataValue(w_value: PrimitiveValue, a_frags: DotFragment[]): Promise<boolean>;
+	abstract writeMetadataValue(w_value: PrimitiveValue, a_frags: DotFragment[], s_message?: string): Promise<JsonObject>;
 }

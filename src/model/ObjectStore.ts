@@ -5,6 +5,7 @@ import type {
 	PathOptions,
 	DotFragment,
 	PrimitiveObject,
+	JsonObject,
 } from '#/common/types';
 
 import {
@@ -81,6 +82,11 @@ export function access<Type extends PrimitiveValue>(h_map: PrimitiveObject, a_fr
 
 	// node for traversing
 	let z_node = h_map;
+
+	if(!h_map) {
+		console.error(`Encountered undefined value while trying to access path in object store -- must be using an outdated schema`);
+		debugger;
+	}
 
 	// each frag
 	for(let i_frag=0; i_frag<nl_frags; i_frag++) {
@@ -331,7 +337,7 @@ export class ObjectStore {
 		return access<ValueType>(g_metadata.paths, a_frags);
 	}
 
-	async commit(sp_path: VeoPath.Full, gc_serialized: Serializable): Promise<boolean> {
+	async commit(sp_path: VeoPath.Full, gc_serialized: Serializable, s_message=''): Promise<JsonObject> {
 		const [si_storage, a_frags, k_location] = this._parse_path(sp_path);
 
 		if(k_location.isReadOnly) {
@@ -340,6 +346,6 @@ export class ObjectStore {
 
 		const k_writable = k_location as WritableAsynchronousSerializationLocation;
 
-		return await k_writable.writeMetadataValue(gc_serialized, a_frags);
+		return await k_writable.writeMetadataValue(gc_serialized, a_frags, s_message);
 	}
 }

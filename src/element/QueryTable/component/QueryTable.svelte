@@ -23,7 +23,7 @@
 	import QueryTableParam from './QueryTableParam.svelte';
 
 	import type {
-QueryField,
+		QueryField,
 		QueryTable,
 	} from '../model/QueryTable';
 
@@ -37,20 +37,27 @@ QueryField,
 		ModelVersionDescriptor,
 	} from '#/model/Connection';
 
-	import XHTMLDocument from '#/vendor/confluence/module/xhtml-document';
-import { ConfluencePage } from '#/vendor/confluence/module/confluence';
+	import {
+autoCursorMutate,
+		ConfluencePage,
+		wrapCellInHtmlMacro,
+	} from '#/vendor/confluence/module/confluence';
+import xmldom from 'xmldom';
+import XHTMLDocument from '#/vendor/confluence/module/xhtml-document';
+import { process } from '#/common/static';
 
 	export let k_query_table: QueryTable;
+	export let g_node: Node;
 
 	let b_published_state = false;
 	let b_published_toggle = b_published_state;
 
-	(async() => {
-		const k_connection = await k_query_table.fetchConnection();
-		const g_version = await k_connection.fetchCurrentVersion();
-		const dt_version = new Date(g_version.dateTime);
-		s_display_version = `${dt_version.toDateString()} @${dt_version.toLocaleTimeString()}`;
-	})();
+	// (async() => {
+	// 	const k_connection = await k_query_table.fetchConnection();
+	// 	const g_version = await k_connection.fetchCurrentVersion();
+	// 	const dt_version = new Date(g_version.dateTime);
+	// 	s_display_version = `${dt_version.toDateString()} @${dt_version.toLocaleTimeString()}`;
+	// })();
 
 	let k_connection: Connection;
 	let g_version: ModelVersionDescriptor;
@@ -131,6 +138,16 @@ import { ConfluencePage } from '#/vendor/confluence/module/confluence';
 		g_preview.rows = [];
 	}
 
+	const F_RENDER_CELL = (g_row: QueryRow): Record<string, string> => {
+		const h_out: Record<string, string> = {};
+
+		for(const k_field of k_query_table.queryType.fields) {
+			h_out[k_field.key] = k_field.cell(g_row);
+		}
+
+		return h_out;
+	};
+
 	async function render() {
 		xc_info_mode = G_INFO_MODES.LOADING;
 
@@ -164,15 +181,7 @@ import { ConfluencePage } from '#/vendor/confluence/module/confluence';
 				});
 		}
 
-		g_preview.rows = a_rows.map((g_row) => {
-			const h_out: Record<string, string> = {};
-
-			for(const k_field of k_query_table.queryType.fields) {
-				h_out[k_field.key] = k_field.cell(g_row);
-			}
-
-			return h_out;
-		});
+		g_preview.rows = a_rows.map(F_RENDER_CELL);
 
 		b_loading = false;
 		b_showing = true;
@@ -206,11 +215,50 @@ import { ConfluencePage } from '#/vendor/confluence/module/confluence';
 		});
 	}
 
+	function sanitize_false_directives(sx_html: string): string {
+		const d_parser = new DOMParser();
+		const d_doc = d_parser.parseFromString(sx_html, 'text/html');
+		const a_links = d_doc.querySelectorAll(`a[href^="${process.env.DOORS_NG_PREFIX}"]`);
+		a_links.forEach(yn_link => yn_link.setAttribute('data-ve4', '{}'));
+		return d_doc.body.innerHTML;
+	}
+
 	async function publish_table() {
 		xc_info_mode = G_INFO_MODES.LOADING;
 
-		// save query table state
-		await k_query_table.save();
+		// get page content as xhtml document
+		const {
+			source: k_contents,
+			page: k_page,
+		} = k_query_table.getContext();
+
+		// prepare commit message
+		let s_commit_message = '';
+		{
+			const a_where = [];
+			const a_params = await k_query_table.queryType.fetchParameters();
+			for(const gc_param of a_params) {
+				const k_list = k_query_table.parameterValuesList(gc_param.key);
+				const a_values = [];
+				for(const g_data of k_list) {
+					a_values.push(g_data.label);
+				}
+				if(a_values.length) {
+					if(1 === a_values.length) {
+						a_where.push(`'${gc_param.label}' = "${a_values[0]}"`);
+					}
+					else {
+						a_where.push(`'${gc_param.label}' is either ${a_values.slice(0, -1).map(s => `"${s}"`).join(', ')} or "${a_values[a_values.length-1]}"`);
+					}
+				}
+			}
+
+			s_commit_message = `Published query table using "${k_query_table.queryType.label}" ${a_where.length? `where ${a_where.join(', and')}`: ''}`
+				+` from ${k_connection.label} on ${s_display_version}`;
+		}
+
+		// commit query table state
+		const g_payload = await k_query_table.save(s_commit_message);
 
 		// fetch query builder
 		const k_query = await k_query_table.fetchQueryBuilder();
@@ -222,26 +270,45 @@ import { ConfluencePage } from '#/vendor/confluence/module/confluence';
 		const yn_table = build_xhtml_table(k_query_table.queryType.fields, a_rows);
 
 		// wrap in confluence macro
-		const yn_macro = ConfluencePage.buildMacro({
+		const yn_macro = ConfluencePage.annotatedSpan({
 			params: {
 				id: k_query_table.path,
 			},
 			body: yn_table,
-		});
+		}, k_contents);
 
-		console.warn(yn_macro.toString());
-		debugger;
+		// crawl out of p tags
+		let yn_replace = g_node.parentNode as Node;
+		while('p' === yn_replace.parentNode?.nodeName) {
+			yn_replace = yn_replace.parentNode;
+		}
 
-		// if(await k_query.publish(yn_table)) {
-		// 	b_published_toggle = true;
-		// 	b_expand = false;
-		// 	xc_info_mode = 0;
-		// 	location.reload();
-		// }
+		// replace node
+		yn_replace.parentNode?.replaceChild(yn_macro, yn_replace);
+
+		// auto cusor mutate
+		autoCursorMutate(yn_macro, k_contents);
+
+		// upload contents
+		const g_res = await k_page.postContent(k_contents, s_commit_message);
+
+		if(g_res.error) {
+			// TODO: show error in UI
+			throw g_res.error;
+		}
+		else if(!g_res.response.ok) {
+			// TODO show error in UI
+			throw new Error(JSON.stringify(g_res.data));
+		}
+		else {
+			location.reload();
+		}
 	}
 
 	function build_xhtml_table(a_fields: QueryField[], a_rows: QueryRow[]): Node {
-		const f_builder = new XHTMLDocument().builder();
+		const k_contents = k_query_table.getContext().source;
+
+		const f_builder = k_contents.builder();
 
 		return f_builder('table', {}, [
 			f_builder('colgroup', {}, a_fields.map(() => f_builder('col'))),
@@ -249,9 +316,9 @@ import { ConfluencePage } from '#/vendor/confluence/module/confluence';
 				f_builder('tr', {}, a_fields.map(g_field => f_builder('th', {}, [
 					g_field.label,
 				]))),
-				...a_rows.map(h_row => f_builder('tr', {}, [
-					...Object.values(h_row).map(g_var => f_builder('td', {}, [
-						...(new XHTMLDocument(g_var.value)),
+				...a_rows.map(F_RENDER_CELL).map(h_row => f_builder('tr', {}, [
+					...Object.values(h_row).map(sx_cell => f_builder('td', {}, [
+						wrapCellInHtmlMacro(sanitize_false_directives(sx_cell), k_contents),
 					])),
 				])),
 			]),
