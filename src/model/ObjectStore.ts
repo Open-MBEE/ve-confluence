@@ -171,7 +171,7 @@ export class ObjectStore {
 	protected async _explode<
 		ValueType extends Serializable | Primitive,
 		ClassType extends VeOdm<ValueType>,
-	>(sp_target: VeoPath.Locatable, dc_class: null | Instantiable<ValueType, ClassType>, c_frags: number, g_context: Context={store:this}): Promise<PathOptions<ValueType, ClassType>> {
+	>(sp_target: VeoPath.Locatable, g_context: Context, c_frags: number, dc_class: Instantiable<ValueType, ClassType>): Promise<PathOptions<ValueType, ClassType>> {
 		const h_options = await this.resolve<Record<string, ValueType>>(sp_target);
 
 		let h_out: PathOptions<ValueType, ClassType> = {};
@@ -180,7 +180,7 @@ export class ObjectStore {
 			for(const si_frag in h_options) {
 				h_out = {
 					...h_out,
-					...await this._explode(`${sp_target}.${si_frag}`, dc_class, c_frags+1, g_context),
+					...await this._explode(`${sp_target}.${si_frag}`, g_context, c_frags+1, dc_class),
 				};
 			}
 		}
@@ -235,7 +235,7 @@ export class ObjectStore {
 	async options<
 		ValueType extends Serializable | Primitive,
 		ClassType extends VeOdm<ValueType>=VeOdm<ValueType>,
-	>(sp_path: VeoPath.Locatable, dc_class: null | Instantiable<ValueType, ClassType>=null, g_context: Context={store:this}): Promise<Record<VeoPath.Full, ClassType>> {
+	>(sp_path: VeoPath.Locatable, g_context: Context, dc_class?: Instantiable<ValueType, ClassType>): Promise<PathOptions<ValueType, ClassType>> {
 		const a_frags = sp_path.split('.');
 		const nl_frags = a_frags.length;
 
@@ -253,13 +253,13 @@ export class ObjectStore {
 			sp_target = sp_path.replace(/\.[^.]+$/, '') as VeoPath.Locatable;
 		}
 
-		return this._explode(sp_target, dc_class, nl_frags, g_context);
+		return this._explode<ValueType, ClassType>(sp_target, g_context, nl_frags, dc_class!);
 	}
 
 	optionsSync<
 		ValueType extends Serializable | Primitive,
 		ClassType extends VeOdm<ValueType>,
-	>(sp_path: VeoPath.HardcodedObject, dc_class: Instantiable<ValueType, ClassType>, g_context: Context={store:this}): Record<VeoPath.Full, ClassType> {
+	>(sp_path: VeoPath.HardcodedObject, g_context: Context, dc_class: Instantiable<ValueType, ClassType>): Record<VeoPath.Full, ClassType> {
 		const sp_parent = sp_path.replace(/\.[^.]+$/, '');
 		const h_options = this.resolveSync<Record<string, ValueType>>(sp_parent as VeoPath.Locatable);
 		return Object.entries(h_options).reduce((h_out, [si_key, w_value]) => ({

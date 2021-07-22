@@ -6,7 +6,6 @@
 	import Select from 'svelte-select';
 	
 	import type {
-		ParamValuesList,
 		QueryParam,
 		QueryTable,
 	} from '#/element/QueryTable/model/QueryTable';
@@ -15,7 +14,7 @@
 	
 	import {Sparql} from '#/util/sparql-endpoint';
 
-	import type { ValuedLabeledObject } from '#/common/types';
+	import type {ValuedLabeledObject} from '#/common/types';
 	
 	interface Option {
 		count: number;
@@ -26,11 +25,19 @@
 	const f_dispatch = createEventDispatcher();
 
 	export let k_param: QueryParam;
-	export let k_values: ParamValuesList;
 	export let k_query_table: QueryTable;
+	
+	let k_values = k_query_table.parameterValuesList(k_param.key);
+	$: k_values = k_query_table.parameterValuesList(k_param.key);
+
+	k_query_table.onRestore((k_new: typeof k_query_table): Promise<void> => {
+		k_query_table = k_new;
+		return Promise.resolve();
+	});
 
 	let a_options: Option[] = [];
-	export let a_selected_items: Option[] = [];
+
+	let a_init_values = [...k_values];
 
 	const XC_STATE_HIDDEN = 0;
 	const XC_STATE_VISIBLE = 1;
@@ -70,16 +77,6 @@
 			if(k_param.sort) {
 				a_options = a_options.map(g_opt => g_opt.data).sort(k_param.sort).map(g_data => a_options.find(g_opt => g_opt.data.value === g_data.value)) as Option[];
 			}
-		}
-	}
-
-	function load_values(k_values_list: ParamValuesList) {
-		console.log('Loading values');
-		console.log(k_values_list);
-
-		for(const k_value of k_values_list) {
-			console.log(`Loading selected value: ${k_value.value}`);
-			a_selected_items = a_options.filter(g_opt => g_opt.data.value === k_value.value);
 		}
 	}
 
@@ -225,7 +222,7 @@
 	{:else}
 		<Select
 			items={a_options.map(g_opt => g_opt.data)}
-			value={[...k_values]}
+			value={a_init_values.length? a_init_values: null}
 			placeholder="Select Attribute Value(s)"
 			isMulti={true}
 			isClearable={false}

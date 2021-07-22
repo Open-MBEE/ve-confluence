@@ -12,11 +12,14 @@ import type {
 	ValuedLabeledObject,
 	Hash,
 	TypedKeyedUuidedObject,
+	Instantiable,
 } from '#/common/types';
 
 import type {VeoPath} from '#/common/veo';
 
 import {
+	Primitive,
+	Serializable,
 	VeOdm,
 	VeOdmKeyed,
 	VeOdmKeyedLabeled,
@@ -29,7 +32,8 @@ import {
 	SparqlConnection,
 	MmsSparqlConnection,
 } from '#/model/Connection';
-import type { TypedString } from '#/util/strings';
+
+import type {TypedString} from '#/util/strings';
 
 export namespace QueryParamValue {
 	export interface Serialized extends TypedLabeledObject<'QueryParamValue'> {
@@ -264,13 +268,14 @@ export abstract class QueryTable<
 		await super.init();
 
 		// build param values list
-		const h_param_values = this._gc_serialized.parameterValues;
-		const h_param_values_lists = this._h_param_values_lists;
-		const a_params = await this.queryType.fetchParameters();
-		for(const k_param of a_params) {
-			h_param_values_lists[k_param.key] = new ParamValuesList(
-				h_param_values[k_param.key]
-			);
+		{
+			// deep clone param values so list mutation does not affect original hash
+			const h_param_values = this._gc_serialized.parameterValues;
+			const h_param_values_lists = this._h_param_values_lists;
+			const a_params = await this.queryType.fetchParameters();
+			for(const k_param of a_params) {
+				h_param_values_lists[k_param.key] = new ParamValuesList(h_param_values[k_param.key] || []);
+			}
 		}
 	}
 
@@ -335,7 +340,7 @@ export abstract class SparqlQueryTable<
 	abstract fetchConnection(): Promise<SparqlConnection>;
 
 	initSync(): void {
-		this._h_options = this._k_store.optionsSync<QueryType.Serialized, QueryType>(this._gc_serialized.queryTypePath, QueryType, this._g_context);
+		this._h_options = this._k_store.optionsSync<QueryType.Serialized, LocalQueryType>(this._gc_serialized.queryTypePath, this._g_context, QueryType as unknown as Instantiable<QueryType.Serialized, LocalQueryType>);
 		return super.initSync();
 	}
 
@@ -353,7 +358,9 @@ export abstract class SparqlQueryTable<
 		for(const sp_test in h_options) {
 			const k_test = h_options[sp_test];
 			if(si_value === k_test.value && s_label === k_test.label) {
-				this._gc_serialized.queryTypePath = sp_test as VeoPath.SparqlQueryType;
+				this._assign({
+					queryTypePath: sp_test as VeoPath.SparqlQueryType,
+				});
 				return;
 			}
 		}

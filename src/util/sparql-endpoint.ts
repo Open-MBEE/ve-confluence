@@ -74,9 +74,9 @@ export class SparqlEndpoint {
 		this._k_helper = new SparqlQueryHelper(gc_init.variables || {});
 	}
 
-	async auth() {
+	async auth(): Promise<void> {
 		// authenticate to access the named graph
-		fetch(`${this._p_endpoint}/auth`, {
+		await fetch(`${this._p_endpoint}/auth`, {
 			method: 'POST',
 			mode: 'cors',
 			headers: {
@@ -91,8 +91,8 @@ export class SparqlEndpoint {
 	}
 
 	// submit SPARQL SELECT query
-	async select(z_select: SparqlQuery): Promise<SparqlBindings> {
-		let sq_select = z_select;
+	async select(z_select: string | SparqlQuery): Promise<SparqlBindings> {
+		let sq_select = z_select as string;
 
 		// apply helper
 		if('function' === typeof z_select) {
@@ -121,7 +121,11 @@ export class SparqlEndpoint {
 		}
 
 		// parse results as JSON
-		const g_res = await d_res.json();
+		const g_res = (await d_res.json()) as {
+			results: {
+				bindings: SparqlBindings;
+			};
+		};
 
 		// release async lock
 		f_release();

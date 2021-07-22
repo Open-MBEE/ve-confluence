@@ -148,6 +148,13 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 				] ;
 				.
 
+			# exclude requirements that are part of a requirement document
+			filter not exists {
+				?collection a oslc_rm:RequirementCollection ;
+					oslc_rm:uses ?artifact ;
+					.
+			}
+
 			${a_bgp.join('\n')}
 
 			${sq_bgp || ''}

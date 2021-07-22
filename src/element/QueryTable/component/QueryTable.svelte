@@ -44,12 +44,14 @@
 		wrapCellInHtmlMacro,
 	} from '#/vendor/confluence/module/confluence';
 
-	import xmldom from 'xmldom';
-
 	import XHTMLDocument from '#/vendor/confluence/module/xhtml-document';
 
 	import {process} from '#/common/static';
-	import type { TypedString } from '#/util/strings';
+
+	import type {TypedString} from '#/util/strings';
+
+	// number of preview rows
+	const N_PREVIEW_ROWS = 40;
 
 
 	/**
@@ -79,6 +81,9 @@
 
 	// shows/hides the parameter controls
 	let b_display_parameters = false;
+
+	// whether or not the published parameters have been changed in edit mode
+	let b_changed_published_parameters = false;
 
 	// the connection model
 	let k_connection: Connection;
@@ -150,6 +155,9 @@
 	function clear_preview(): void {
 		b_busy_loading = false;
 
+		// clear query hash
+		si_query_hash_previous = '';
+
 		s_status_info = 'PREVIEW (0 results)';
 		xc_info_mode = G_INFO_MODES.PREVIEW;
 		g_preview.rows = [];
@@ -165,44 +173,71 @@
 		return h_out;
 	};
 
+	// prep a simple concat hash for query parameters to prevent redundant queries
+	let si_query_hash_previous = '';
+
+	// published query hash
+	let si_query_hash_published = b_published? k_query_table.hash(): '';
+
 	async function render() {
 		xc_info_mode = G_INFO_MODES.LOADING;
 
 		let b_filtered = false;
 
-		const a_params = await k_query_table.queryType.fetchParameters();
-		for(const g_param of a_params) {
-			if(k_query_table.parameterValuesList(g_param.key).size) {
+		// each parameter
+		for(const g_param of await k_query_table.queryType.fetchParameters()) {
+			// collect all values from list
+			const a_values = [...k_query_table.parameterValuesList(g_param.key)];
+
+			// some values are present
+			if(a_values.length) {
+				// results are now filtered
 				b_filtered = true;
+
 				break;
 			}
 		}
 
+		// changed from published
+		let si_query_hash_current = k_query_table.hash();
+		b_changed_published_parameters = si_query_hash_current !== si_query_hash_published;
+
 		// no filters, clear preview
-		if(!b_filtered) return clear_preview();
-
-		b_busy_loading = true;
-
-		const k_query = await k_query_table.fetchQueryBuilder();
-		const a_rows = await k_connection.execute(k_query.paginate(21));
-
-		if(20 < a_rows.length) {
-			// start counting all rows
-			k_connection.execute(k_query.count())
-				.then((a_counts) => {
-					const nl_rows_total = +a_counts[0].count.value;
-					s_status_info = `PREVIEW (${20 < nl_rows_total? '20': nl_rows_total} / ${nl_rows_total} result${1 === nl_rows_total ? '' : 's'})`;
-				})
-				.catch(() => {
-					console.error('Failed to count rows for query');
-				});
+		if(!b_filtered) {
+			return clear_preview();
 		}
 
-		g_preview.rows = a_rows.map(F_RENDER_CELL);
+		// concat hash differs, submit query and rebuild preview
+		if(si_query_hash_current !== si_query_hash_previous) {
+			// update hash
+			si_query_hash_previous = si_query_hash_current;
 
-		b_busy_loading = false;
+			// set busy loading state
+			b_busy_loading = true;
 
-		s_status_info = `PREVIEW (${20 < a_rows.length ? '>20' : a_rows.length} result${1 === a_rows.length ? '' : 's'})`;
+			const k_query = await k_query_table.fetchQueryBuilder();
+			const a_rows = await k_connection.execute(k_query.paginate(N_PREVIEW_ROWS+1));
+
+			if(N_PREVIEW_ROWS < a_rows.length) {
+				// start counting all rows
+				k_connection.execute(k_query.count())
+					.then((a_counts) => {
+						const nl_rows_total = +a_counts[0].count.value;
+						s_status_info = `PREVIEW (${N_PREVIEW_ROWS < nl_rows_total? N_PREVIEW_ROWS: nl_rows_total} / ${nl_rows_total} result${1 === nl_rows_total ? '' : 's'})`;
+					})
+					.catch(() => {
+						console.error('Failed to count rows for query');
+					});
+			}
+
+			g_preview.rows = a_rows.map(F_RENDER_CELL);
+
+			// no longer busy loading
+			b_busy_loading = false;
+
+			s_status_info = `PREVIEW (${N_PREVIEW_ROWS < a_rows.length ? '>'+N_PREVIEW_ROWS : a_rows.length} result${1 === a_rows.length ? '' : 's'})`;
+		}
+
 		xc_info_mode = G_INFO_MODES.PREVIEW;
 	}
 
@@ -224,7 +259,20 @@
 
 		void render();
 
+		// allow toggle to trigger svelte change to dom
 		queueMicrotask(() => {
+			// table is published
+			if(b_published) {
+				// force css-transition by setting background-color
+				dm_parameters.style.backgroundColor = 'var(--ve-color-light-background)';
+
+				// after starting the slide transition
+				queueMicrotask(() => {
+					dm_parameters.style.backgroundColor = 'var(--ve-color-dark-background)';
+				});
+			}
+
+			// start slide transition
 			create_in_transition(dm_parameters, slide, {
 				duration: 400,
 				easing: quadOut,
@@ -379,8 +427,20 @@
 		]);
 	}
 
-	function reset_table() {
+	async function reset_table() {
+		// hide parameters
+		b_display_parameters = false;
+
+		// published; hide preview
+		if(b_published) {
+			b_display_preview = false;
+		}
+
+		// clear preview
 		clear_preview();
+
+		// restore from serialized
+		k_query_table = await k_query_table.restore();
 	}
 
 	function select_query_type(dv_select: CustomEvent<ValuedLabeledObject>) {
@@ -419,21 +479,10 @@
 			flex: 1 auto;
 			text-align: right;
 		}
-
-		.buttons button {
-			cursor:pointer;
-		}
 	}
 
 	.label {
 		font-weight: 500;
-	}
-
-	.published-status {
-		border-radius: 3px 3px 0 0;
-		background-color: var(--ve-color-darker-background);
-		color: var(--ve-color-light-text);
-		border-color: var(--ve-color-accent-darker);
 	}
 
 	.ve-table {
@@ -452,6 +501,8 @@
 
 			.config {
 				background-color: var(--ve-color-light-background);
+				.transition(background-color 0.2s ease-out;);
+
 				.tabs {
 					.parameters {
 						color: var(--ve-color-dark-text);
@@ -465,9 +516,15 @@
 					color: var(--ve-color-dark-text);
 				}
 			}
+
+			.config-body {
+				background-color: var(--ve-color-light-background);
+			}
 		}
 
 		.config {
+			.transition(background-color 0.5s ease-out;);
+
 			background-color: var(--ve-color-dark-background);
 			padding: 5pt 10pt;
 			border-radius: 3px 3px 0 0;
@@ -523,6 +580,8 @@
 		}
 
 		.config-body {
+			.transition(background-color 0.49s ease-out;);
+
 			background-color: var(--ve-color-dark-background);
 			color: var(--ve-color-medium-light-text);
 			padding: 6pt 20pt 10pt 20pt;
@@ -593,11 +652,13 @@
 			border: 2px solid var(--ve-color-dark-background);
 			margin: 0;
 
+			font-size: 14px;
+			line-height: 20px;
+
 			table {
 				width: 100%;
 
 				.ve-table-preview-cell-placeholder {
-					// background-color: #e5e5e5;
 					background-color: transparent;
 					vertical-align: middle;
 					height: 1em;
@@ -611,6 +672,10 @@
 		.tablesorter-header-inner {
 			font-size: 14px;
 		}
+	}
+
+	.busy {
+		opacity: 0.5;
 	}
 </style>
 
@@ -630,8 +695,8 @@
 						Published
 					</span>
 				{/if}
-				{#if !b_published || b_display_parameters}
-					<button class="ve-button-primary" on:click={publish_table}>Publish</button>
+				{#if b_display_parameters}
+					<button class="ve-button-primary" on:click={publish_table} disabled={'' === si_query_hash_previous || (b_published && !b_changed_published_parameters)}>{b_published? 'Update': 'Publish'}</button>
 					<button class="ve-button-secondary" on:click={reset_table}>Cancel</button>
 				{/if}
 			</span>
@@ -685,13 +750,13 @@
 					<span class="header">Value</span>
 					{#await k_query_table.queryType.fetchParameters() then a_params}
 						{#each a_params as k_param}
-							<QueryTableParam {k_query_table} {k_param} k_values={k_query_table.parameterValuesList(k_param.key)} on:change={render} />
+							<QueryTableParam {k_query_table} {k_param} on:change={render} />
 						{/each}
 					{/await}
 				</div>
 			</div>
 			{#if b_display_preview}
-				<div class="table-wrap">
+				<div class="table-wrap" class:busy={b_busy_loading}>
 					<!-- svelte-ignore a11y-resolved -->
 					<table class="wrapped confluenceTable tablesorter tablesorter-default stickyTableHeaders" role="grid" style="padding: 0px;" resolved="">
 						<colgroup>
@@ -722,7 +787,7 @@
 							</tr>
 						</thead>
 						<tbody aria-live="polite" aria-relevant="all">
-							{#if b_busy_loading || !g_preview.rows.length}
+							{#if !g_preview.rows.length}
 								{#each A_DUMMY_TABLE_ROWS as g_row}
 									<tr role="row">
 										{#each k_query_table.queryType.fields as k_field}
