@@ -78,8 +78,9 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 		if(!k_list?.size) continue;
 
 		// insert value filter
+		// skip formatting for native parameters
 		a_bgp.push(/* syntax: sparql */ `
-			${attr(h_props, si_param, s_label)}
+			${!(si_param in H_NATIVE_DNG_PATTERNS) ? attr(h_props, si_param, s_label) : ''}
 
 			values ?${si_param}Value {
 				${[...this.parameterValuesList(si_param)].map(k => terse_lit(k.value)).join(' ')}
@@ -95,6 +96,7 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 		value: s_value,
 		hasMany: b_many,
 	} of this.queryType.fields) {
+
 		// attr already captured from filter; select value variable and skip it
 		if(si_param in h_props) {
 			a_selects.push(`?${si_param}Value`);
