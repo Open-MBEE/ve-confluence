@@ -12,6 +12,7 @@
 	import Fa from 'svelte-fa';
 
 	import {
+		faCheckCircle,
 		faCircleNotch,
 		faFilter,
 		faHistory,
@@ -38,39 +39,55 @@
 	} from '#/model/Connection';
 
 	import {
-autoCursorMutate,
+		autoCursorMutate,
 		ConfluencePage,
 		wrapCellInHtmlMacro,
 	} from '#/vendor/confluence/module/confluence';
-import xmldom from 'xmldom';
-import XHTMLDocument from '#/vendor/confluence/module/xhtml-document';
-import { process } from '#/common/static';
 
+	import xmldom from 'xmldom';
+
+	import XHTMLDocument from '#/vendor/confluence/module/xhtml-document';
+
+	import {process} from '#/common/static';
+	import type { TypedString } from '#/util/strings';
+
+
+	/**
+	 * The QueryTable model
+	 */
 	export let k_query_table: QueryTable;
-	export let g_node: Node;
+	/**
+	 * The HTML element to which this view element is anchored
+	 */
+	export let dm_anchor = document.createElement('div');
 
-	let b_published_state = false;
-	let b_published_toggle = b_published_state;
+	/**
+	 * An optional XHTML node that should be replaced when publishing this table to the page
+	*/
+	export let yn_directive: Node & {
+		localName: string;
+	};
 
-	// (async() => {
-	// 	const k_connection = await k_query_table.fetchConnection();
-	// 	const g_version = await k_connection.fetchCurrentVersion();
-	// 	const dt_version = new Date(g_version.dateTime);
-	// 	s_display_version = `${dt_version.toDateString()} @${dt_version.toLocaleTimeString()}`;
-	// })();
+	/**
+	 * Whether or not this table is already published
+	 */
+	export let b_published = false;
+	
 
+	// shows/hides the table results
+	let b_display_preview = !b_published;
+
+	// shows/hides the parameter controls
+	let b_display_parameters = false;
+
+	// the connection model
 	let k_connection: Connection;
+
+	// the model version descriptor
 	let g_version: ModelVersionDescriptor;
 
+	// once the component mounts
 	onMount(async() => {
-		// if(await k_query_table.isPublished()) {
-		// 	b_published_state = true;
-		// 	b_published_toggle = b_published_state;
-		// 	b_loading = false;
-		// }
-
-		// await render();
-
 		// get query table's connection
 		const k_connection_new = await k_query_table.fetchConnection();
 
@@ -91,33 +108,33 @@ import { process } from '#/common/static';
 			// update display version
 			s_display_version = `${dt_version.toDateString()} @${dt_version.toLocaleTimeString()}`;
 		}
+
+		// render table
+		await render();
 	});
 
 	const A_DUMMY_TABLE_ROWS = [{}, {}, {}];
 
-	export let dm_anchor = document.createElement('div');
 	let s_display_version = '...';
 	let dm_parameters: HTMLDivElement;
 
-	type Hash = Record<string, string>;
-	type Row = Record<string, {value: string}>;
-
 	interface Preview {
-		rows: Array<Hash>;
+		rows: Array<Record<string, TypedString>>;
 	}
 
-	let b_expand = false;
+	let b_busy_loading = false;
 
-	let b_loading = false;
-	let b_showing = false;
 	let g_source: {label: string} | null = null;
 
 	g_source = {label:'DNG Requirements'};
 
-	let b_display_params = false;
+	$: dm_anchor.style.display = b_published && b_display_preview? 'none' :'block';
 
-	$: dm_anchor.style.display = b_showing && b_display_params? 'none' :'block';
-	$: dm_anchor.style.opacity = b_loading? '0.5': '1.0';
+	// anchor provided
+	if(dm_anchor) {
+		// remove any top margin from table
+		dm_anchor.style.marginTop = '0px';
+	}
 
 	let g_preview: Preview = {rows:[]};
 
@@ -131,15 +148,15 @@ import { process } from '#/common/static';
 	let s_status_info = SX_STATUS_INFO_INIT;
 
 	function clear_preview(): void {
-		b_loading = false;
-		b_showing = false;
+		b_busy_loading = false;
+
 		s_status_info = 'PREVIEW (0 results)';
 		xc_info_mode = G_INFO_MODES.PREVIEW;
 		g_preview.rows = [];
 	}
 
-	const F_RENDER_CELL = (g_row: QueryRow): Record<string, string> => {
-		const h_out: Record<string, string> = {};
+	const F_RENDER_CELL = (g_row: QueryRow): Record<string, TypedString> => {
+		const h_out: Record<string, TypedString> = {};
 
 		for(const k_field of k_query_table.queryType.fields) {
 			h_out[k_field.key] = k_field.cell(g_row);
@@ -164,7 +181,7 @@ import { process } from '#/common/static';
 		// no filters, clear preview
 		if(!b_filtered) return clear_preview();
 
-		b_loading = true;
+		b_busy_loading = true;
 
 		const k_query = await k_query_table.fetchQueryBuilder();
 		const a_rows = await k_connection.execute(k_query.paginate(21));
@@ -183,29 +200,29 @@ import { process } from '#/common/static';
 
 		g_preview.rows = a_rows.map(F_RENDER_CELL);
 
-		b_loading = false;
-		b_showing = true;
+		b_busy_loading = false;
 
 		s_status_info = `PREVIEW (${20 < a_rows.length ? '>20' : a_rows.length} result${1 === a_rows.length ? '' : 's'})`;
 		xc_info_mode = G_INFO_MODES.PREVIEW;
 	}
 
-	function close_parameters() {
-		if(b_published_state) {
-			b_published_toggle = true;
-		}
-		return;
-	}
-
 	function toggle_parameters() {
-		b_expand = !b_expand;
-		if(!b_expand) {
-			close_parameters();
+		// toggle parameters display
+		b_display_parameters = !b_display_parameters;
+
+		// parameters should not be showing
+		if(!b_display_parameters) {
+			// table is published; hide the preview
+			if(b_published) b_display_preview = false;
+
+			// done
+			return;
 		}
 
-		b_published_toggle = false;
+		// table is published; show the preview
+		if(b_published) b_display_preview = true;
 
-		render();
+		void render();
 
 		queueMicrotask(() => {
 			create_in_transition(dm_parameters, slide, {
@@ -232,6 +249,9 @@ import { process } from '#/common/static';
 			page: k_page,
 		} = k_query_table.getContext();
 
+		// fetch query builder
+		const k_query = await k_query_table.fetchQueryBuilder();
+
 		// prepare commit message
 		let s_commit_message = '';
 		{
@@ -253,15 +273,14 @@ import { process } from '#/common/static';
 				}
 			}
 
-			s_commit_message = `Published query table using "${k_query_table.queryType.label}" ${a_where.length? `where ${a_where.join(', and')}`: ''}`
+			const nl_rows = +(await k_connection.execute(k_query.count()))[0].count.value;
+
+			s_commit_message = `Published query table with ${nl_rows} row${1 === nl_rows? '': 's'} using "${k_query_table.queryType.label}" ${a_where.length? `where\n(${a_where.join(') AND (')}`: ''})`
 				+` from ${k_connection.label} on ${s_display_version}`;
 		}
 
 		// commit query table state
 		const g_payload = await k_query_table.save(s_commit_message);
-
-		// fetch query builder
-		const k_query = await k_query_table.fetchQueryBuilder();
 
 		// execute query and download all rows
 		const a_rows = await k_connection.execute(k_query.all());
@@ -277,17 +296,30 @@ import { process } from '#/common/static';
 			body: yn_table,
 		}, k_contents);
 
-		// crawl out of p tags
-		let yn_replace = g_node.parentNode as Node;
-		while('p' === yn_replace.parentNode?.nodeName) {
-			yn_replace = yn_replace.parentNode;
+		// use directive as anchor
+		if(yn_directive) {
+			// replace node
+			let yn_replace: Node = yn_directive;
+
+			// not structured macro
+			if('structured-macro' !== yn_directive.localName) {
+				// crawl out of p tags
+				yn_replace = yn_directive.parentNode as Node;
+				while('p' === yn_replace.parentNode?.nodeName) {
+					yn_replace = yn_replace.parentNode;
+				}
+			}
+
+			// replace node
+			yn_replace.parentNode?.replaceChild(yn_macro, yn_replace);
+
+			// auto cusor mutate
+			autoCursorMutate(yn_macro, k_contents);
 		}
-
-		// replace node
-		yn_replace.parentNode?.replaceChild(yn_macro, yn_replace);
-
-		// auto cusor mutate
-		autoCursorMutate(yn_macro, k_contents);
+		// no directive
+		else {
+			throw new Error(`No directive node was given`);
+		}
 
 		// upload contents
 		const g_res = await k_page.postContent(k_contents, s_commit_message);
@@ -317,9 +349,31 @@ import { process } from '#/common/static';
 					g_field.label,
 				]))),
 				...a_rows.map(F_RENDER_CELL).map(h_row => f_builder('tr', {}, [
-					...Object.values(h_row).map(sx_cell => f_builder('td', {}, [
-						wrapCellInHtmlMacro(sanitize_false_directives(sx_cell), k_contents),
-					])),
+					...Object.values(h_row).map((ksx_cell) => {
+						const a_nodes: Array<Node | string> = [];
+						let sx_cell = ksx_cell.toString().trim();
+
+						// rich content type
+						if('text/plain' !== ksx_cell.contentType) {
+							// sanitize false directives
+							const sx_sanitize = sanitize_false_directives(sx_cell);
+
+							// sanitization changed string (making it HTML) or it already was HTML; wrap in HTML macro
+							if(sx_sanitize !== sx_cell || 'text/html' === ksx_cell.contentType) {
+								a_nodes.push(wrapCellInHtmlMacro(sx_sanitize, k_contents));
+							}
+							// update cell
+							else {
+								a_nodes.push(...XHTMLDocument.xhtmlToNodes(sx_sanitize));
+							}
+						}
+						else {
+							a_nodes.push(sx_cell);
+						}
+
+						// build cell using node or string
+						return f_builder('td', {}, a_nodes);
+					}),
 				])),
 			]),
 		]);
@@ -330,6 +384,7 @@ import { process } from '#/common/static';
 	}
 
 	function select_query_type(dv_select: CustomEvent<ValuedLabeledObject>) {
+		// set query type on model
 		k_query_table.setQueryType(dv_select.detail);
 
 		// trigger svelte update for query type change
@@ -390,7 +445,7 @@ import { process } from '#/common/static';
 			}
 		}
 
-		&.published {
+		&.published:not(.expanded) {
 			.table-wrap {
 				border: 0;
 			}
@@ -402,7 +457,7 @@ import { process } from '#/common/static';
 						color: var(--ve-color-dark-text);
 					}
 					.version {
-						color: var(--ve-color-accent-light);
+						color: var(--ve-color-medium-text);
 					}
 				}
 				.info {
@@ -414,7 +469,7 @@ import { process } from '#/common/static';
 
 		.config {
 			background-color: var(--ve-color-dark-background);
-			padding: 7pt 14pt;
+			padding: 5pt 10pt;
 			border-radius: 3px 3px 0 0;
 			display: flex;
 
@@ -478,11 +533,6 @@ import { process } from '#/common/static';
 				*:nth-child(n + 2) {
 					margin-left: 0.5em;
 				}
-
-				// select {
-				// 	padding: 3px 6px;
-				// 	color: var(--ve-color-dark-text);
-				// }
 
 				.label {
 					vertical-align: middle;
@@ -564,123 +614,137 @@ import { process } from '#/common/static';
 	}
 </style>
 
-<div class="ve-query-table">
-	<div class="controls">
-		<span class="label">
-			Connected Data Table {g_source ? `with ${g_source.label}` : ''}
-			<Fa icon={faQuestionCircle} />
-		</span>
-		<span class="buttons">
-			<button class="ve-button-primary" on:click={publish_table}>Publish</button>
-			<button class="ve-button-secondary" on:click={reset_table}>Cancel</button>
-		</span>
-	</div>
-
-	<div class="ve-table" class:published={b_published_toggle} class:expanded={b_expand}>
-		<div class="config">
-			<span class="tabs">
-				<span class="parameters" on:click={toggle_parameters} class:active={b_expand}>
-					<Fa icon={faFilter} size="xs" />
-					Parameters
-				</span>
-				<span class="version">
-					<Fa icon={faHistory} size="xs" />
-					Version: {s_display_version}
-				</span>
+{#await k_query_table.ready()}
+	<!-- loading -->
+{:then}
+	<div class="ve-query-table">
+		<div class="controls">
+			<span class="label">
+				Connected Data Table {g_source ? `with ${g_source.label}` : ''}
+				<Fa icon={faQuestionCircle} />
 			</span>
-			<span class="info">
-				{#if G_INFO_MODES.PREVIEW === xc_info_mode && !b_published_toggle}
-					{s_status_info}
-				{:else if G_INFO_MODES.LOADING === xc_info_mode && !b_published_toggle}
-					<Fa icon={faCircleNotch} class="fa-spin" /> LOADING PREVIEW
+			<span class="buttons">
+				{#if b_published}
+					<span class="ve-pill">
+						<Fa icon={faCheckCircle} size="sm" />
+						Published
+					</span>
+				{/if}
+				{#if !b_published || b_display_parameters}
+					<button class="ve-button-primary" on:click={publish_table}>Publish</button>
+					<button class="ve-button-secondary" on:click={reset_table}>Cancel</button>
 				{/if}
 			</span>
 		</div>
 
-		<div class="config-body" bind:this={dm_parameters} style="display:{b_expand ? 'block' : 'none'};">
-			<div class="query-type">
-				<span class="label">Query Type</span>
-				<span class="select">
-					<Select
-						value={k_query_table.queryType.toItem()}
-						items={Object.values(k_query_table.queryTypeOptions).map(k => k.toItem())}
-						showIndicator={true}
-						indicatorSvg={/* syntax: html */ `
-							<svg width="7" height="5" viewBox="0 0 7 5" fill="none" xmlns="http://www.w3.org/2000/svg">
-								<path d="M3.5 4.5L0.468911 0.75L6.53109 0.75L3.5 4.5Z" fill="#333333"/>
-							</svg>
-						`}
-						Item={SelectItem}
-						containerStyles={'padding: 0px 40px 0px 6px;'}
-						listOffset={0}
-						on:select={select_query_type}
-					/>
+		<div class="ve-table" class:published={b_published} class:expanded={b_display_parameters}>
+			<div class="config">
+				<span class="tabs">
+					<span class="parameters" on:click={toggle_parameters} class:active={b_display_parameters}>
+						<Fa icon={faFilter} size="xs" />
+						Parameters
+					</span>
+					<span class="version">
+						<Fa icon={faHistory} size="xs" />
+						Version: {s_display_version}
+					</span>
+				</span>
+				<span class="info">
+					{#if b_display_preview || !b_published}
+						{#if G_INFO_MODES.PREVIEW === xc_info_mode}
+							{s_status_info}
+						{:else if G_INFO_MODES.LOADING === xc_info_mode}
+							<Fa icon={faCircleNotch} class="fa-spin" /> LOADING PREVIEW
+						{/if}
+					{/if}
 				</span>
 			</div>
-			<div class="form">
-				<span class="header">Parameter</span>
-				<span class="header">Value</span>
-				{#await k_query_table.queryType.fetchParameters() then a_params}
-					{#each a_params as k_param}
-						<QueryTableParam {k_query_table} {k_param} k_values={k_query_table.parameterValuesList(k_param.key)} on:change={render} />
-					{/each}
-				{/await}
+
+			<div class="config-body" bind:this={dm_parameters} style="display:{b_display_parameters ? 'block' : 'none'};">
+				<div class="query-type">
+					<span class="label">Query Type</span>
+					<span class="select">
+						<Select
+							value={k_query_table.queryType.toItem()}
+							items={Object.values(k_query_table.queryTypeOptions).map(k => k.toItem())}
+							showIndicator={true}
+							indicatorSvg={/* syntax: html */ `
+								<svg width="7" height="5" viewBox="0 0 7 5" fill="none" xmlns="http://www.w3.org/2000/svg">
+									<path d="M3.5 4.5L0.468911 0.75L6.53109 0.75L3.5 4.5Z" fill="#333333"/>
+								</svg>
+							`}
+							Item={SelectItem}
+							containerStyles={'padding: 0px 40px 0px 6px;'}
+							listOffset={0}
+							on:select={select_query_type}
+						/>
+					</span>
+				</div>
+				<div class="form">
+					<span class="header">Parameter</span>
+					<span class="header">Value</span>
+					{#await k_query_table.queryType.fetchParameters() then a_params}
+						{#each a_params as k_param}
+							<QueryTableParam {k_query_table} {k_param} k_values={k_query_table.parameterValuesList(k_param.key)} on:change={render} />
+						{/each}
+					{/await}
+				</div>
 			</div>
-		</div>
-		{#if !b_published_toggle}
-		<div class="table-wrap">
-			<!-- svelte-ignore a11y-resolved -->
-			<table class="wrapped confluenceTable tablesorter tablesorter-default stickyTableHeaders" role="grid" style="padding: 0px;" resolved="">
-				<colgroup>
-					{#each k_query_table.queryType.fields as k_field}
-						<col />
-					{/each}
-				</colgroup>
-				<thead class="tableFloatingHeaderOriginal">
-					<tr role="row" class="tablesorter-headerRow">
-						{#each k_query_table.queryType.fields as k_field, i_field}
-							<th class="confluenceTh tablesorter-header sortableHeader tablesorter-headerUnSorted" data-column={i_field} tabindex="0" scope="col" role="columnheader" aria-disabled="false" unselectable={true} aria-sort="none" aria-label="{k_field.label}: No sort applied, activate to apply an ascending sort" style="user-select: none;">
-								<div class="tablesorter-header-inner">
-									{k_field.label}
-								</div>
-							</th>
-						{/each}
-					</tr>
-				</thead>
-				<thead class="tableFloatingHeader" style="display: none;">
-					<tr role="row" class="tablesorter-headerRow">
-						{#each k_query_table.queryType.fields as k_field, i_header}
-							<th class="confluenceTh tablesorter-header sortableHeader tablesorter-headerUnSorted" data-column={i_header} tabindex="0" scope="col" role="columnheader" aria-disabled="false" unselectable={true} aria-sort="none" aria-label="{k_field.label}: No sort applied, activate to apply an ascending sort" style="user-select: none;">
-								<div class="tablesorter-header-inner">
-									{k_field.label}
-								</div>
-							</th>
-						{/each}
-					</tr>
-				</thead>
-				<tbody aria-live="polite" aria-relevant="all">
-					{#if b_loading || !g_preview.rows.length}
-						{#each A_DUMMY_TABLE_ROWS as g_row}
-							<tr role="row">
-								{#each k_query_table.queryType.fields as k_field}
-									<td class="confluenceTd">
-										<span class="ve-table-preview-cell-placeholder">&nbsp;</span>
-									</td>
+			{#if b_display_preview}
+				<div class="table-wrap">
+					<!-- svelte-ignore a11y-resolved -->
+					<table class="wrapped confluenceTable tablesorter tablesorter-default stickyTableHeaders" role="grid" style="padding: 0px;" resolved="">
+						<colgroup>
+							{#each k_query_table.queryType.fields as k_field}
+								<col />
+							{/each}
+						</colgroup>
+						<thead class="tableFloatingHeaderOriginal">
+							<tr role="row" class="tablesorter-headerRow">
+								{#each k_query_table.queryType.fields as k_field, i_field}
+									<th class="confluenceTh tablesorter-header sortableHeader tablesorter-headerUnSorted" data-column={i_field} tabindex="0" scope="col" role="columnheader" aria-disabled="false" unselectable={true} aria-sort="none" aria-label="{k_field.label}: No sort applied, activate to apply an ascending sort" style="user-select: none;">
+										<div class="tablesorter-header-inner">
+											{k_field.label}
+										</div>
+									</th>
 								{/each}
 							</tr>
-						{/each}
-					{:else}
-						{#each g_preview.rows as h_row}
-							<tr role="row">
-								{#each Object.values(h_row) as sx_cell}
-									<td class="confluenceTd">{@html sx_cell}</td>
+						</thead>
+						<thead class="tableFloatingHeader" style="display: none;">
+							<tr role="row" class="tablesorter-headerRow">
+								{#each k_query_table.queryType.fields as k_field, i_header}
+									<th class="confluenceTh tablesorter-header sortableHeader tablesorter-headerUnSorted" data-column={i_header} tabindex="0" scope="col" role="columnheader" aria-disabled="false" unselectable={true} aria-sort="none" aria-label="{k_field.label}: No sort applied, activate to apply an ascending sort" style="user-select: none;">
+										<div class="tablesorter-header-inner">
+											{k_field.label}
+										</div>
+									</th>
 								{/each}
 							</tr>
-						{/each}
-					{/if}
-				</tbody>
-			</table>
+						</thead>
+						<tbody aria-live="polite" aria-relevant="all">
+							{#if b_busy_loading || !g_preview.rows.length}
+								{#each A_DUMMY_TABLE_ROWS as g_row}
+									<tr role="row">
+										{#each k_query_table.queryType.fields as k_field}
+											<td class="confluenceTd">
+												<span class="ve-table-preview-cell-placeholder">&nbsp;</span>
+											</td>
+										{/each}
+									</tr>
+								{/each}
+							{:else}
+								{#each g_preview.rows as h_row}
+									<tr role="row">
+										{#each Object.values(h_row) as ksx_cell}
+											<td class="confluenceTd">{@html ksx_cell.toString()}</td>
+										{/each}
+									</tr>
+								{/each}
+							{/if}
+						</tbody>
+					</table>
+				</div>
+			{/if}
 		</div>
-		{/if}
 	</div>
-</div>
+{/await}

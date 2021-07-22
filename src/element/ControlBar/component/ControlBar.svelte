@@ -127,6 +127,22 @@ import type { JsonObject } from '#/common/types';
 		}
 	}
 
+	async function reset_page(b_force=false): Promise<void> {
+		if(k_page) {
+			if(b_force) {
+				const g_bundle = await k_page.fetchMetadataBundle();
+				const n_version = g_bundle?.version.number || 0;
+
+				await k_page.initMetadata(n_version+1);
+
+				location.reload();
+			}
+			else {
+				// TODO: implement unused element garbage collection
+			}
+		}
+	}
+
 	const H_PATHS_CLIPPER = {
 		connection: {
 			sparql: {
@@ -313,14 +329,35 @@ import type { JsonObject } from '#/common/types';
 					{#if k_document}
 						<TabList>
 							<Tab>Status</Tab>
+							<Tab>Admin</Tab>
 						</TabList>
 
 						<TabPanel>
 							<div class="tab-body">
 								<p>New updates are available every Friday at 10:00 PM</p>
-								<button on:click={() => reset_document(H_PATHS_CLIPPER)}>Reset this document's metadata to Clipper preset</button>
-								<button on:click={() => reset_document(H_PATHS_MSR)}>Reset this document's metadata to MSR preset</button>
 								<DatasetsTable {g_context}></DatasetsTable>
+							</div>
+							<div class="tab-body">
+								<section>
+									<h4>Document</h4>
+									<div>
+										<span>Reset document metadata to:</span>
+										<span>
+											<button on:click={() => reset_document(H_PATHS_CLIPPER)}>Clipper preset</button>
+											<button on:click={() => reset_document(H_PATHS_MSR)}>MSR preset</button>
+										</span>
+									</div>
+								</section>
+								<section>
+									<h4>Page</h4>
+									<div>
+										<span>Reset page metadata:</span>
+										<span>
+											<button on:click={() => reset_page()}>Clear all unused objects</button>
+											<button on:click={() => reset_page(true)}>Force reset metadata</button>
+										</span>
+									</div>
+								</section>
 							</div>
 						</TabPanel>
 					{:else}

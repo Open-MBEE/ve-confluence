@@ -225,6 +225,7 @@
 	{:else}
 		<Select
 			items={a_options.map(g_opt => g_opt.data)}
+			value={[...k_values]}
 			placeholder="Select Attribute Value(s)"
 			isMulti={true}
 			isClearable={false}

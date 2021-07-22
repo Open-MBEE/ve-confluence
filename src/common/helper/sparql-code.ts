@@ -153,5 +153,9 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 			${sq_bgp || ''}
 		`,
 		group: a_aggregates.length ? a_selects.join(' ') : null,
+		sort: [
+			...a_selects.includes('?idValue')? ['asc(?idValue)']: [],
+			'asc(?artifact)',
+		],
 	});
 }

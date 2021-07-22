@@ -20,6 +20,7 @@ import {
 	dm_content,
 	dm_main_header,
 	uuid_v4,
+	dm_main,
 } from '#/util/dom';
 
 import type {SvelteComponent} from 'svelte';
@@ -37,9 +38,12 @@ import {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
 
 import {K_HARDCODED} from '#/common/hardcoded';
 
-import type {Context} from '#/model/Serializable';
+import {Context, VeOdm} from '#/model/Serializable';
 
 import {ObjectStore} from '#/model/ObjectStore';
+import { xpathEvaluate, xpathSelect, xpathSelect1 } from '#/vendor/confluence/module/xhtml-document';
+import type { VeoPath } from '#/common/veo';
+import type { TypedKeyedUuidedObject, TypedObject, TypedPrimitive } from '#/common/types';
 
 
 // write static css
@@ -117,13 +121,13 @@ type ControlBarConfig = {
 const P_DNG_WEB_PREFIX = process.env.DOORS_NG_PREFIX;
 
 // for excluding elements that are within active directives
-const SX_PARAMETER_ID = `ac:parameter[@ac:name="id"][starts-with(text(),"{SI_VIEW_PREFIX}-")]`;
-const SX_EXCLUDE_ACTIVE_DIRECTIVES = /* syntax: xpath */ `[not(ancestor::ac:structured-macro[@ac:name="span"][child::${SX_PARAMETER_ID}])]`;
+const SX_PARAMETER_ID_PAGE_ELEMENT = `ac:parameter[@ac:name="id"][starts-with(text(),"page#elements.")]`;
+const SX_EXCLUDE_ACTIVE_ELEMENTS = /* syntax: xpath */ `[not(ancestor::ac:structured-macro[@ac:name="span"][child::${SX_PARAMETER_ID_PAGE_ELEMENT}])]`;
 
 const A_DIRECTIVE_CORRELATIONS: CorrelationDescriptor[] = [
 	// dng web link
 	{
-		storage: /* syntax: xpath */ `.//a[starts-with(@href,"${P_DNG_WEB_PREFIX}")]${SX_EXCLUDE_ACTIVE_DIRECTIVES}`,
+		storage: /* syntax: xpath */ `.//a[starts-with(@href,"${P_DNG_WEB_PREFIX}")]${SX_EXCLUDE_ACTIVE_ELEMENTS}`,
 		live: `a[href^="${P_DNG_WEB_PREFIX}"]:not([data-ve4])`,
 		directive: ([ym_anchor, g_link]) => ({
 			component: DngArtifact,
@@ -153,13 +157,15 @@ const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 
 	'CAE CED Table Element': ([, g_struct]: [HTMLElement, Record<string, any>]) => {
 		const si_uuid = (g_struct.uuid as string) || uuid_v4().replace(/_/g, '-');
+		const si_key: VeoPath.Full = `page#elements.serialized.queryTable.${si_uuid}`;
 
 		return {
 			component: QueryTable,
 			props: {
-				k_query_table: new MmsSparqlQueryTable(`page#elements.serialized.queryTable.${si_uuid}`,
+				k_query_table: new MmsSparqlQueryTable(si_key,
 					{
 						type: 'MmsSparqlQueryTable',
+						key: si_key,
 						uuid: si_uuid,
 						group: 'dng',
 						queryTypePath: 'hardcoded#queryType.sparql.dng.afsr',
@@ -252,7 +258,7 @@ function render_component(g_bundle: ViewBundle, b_hide_anchor = false) {
 		anchor: dm_anchor,
 		props: {
 			...g_bundle.props || {},
-			g_node: g_bundle.node,
+			yn_directive: g_bundle.node,
 			// ...GM_CONTEXT,
 		},
 	});
@@ -302,7 +308,7 @@ export async function main(): Promise<void> {
 	}
 
 	// initialize object store
-	G_CONTEXT.store = new ObjectStore({
+	G_CONTEXT.store = K_OBJECT_STORE = new ObjectStore({
 		page: k_page,
 		document: k_document,
 		hardcoded: K_HARDCODED,
@@ -373,16 +379,55 @@ export async function main(): Promise<void> {
 		}
 	}
 
-	// const _xhtmle = k_doc.builder();
-	// _xhtmle('ac:structured-macro', {
-	// 	'ac:name': 'span',
-	// 	'ac:schema-version': '1',
-	// 	'ac:macro-id': si_macro,
-	// }, [
-	// 	...a_children,
-	// 	_macro_param('atlassian-macro-output-type', 'INLINE'),
-	// 	_xhtmle('ac:rich-text-body', {}, a_body),
-	// ])
+	// interpret rendered elements
+	{
+		// xpath query for rendered elements
+		const a_macros = k_source.select<Node>(`//ac:structured-macro[@ac:name="span"][child::${SX_PARAMETER_ID_PAGE_ELEMENT}]`);
+
+		// translate into ve paths
+		const a_paths = a_macros.map(yn => [xpathSelect1<Text>(`./ac:parameter[@ac:name="id"]/text()`, yn).data, yn] as [VeoPath.Full, Node]);
+
+		// resolve serialized element
+		for(const [sp_element, yn_directive] of a_paths) {
+			const gc_element = await K_OBJECT_STORE.resolve<TypedKeyedUuidedObject>(sp_element);
+
+			// correlate to live DOM element
+			const a_spans = qsa(dm_main, `span[id="${sp_element}"]`);
+
+			// incorrect match
+			if(1 !== a_spans.length) {
+				throw new Error(`Expected exactly 1 annotated span element on page with id="${sp_element}" but found ${a_spans.length}`);
+			}
+
+			// select adjacent element
+			const dm_render = a_spans[0].parentElement!.nextSibling as HTMLElement;
+
+			// deserialize
+			switch(gc_element.type) {
+				case 'MmsSparqlQueryTable': {
+					// construct table model
+					const k_query_table = await VeOdm.createFromSerialized(MmsSparqlQueryTable, sp_element, gc_element as MmsSparqlQueryTable.Serialized, G_CONTEXT);
+
+					// inject component
+					new QueryTable({
+						target: dm_render.parentElement!,
+						anchor: dm_render,
+						props: {
+							k_query_table,
+							yn_directive,
+							dm_anchor: dm_render,
+							b_published: true,
+						},
+					});
+					break;
+				}
+
+				default: {
+					break;
+				}
+			}
+		}
+	}
 }
 
 function dom_ready() {

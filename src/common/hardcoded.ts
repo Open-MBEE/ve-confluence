@@ -23,6 +23,14 @@ import {
 
 import type {SparqlSelectQuery} from '#/util/sparql-endpoint';
 
+import {
+	plain,
+	html,
+	xhtml,
+	escape_html,
+	XhtmlString,
+} from '#/util/strings';
+
 import {build_dng_select_query_from_params} from './helper/sparql-code';
 
 import H_PREFIXES from './prefixes';
@@ -98,7 +106,7 @@ function auto_type(h_tree: Record<DotFragment, HardcodedObjectCategory>): Hardco
 
 type AddsKey<ValueType extends PrimitiveValue> = Record<
 	DotFragment,
-	HardcodedObjectType<Omit<ValueType, 'type'> & {key: string;}>
+	HardcodedObjectType<Omit<ValueType, 'type'> & {key: string}>
 >;
 
 type NoTypeOrKey<ValueType extends PrimitiveObject> = Record<
@@ -126,12 +134,11 @@ function auto_key<ValueType extends PrimitiveObject>(
 	return h_subtree as unknown as AddsKey<ValueType>;
 }
 
-const escape_html = (s: string) => s.replace(/</g, '&lt;');
 
-const unordered_list = (si_key: string) => (g: QueryRow) => /* syntax: html */ `
+const unordered_list = (si_key: string) => (g: QueryRow): XhtmlString => xhtml`
 	<ul>${(g[si_key]?.value || '')
 		.split('\0')
-		.map(s => `<li>${escape_html(s)}</li>`)
+		.map(s => `<li>${escape_html(s) || '&nbsp;'}</li>`)
 		.join('')}</ul>
 `;
 
@@ -214,21 +221,21 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					label: null, // inherit from value
 					source: 'native',
 					hasMany: false,
-					cell: (g: QueryRow) => escape_html(g.idValue.value),
+					cell: (g: QueryRow) => plain`${escape_html(g.idValue.value)}`,
 				},
 				requirementName: {
 					value: 'Requirement Name',
 					label: null, // inherit from value
 					source: 'native',
 					hasMany: false,
-					cell: (g: QueryRow) => /* syntax: html */ `<a href="${g.artifact.value}">${escape_html(g.requirementNameValue.value)}</a>`,
+					cell: (g: QueryRow) => xhtml`<a href="${g.artifact.value}">${escape_html(g.requirementNameValue.value)}</a>`,
 				},
 				requirementText: {
 					value: 'Requirement Text',
 					label: null, // inherit from value
 					source: 'native',
 					hasMany: false,
-					cell: (g: QueryRow) => g.requirementTextValue.value,
+					cell: (g: QueryRow) => html`${g.requirementTextValue.value}`,
 				},
 				keyDriver: {
 					value: 'Key/Driver [S]',
@@ -242,21 +249,21 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					label: null, // inherit from value
 					source: 'attribute',
 					hasMany: true,
-					cell: (g: QueryRow) => escape_html(g.affectedSystemsValue?.value || ''),
+					cell: (g: QueryRow) => plain`${escape_html(g.affectedSystemsValue?.value || '')}`,
 				},
 				maturity: {
 					value: 'Maturity',
 					label: null, // inherit from value
 					source: 'attribute',
 					hasMany: false,
-					cell: (g: QueryRow) => g.maturityValue?.value || '',
+					cell: (g: QueryRow) => plain`${escape_html(g.maturityValue?.value || '')}`,
 				},
 				children: {
 					value: 'Child Requirements',
 					label: null,  // inherit from value
 					source: 'native',
 					hasMany: true,
-					cell: (g: QueryRow) => `<ul>${
+					cell: (g: QueryRow) => xhtml`<ul>${
 						g.childrenValue.value
 							.split(/\0/g)
 							.map((s, i) => /* syntax: html*/ `<li><a href="${g.children.value.split(/\0/g)[i]}">${escape_html(s)}</a></li>`)
@@ -324,7 +331,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 	utility: {
 		function: {
 			sort: {
-				label_asc:(g_a: Labeled, g_b: Labeled) => g_a.label < g_b.label ? -1 : 1,
+				label_asc: (g_a: Labeled, g_b: Labeled) => g_a.label < g_b.label ? -1 : 1,
 			},
 		},
 	},

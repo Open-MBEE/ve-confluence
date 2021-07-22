@@ -137,6 +137,7 @@ interface SelectQueryDescriptor {
 	from?: string;
 	bgp: string;
 	group?: string | null;
+	sort?: string[];
 }
 
 function stringify_select_query_descriptor(g_desc: SelectQueryDescriptor): string {
@@ -145,8 +146,9 @@ function stringify_select_query_descriptor(g_desc: SelectQueryDescriptor): strin
 	let s_tail = '';
 
 	if(g_desc.select) s_select = g_desc.select.join(' ');
-	if(g_desc.from) s_from += /* syntax: sparql */ `from ${g_desc.from}`;
-	if(g_desc.group) s_tail += /* syntax: sparql */ `group by ${g_desc.group}`;
+	if(g_desc.from) s_from += /* syntax: sparql */ ` from ${g_desc.from}`;
+	if(g_desc.group) s_tail += /* syntax: sparql */ ` group by ${g_desc.group}`;
+	if(g_desc.sort?.length) s_tail += /* syntax: sparql */ ` order by ${g_desc.sort.join(' ')}`;
 
 	return /* syntax: sparql */ `
 		select ${s_select} ${s_from} {

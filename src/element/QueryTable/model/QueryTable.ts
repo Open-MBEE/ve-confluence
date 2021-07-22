@@ -11,6 +11,7 @@ import type {
 	TypedPrimitive,
 	ValuedLabeledObject,
 	Hash,
+	TypedKeyedUuidedObject,
 } from '#/common/types';
 
 import type {VeoPath} from '#/common/veo';
@@ -19,6 +20,7 @@ import {
 	VeOdm,
 	VeOdmKeyed,
 	VeOdmKeyedLabeled,
+	VeOdmPageElement,
 	VeOrmClass,
 } from '#/model/Serializable';
 
@@ -27,6 +29,7 @@ import {
 	SparqlConnection,
 	MmsSparqlConnection,
 } from '#/model/Connection';
+import type { TypedString } from '#/util/strings';
 
 export namespace QueryParamValue {
 	export interface Serialized extends TypedLabeledObject<'QueryParamValue'> {
@@ -127,7 +130,7 @@ export namespace QueryField {
 		label?: string;
 		source: 'native' | 'attribute';
 		hasMany: boolean;
-		cell: (g_row: QueryRow) => string;
+		cell: (g_row: QueryRow) => TypedString;
 	}
 }
 
@@ -148,7 +151,7 @@ export class QueryField extends VeOdmKeyed<QueryField.Serialized> {
 		return this._gc_serialized.hasMany;
 	}
 
-	get cell(): (g_row: QueryRow) => string {
+	get cell(): (g_row: QueryRow) => TypedString {
 		return this._gc_serialized.cell;
 	}
 }
@@ -208,8 +211,10 @@ export class QueryType<ConnectionType extends DotFragment=DotFragment> extends V
 		};
 	}
 
-	fetchParameters(): Promise<QueryParam[]> {
-		return Promise.all(this._gc_serialized.queryParametersPaths.map(async(sp_parameter) => {
+	async fetchParameters(): Promise<QueryParam[]> {
+		await this.ready();
+
+		return await Promise.all(this._gc_serialized.queryParametersPaths.map(async(sp_parameter) => {
 			const gc_query_param = await this._k_store.resolve<QueryParam.Serialized>(sp_parameter);
 			return new QueryParam(sp_parameter, gc_query_param, this._g_context);
 		}));
@@ -232,7 +237,7 @@ export namespace QueryTable {
 	export interface Serialized<
 		ConnectionType extends string=string,
 		TypeString extends DefaultType=DefaultType,
-	> extends TypedObject<TypeString> {
+	> extends TypedKeyedUuidedObject<TypeString> {
 		connectionPath: VeoPath.Connection<ConnectionType>;
 		parameterValues: Record<string, QueryParamValue.Serialized[]>;
 	}
@@ -244,7 +249,7 @@ const N_QUERY_TABLE_BUILD_RESULTS_LIMIT = 1 << 10;
 export abstract class QueryTable<
 	ConnectionType extends string=string,
 	Serialized extends QueryTable.Serialized<ConnectionType>=QueryTable.Serialized<ConnectionType>,
-> extends VeOdm<Serialized> {
+> extends VeOdmPageElement<Serialized> {
 	protected _h_param_values_lists: Record<string, ParamValuesList> = {};
 
 	abstract fetchConnection(): Promise<Connection>;
@@ -261,7 +266,8 @@ export abstract class QueryTable<
 		// build param values list
 		const h_param_values = this._gc_serialized.parameterValues;
 		const h_param_values_lists = this._h_param_values_lists;
-		for(const k_param of await this.queryType.fetchParameters()) {
+		const a_params = await this.queryType.fetchParameters();
+		for(const k_param of a_params) {
 			h_param_values_lists[k_param.key] = new ParamValuesList(
 				h_param_values[k_param.key]
 			);

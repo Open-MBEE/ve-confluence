@@ -4,6 +4,7 @@ import type {
 	JsonValue,
 	PrimitiveObject,
 	PrimitiveValue,
+	TypedKeyedUuidedObject,
 } from '#/common/types';
 
 import type {VeoPath} from '#/common/veo';
@@ -34,6 +35,15 @@ export interface Context {
 }
 
 export abstract class VeOdm<Serialized extends Serializable | Primitive> {
+	static async createFromSerialized<
+		Serialized extends Serializable | Primitive,
+		InstanceType extends VeOdm<Serialized>,
+	>(dc_model: {
+		new(sp_path: VeoPath.Full, gc_serialized: Serialized, g_context: Context): InstanceType;
+	}, sp_path: VeoPath.Full, gc_serialized: Serialized, g_context: Context): Promise<InstanceType> {
+		return await (new dc_model(sp_path, gc_serialized, g_context)).ready();
+	}
+
 	private _b_ready = false;
 	private _a_awaits: (() => void)[] = [];
 
@@ -60,10 +70,11 @@ export abstract class VeOdm<Serialized extends Serializable | Primitive> {
 		this.init()
 			.then(() => {
 				this._b_ready = true;
-				for(const fk_resolve of this._a_awaits) {
+				const a_awaits = this._a_awaits;
+				while(a_awaits.length) {
+					const fk_resolve = a_awaits.shift()!;
 					fk_resolve();
 				}
-				this._a_awaits.length = 0;
 			})
 			.catch(() => {
 				let s_serialized = '(unable to stringify - see Error details)';
@@ -76,14 +87,16 @@ export abstract class VeOdm<Serialized extends Serializable | Primitive> {
 			});
 	}
 
-	ready(): Promise<void> {
+	async ready(): Promise<this> {
 		if(!this._b_ready) {
-			return new Promise((fk_resolve) => {
-				this._a_awaits.push(fk_resolve);
+			return await new Promise((fk_resolve) => {
+				this._a_awaits.push(() => {
+					fk_resolve(this);
+				});
 			});
 		}
 
-		return Promise.resolve();
+		return this;
 	}
 
 	// eslint-disable-next-line class-methods-use-this,@typescript-eslint/no-empty-function
@@ -134,6 +147,14 @@ export abstract class VeOdmKeyed<
 > extends VeOdm<Serialized> {
 	get key(): string {
 		return this._gc_serialized.key;
+	}
+}
+
+export abstract class VeOdmPageElement<
+	Serialized extends TypedKeyedUuidedObject,
+> extends VeOdmKeyed<Serialized> {
+	get uuid(): string {
+		return this._gc_serialized.uuid;
 	}
 }
 

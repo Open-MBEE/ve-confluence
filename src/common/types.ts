@@ -64,23 +64,22 @@ export interface ValuedObject {
 	value: string;
 }
 
-export type TypedKeyedObject<TypeValue extends string = string> =
-	TypedObject<TypeValue> & KeyedObject;
-export type TypedLabeledObject<TypeValue extends string = string> =
-	TypedObject<TypeValue> & LabeledObject;
+export interface UuidedObject {
+	uuid: string;
+}
+
+export type TypedKeyedObject<TypeValue extends string=string> = TypedObject<TypeValue> & KeyedObject;
+export type TypedKeyedUuidedObject<TypeValue extends string=string> = TypedKeyedObject<TypeValue> & UuidedObject;
+export type TypedLabeledObject<TypeValue extends string=string> = TypedObject<TypeValue> & LabeledObject;
 export type KeyedLabeledObject = KeyedObject & LabeledObject;
 
 export type ValuedLabeledObject = ValuedObject & LabeledObject;
 
-export type TypedKeyedLabeledObject<TypeValue extends string = string> =
-	TypedObject<TypeValue> & KeyedObject & LabeledObject;
+export type TypedKeyedLabeledObject<TypeValue extends string=string> = TypedObject<TypeValue> & KeyedObject & LabeledObject;
 
-export type TypedKeyedPrimitive<TypeValue extends string = string> =
-	TypedPrimitive<TypeValue> & KeyedPrimitive;
-export type TypedLabeledPrimitive<TypeValue extends string = string> =
-	TypedPrimitive<TypeValue> & LabeledPrimitive;
-export type TypedKeyedLabeledPrimitive<TypeValue extends string = string> =
-	TypedKeyedPrimitive<TypeValue> & LabeledPrimitive;
+export type TypedKeyedPrimitive<TypeValue extends string=string> = TypedPrimitive<TypeValue> & KeyedPrimitive;
+export type TypedLabeledPrimitive<TypeValue extends string=string> = TypedPrimitive<TypeValue> & LabeledPrimitive;
+export type TypedKeyedLabeledPrimitive<TypeValue extends string=string> = TypedKeyedPrimitive<TypeValue> & LabeledPrimitive;
 
 export type SparqlString = string;
 

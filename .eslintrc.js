@@ -14,35 +14,55 @@ const H_PRIMITIVES = {
 	function: [
 		'f[gke]?',
 	],
+	_other: [
+		'd[a-z]{0,2}', 'e', 'g[ca-z]?',
+		'h[m]?', 'k[a-z]{0,2}', 'm', 'r[t]?',
+		't', 'v', 'w', 'y[a-z]{0,2}', 'z',
+	],
 };
 
 const A_SNAKE_TYPES = [
 	...Object.values(H_PRIMITIVES).flat(),
-	'd[a-z]{0,2}', 'e', 'g[ca-z]?',
-	'h[m]?', 'k[a-z]{0,2}', 'm', 'r[t]?',
-	't', 'v', 'w', 'y[a-z]{0,2}', 'z',
 ];
+
+const S_SNAKE_TYPES_UPPER = A_SNAKE_TYPES.map(s => s.toUpperCase()).join('|');
 
 function *snake_types(a_configs) {
 	for(const gc_types of a_configs) {
 		const a_snake_types = gc_types.patterns;
 
-		let s_inner = a_snake_types.join('|');
+		let s_inner = '';
+
+		if('only' !== gc_types.caps) {
+			s_inner = a_snake_types.join('|');
+		}
+
 		if(gc_types.caps) {
 			s_inner += `|${a_snake_types.map(s => s.toUpperCase()).join('|')}`;
 		}
 
 		const s_post = gc_types.short? '(_|$)': '_';
 
-		yield {
+		const g_opt = {
 			selector: gc_types.selector || 'variable',
-			types: gc_types.types,
-			format: ['snake_case'],
+			modifiers: gc_types.modifiers || [],
+			format: [
+				...('only' === gc_types.caps? ['UPPER_CASE']: ['snake_case']),
+				...(gc_types.format? gc_types.format: []),
+			],
 			custom: {
-				regex: `^(${s_inner})${s_post}`,
+				regex: (gc_types.regex? '(?:': '')+`^(${s_inner})${s_post}`+(gc_types.regex? `|${gc_types.regex})`: ''),
 				match: true,
 			},
 		};
+
+		const as_types = new Set(gc_types.types);
+		as_types.delete('_other');
+		gc_types.types = [...as_types];
+
+		if(gc_types.types.length) g_opt.types = gc_types.types;
+
+		return g_opt;
 	}
 };
 
@@ -103,6 +123,7 @@ module.exports = {
 		}),
 
 		...rules('@typescript-eslint', {
+			'no-non-null-assertion': ['off'],
 			'no-floating-promises': ['warn', {
 				ignoreVoid: true,
 				ignoreIIFE: true,
@@ -134,11 +155,14 @@ module.exports = {
 				].flatMap(s => [`private-${s}`, `protected-${s}`, `public-${s}`]),
 			}],
 			'naming-convention': ['warn',
+				// type declaration names
 				{
 					selector: 'typeLike',
 					format: ['StrictPascalCase'],
 					leadingUnderscore: 'forbid',
 				},
+
+				// assertion assignments
 				{
 					selector: 'variable',
 					filter: {
@@ -149,21 +173,44 @@ module.exports = {
 					format: ['StrictPascalCase'],
 					leadingUnderscore: 'forbid',
 				},
-				{
-					selector: 'variable',
-					format: ['snake_case'],
-					custom: {
-						regex: `^(${A_SNAKE_TYPES.join('|')}|${A_SNAKE_TYPES.map(s => s.toUpperCase()).join('|')})_`,
-						match: true,
+
+				// {
+				// 	selector: 'variable',
+				// 	modifiers: ['const', 'global'],
+				// 	format: ['UPPER_CASE'],
+				// 	custom: {
+				// 		regex: `^(${S_SNAKE_TYPES_UPPER})_`,
+				// 		match: true,
+				// 	},
+				// },
+				// {
+				// 	selector: 'variable',
+				// 	format: ['snake_case'],
+				// 	custom: {
+				// 		regex: `^(${S_SNAKE_TYPES_LOWER}|${S_SNAKE_TYPES_UPPER})_`,
+				// 		match: true,
+				// 	},
+				// },
+
+				...snake_types(Object.entries(H_PRIMITIVES).reduce((a_out, [si_type, a_patterns]) => ([
+					...a_out,
+					{
+						selector: 'variable',
+						modifiers: ['const', 'global'],
+						types: [si_type],
+						patterns: a_patterns,
+						caps: 'only',
+						format: 'function' === si_type? ['snake_case']: [],
+						regex: 'function' === si_type? '[a-z][a-z0-9_]+': '',
 					},
-				},
+				]), [])),
 				...snake_types(Object.entries(H_PRIMITIVES).reduce((a_out, [si_type, a_patterns]) => ([
 					...a_out,
 					{
 						selector: 'variable',
 						types: [si_type],
 						patterns: a_patterns,
-						caps: true,
+						caps: 'optional',
 					},
 				]), [])),
 				...snake_types(Object.entries(H_PRIMITIVES).reduce((a_out, [si_type, a_patterns]) => ([
@@ -176,36 +223,40 @@ module.exports = {
 					},
 				]), [])),
 				{
-					selector: 'variable',
-					modifiers: ['const', 'global'],
-					format: ['UPPER_CASE'],
-					custom: {
-						regex: `^(${A_SNAKE_TYPES.map(s => s.toUpperCase()).join('|')})_`,
-						match: true,
-					},
-				},
-				{
 					selector: 'enum',
 					format: ['UPPER_CASE'],
 					custom: {
-						regex: `^(${A_SNAKE_TYPES.map(s => s.toUpperCase()).join('|')})_`,
+						regex: `^(${S_SNAKE_TYPES_UPPER})_`,
 						match: true,
 					},
 				},
+
+				// local function names
 				{
 					selector: 'variable',
 					types: ['function'],
 					format: ['snake_case'],
 					leadingUnderscore: 'allow',
 				},
-				{
-					format: ['snake_case'],
-					custom: {
-						regex: `^_?(${A_SNAKE_TYPES.join('|')})_`,
-						match: true,
-					},
-					selector: 'parameter',
-				},
+
+				// // catch-all for non-primitive parameter types
+				// {
+				// 	format: ['snake_case'],
+				// 	custom: {
+				// 		regex: `^_?(${H_PRIMITIVES._other.join('|')})_`,
+				// 		match: true,
+				// 	},
+				// 	selector: 'parameter',
+				// },
+
+				// {
+				// 	format: ['UPPER_CASE'],
+				// 	custom: {
+				// 		regex: `^_?(${S_SNAKE_TYPES_UPPER})_`,
+				// 		match: true,
+				// 	},
+				// 	selector: 'parameter',
+				// },
 			],
 			'no-unnecessary-qualifier': ['warn'],
 			'prefer-for-of': ['warn'],

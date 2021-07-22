@@ -48,7 +48,6 @@ export type ElementMap = Record<MacroId, VeoPath.Full>;
 
 export interface PageMetadata extends JsonMetadataShape<'Page'> {
 	schema: '1.0';
-	elements: ElementMap;
 	paths: {
 		elements?: {
 			serialized?: {
@@ -61,7 +60,6 @@ export interface PageMetadata extends JsonMetadataShape<'Page'> {
 const G_DEFAULT_PAGE_METADATA: PageMetadata = {
 	type: 'Page',
 	schema: '1.0',
-	elements: {},
 	paths: {},
 };
 
@@ -287,7 +285,8 @@ export abstract class ConfluenceEntity<MetadataType extends PageOrDocumentMetada
 			throw new Error(`Refusing to overwrite non-leaf node`);
 		}
 
-		const h_root = g_bundle.data;
+		const g_data = g_bundle.data;
+		const h_root = g_data.paths;
 		let h_node: JsonObject = h_root;
 
 		for(let i_frag=0, nl_frags=a_frags.length; i_frag<nl_frags-1; i_frag++) {
@@ -307,7 +306,7 @@ export abstract class ConfluenceEntity<MetadataType extends PageOrDocumentMetada
 		h_node[a_frags[a_frags.length-1]] = w_value;
 
 		// write object
-		return await this.writeMetadataObject(h_root, {
+		return await this.writeMetadataObject(g_data, {
 			number: g_bundle.version.number+1,
 			message: `PUT ${a_frags.join('.')}`+(s_message? `: ${s_message}`: ''),
 		});
