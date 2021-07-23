@@ -136,6 +136,11 @@ module.exports = {
 				],
 			}],
 
+			'restrict-template-expression': ['warn', {
+				allowNumber: true,
+				allowBoolean: true,
+			}],
+
 			'class-literal-property-style': ['warn', 'fields'],
 			'prefer-readonly': ['warn'],
 			'member-delimiter-style': ['warn', {

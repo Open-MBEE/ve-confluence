@@ -14,7 +14,7 @@
 
 	import G_META from '#/common/meta';
 
-	import {lang} from '#/common/static';
+	import {lang, process} from '#/common/static';
 
 	import Fa from 'svelte-fa';
 
@@ -33,7 +33,8 @@
 		TabPanel,
 		Tab,
 	} from 'svelte-tabs';
-import type { JsonObject } from '#/common/types';
+
+	import type {JsonObject} from '#/common/types';
 
 	export let g_context: Context;
 
@@ -64,6 +65,9 @@ import type { JsonObject } from '#/common/types';
 
 	onMount(async() => {
 		b_ready = true;
+
+		// go async to allow svelte components to bind to local variables
+		await Promise.resolve();
 
 		// user does not have write permisisons
 		if('READ_WRITE' !== G_META.access_mode) {
@@ -272,6 +276,14 @@ import type { JsonObject } from '#/common/types';
 	.tab-body {
 		padding: 6px;
 	}
+
+	.version {
+		color: bisque;
+		position: absolute;
+		right: 4em;
+		font-size: 13px;
+		font-weight: 400;
+	}
 </style>
 
 {#if b_ready}
@@ -314,6 +326,9 @@ import type { JsonObject } from '#/common/types';
 				<span class="icon-help">
 					<!-- help icon -->
 					<Fa icon={faQuestionCircle} size="2x"></Fa>
+				</span>
+				<span class="version">
+					v{process.env.VERSION}
 				</span>
 				<span class="icon-dropdown animated rotate-expand" bind:this={dm_icon_dropdown}>
 					<!-- drop-down -->

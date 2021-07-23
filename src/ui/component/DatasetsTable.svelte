@@ -82,7 +82,7 @@ import type { VeoPath } from '#/common/veo';
 	// initialize connections
 	const A_CONNECTIONS: Connection[] = [];
 	(async() => {
-		const h_connections = await k_object_store.options<Connection.Serialized>('page#connection.**');
+		const h_connections = await k_object_store.options<Connection.Serialized>('page#connection.**', g_context);
 
 		for(const sp_connection in h_connections) {
 			const gc_connection = (h_connections as Record<string, Connection.Serialized>)[sp_connection];

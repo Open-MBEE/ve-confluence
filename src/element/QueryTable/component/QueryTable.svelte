@@ -300,6 +300,9 @@
 		// fetch query builder
 		const k_query = await k_query_table.fetchQueryBuilder();
 
+		// execute query and download all rows
+		const a_rows = await k_connection.execute(k_query.all());
+
 		// prepare commit message
 		let s_commit_message = '';
 		{
@@ -321,7 +324,7 @@
 				}
 			}
 
-			const nl_rows = +(await k_connection.execute(k_query.count()))[0].count.value;
+			const nl_rows = a_rows.length;
 
 			s_commit_message = `Published query table with ${nl_rows} row${1 === nl_rows? '': 's'} using "${k_query_table.queryType.label}" ${a_where.length? `where\n(${a_where.join(') AND (')}`: ''})`
 				+` from ${k_connection.label} on ${s_display_version}`;
@@ -329,9 +332,6 @@
 
 		// commit query table state
 		const g_payload = await k_query_table.save(s_commit_message);
-
-		// execute query and download all rows
-		const a_rows = await k_connection.execute(k_query.all());
 
 		// build XHTML table
 		const yn_table = build_xhtml_table(k_query_table.queryType.fields, a_rows);
@@ -441,6 +441,9 @@
 
 		// restore from serialized
 		k_query_table = await k_query_table.restore();
+
+		// preload query results for next time preview is shown
+		await render();
 	}
 
 	function select_query_type(dv_select: CustomEvent<ValuedLabeledObject>) {

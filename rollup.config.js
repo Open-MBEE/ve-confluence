@@ -14,6 +14,7 @@ import url from '@rollup/plugin-url';
 import ttypescript from 'ttypescript';
 import tsPathsResolve from 'rollup-plugin-ts-paths-resolve';
 import path from 'path';
+import * as G_PACKAGE from './package.json';
 
 const production = !process.env.ROLLUP_WATCH;
 
@@ -44,15 +45,28 @@ const replace_values = (h_replace) => Object.entries(h_replace).reduce((h_out, [
 	[`export let ${si_var}`]: `export let ${si_var} = ${JSON.stringify(w_value)}; //`,
 }), {});
 
-console.dir(replace_values({
+const H_VALUES_OUT = replace_values({
 	process: {
 		env: {
 			SPARQL_ENDPOINT: process.env.SPARQL_ENDPOINT,
 			DOORS_NG_PREFIX: process.env.DOORS_NG_PREFIX,
+			VERSION: G_PACKAGE.version,
 		},
 	},
 	lang: yaml.load(fs.readFileSync(`./resource/${process.env.LANG_FILE || 'lang.yaml'}`))[process.env.LANG],
-}));
+	static_css: [
+		'./submodule/animate.less/dist/css/animate.css',
+		// './node_modules/@fortawesome/fontawesome-free/css/all.min.css',
+	].map(pr => fs.readFileSync(pr, 'utf8')).join('\n'),
+	static_js: [
+		'./node_modules/@fortawesome/fontawesome-free/js/all.min.js',
+	].map(pr => fs.readFileSync(pr, 'utf8')).join('\n'),
+});
+
+console.dir({
+	process: H_VALUES_OUT.process,
+	lang: H_VALUES_OUT.lang,
+});
 
 const k_resolver = resolve({
 	browser: true,
@@ -77,22 +91,7 @@ export default {
 		replace({
 			preventAssignment: false,
 			delimiters: ['', ''],
-			values: replace_values({
-				process: {
-					env: {
-						SPARQL_ENDPOINT: process.env.SPARQL_ENDPOINT,
-						DOORS_NG_PREFIX: process.env.DOORS_NG_PREFIX,
-					},
-				},
-				lang: yaml.load(fs.readFileSync(`./resource/${process.env.LANG_FILE || 'lang.yaml'}`))[process.env.LANG],
-				static_css: [
-					'./submodule/animate.less/dist/css/animate.css',
-					// './node_modules/@fortawesome/fontawesome-free/css/all.min.css',
-				].map(pr => fs.readFileSync(pr, 'utf8')).join('\n'),
-				static_js: [
-					'./node_modules/@fortawesome/fontawesome-free/js/all.min.js',
-				].map(pr => fs.readFileSync(pr, 'utf8')).join('\n'),
-			}),
+			values: H_VALUES_OUT,
 		}),
 
 		// url({

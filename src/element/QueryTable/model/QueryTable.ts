@@ -274,7 +274,8 @@ export abstract class QueryTable<
 			const h_param_values_lists = this._h_param_values_lists;
 			const a_params = await this.queryType.fetchParameters();
 			for(const k_param of a_params) {
-				h_param_values_lists[k_param.key] = new ParamValuesList(h_param_values[k_param.key] || []);
+				const a_list = h_param_values[k_param.key] = h_param_values[k_param.key] || [];
+				h_param_values_lists[k_param.key] = new ParamValuesList(a_list);
 			}
 		}
 	}

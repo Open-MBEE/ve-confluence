@@ -72,7 +72,7 @@ export function deep_clone<InType extends Serializable | Primitive>(gc_serialize
 					// not empty
 					if(z_test.length) {
 						// infer type from first item
-						const z_test_0 = z_test[0]);
+						const z_test_0 = z_test[0];
 						switch(typeof z_test_0) {
 							// pass-by-value
 							case 'boolean':
@@ -202,7 +202,7 @@ export abstract class VeOdm<Serialized extends Serializable | Primitive> {
 
 	protected _sp_path: VeoPath.Full;
 	protected readonly _gc_serialized: Serialized;
-	private readonly _gc_serialized_init: Serialized;
+	protected readonly _gc_serialized_init: Serialized;
 	protected _g_context: Context;
 	protected _k_store: ObjectStore;
 
