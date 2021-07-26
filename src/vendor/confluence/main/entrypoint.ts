@@ -36,7 +36,7 @@ import type XhtmlDocument from '#/vendor/confluence/module/xhtml-document';
 import {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
 
 
-import {K_HARDCODED} from '#/common/hardcoded';
+import {H_HARDCODED_OBJECTS, K_HARDCODED} from '#/common/hardcoded';
 
 import {Context, VeOdm} from '#/model/Serializable';
 
@@ -44,6 +44,7 @@ import {ObjectStore} from '#/model/ObjectStore';
 import { xpathEvaluate, xpathSelect, xpathSelect1 } from '#/vendor/confluence/module/xhtml-document';
 import type { VeoPath } from '#/common/veo';
 import type { TypedKeyedUuidedObject, TypedObject, TypedPrimitive } from '#/common/types';
+import { inject_frame, SR_HASH_VE_PAGE_EDIT_MODE } from './inject-frame';
 
 
 // write static css
@@ -430,8 +431,70 @@ export async function main(): Promise<void> {
 	}
 }
 
+const H_HASH_TRIGGERS: Record<string, () => Promise<void>> = {
+	async [SR_HASH_VE_PAGE_EDIT_MODE]() {
+		return await inject_frame(p_original_edit_link);
+	},
+};
+
+
+let p_original_edit_link = '';
+
+function hash_updated(): void {
+	const sr_hash = location.hash;
+
+	if(sr_hash in H_HASH_TRIGGERS) {
+		void H_HASH_TRIGGERS[sr_hash]();
+
+		return;
+	}
+}
+
 function dom_ready() {
-	console.log('dom ready');
+	const dm_edit = qs(dm_main, 'a#editPageLink')! as HTMLAnchorElement;
+	p_original_edit_link = dm_edit.href;
+	dm_edit.href = SR_HASH_VE_PAGE_EDIT_MODE;
+
+	// remove all event listeners
+	const dm_clone = dm_edit.cloneNode(true);
+	dm_edit.parentNode?.replaceChild(dm_clone, dm_edit);
+
+	// listen for hash change
+	window.addEventListener('hashchange', hash_updated);
+
+	INTERPRET_LOCATION: {
+		let si_page_title = location.pathname;
+
+		// viewpage.action
+		if(location.pathname.endsWith('viewpage.action')) {
+			const y_params = new URLSearchParams(location.search);
+
+			// normalize viewpage URL
+			si_page_title = encodeURIComponent(y_params.get('title')!).replace(/%20/g, '+');
+
+			// replace URL with page title version
+			history.replaceState(null, '', `/display/${y_params.get('spaceKey')!}/${si_page_title}`);
+		}
+
+		// special url indication
+		const m_special = /(\++)$/.exec(si_page_title);
+		if(m_special) {
+			switch(m_special[1]) {
+				// edit mode
+				case '+++': {
+					void H_HASH_TRIGGERS[SR_HASH_VE_PAGE_EDIT_MODE]();
+					break INTERPRET_LOCATION;
+				}
+
+				default: {
+					break;
+				}
+			}
+		}
+
+		// trigger update
+		hash_updated();
+	}
 }
 
 // entry point
