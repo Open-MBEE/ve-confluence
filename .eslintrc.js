@@ -136,7 +136,7 @@ module.exports = {
 				],
 			}],
 
-			'restrict-template-expression': ['warn', {
+			'restrict-template-expressions': ['warn', {
 				allowNumber: true,
 				allowBoolean: true,
 			}],
