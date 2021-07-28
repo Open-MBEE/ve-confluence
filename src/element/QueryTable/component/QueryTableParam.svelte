@@ -46,31 +46,9 @@
 		if(k_query_table.type.startsWith('MmsSparql')) {
 			const k_connection = (await k_query_table.fetchConnection()) as MmsSparqlConnection;
 
-			// temporary until we double check with design
-			let query = ''
-			if(k_param.key == 'id') {
-				query = `
-				select ?value (count(?req) as ?count) from <${k_connection.modelGraph}> {
-					?req a oslc_rm:Requirement ;
-						dct:identifier ?value ;
-				}
-				group by ?value order by asc(?value) limit 40
-				`
-			}
-			else {
-				query = `
-					select ?value (count(?req) as ?count) from <${k_connection.modelGraph}> {
-						?_attr a rdf:Property ;
-							rdfs:label ${Sparql.literal(k_param.value)} .
-
-						?req a oslc_rm:Requirement ;
-							?_attr [rdfs:label ?value] .
-					}
-					group by ?value order by desc(?count)
-				`	
-			}
+			let k_query = await k_query_table.fetchParamQueryBuilder(k_param);
 			
-			const a_rows = await k_connection.execute(/* syntax: sparql */ query);
+			const a_rows = await k_connection.execute(/* syntax: sparql */ k_query.stringify());
 
 			a_options = a_rows.map(({value:g_value, count:g_count}) => ({
 				label: g_value.value,
@@ -160,7 +138,6 @@
 		font-size: 13px;
 		padding: 1px 2px 1px 2px;
 
-		--height: 24px;
 		--indicatorTop: 2px;
 		--indicatorWidth: 7px;
 		--indicatorHeight: 5px;
@@ -195,6 +172,7 @@
 		--clearSelectRight: 20px;
 		--clearSelectBottom: 5px;
 		--clearSelectWidth: 20px;
+		--virtualListHeight: 500px;
 
 		:global(.indicator+div:nth-child(n+3)) {
 			margin-top: -5px;
@@ -210,6 +188,17 @@
 
 		:global(.multiSelectItem) {
 			margin: 3px 0 3px 4px;
+		}
+
+		:global(.select-input input) {
+			height: 24px;
+		}
+
+		:global(svelte-virtual-list-row .item) {
+			height: 25px;
+			line-height: 25px;
+			padding-top: 5px;
+			padding-bottom: 5px;
 		}
 	}
 </style>
@@ -229,6 +218,8 @@
 			items={a_options} 
 			placeholder="Select Attribute Value(s)"
 			isMulti={true}
+			containerClasses={'select-input'}
+			isVirtualList={true}
 			isClearable={false}
 			showIndicator={true}
 			indicatorSvg={/* syntax: html */ `

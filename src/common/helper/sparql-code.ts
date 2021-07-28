@@ -1,6 +1,6 @@
-import type {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
+import type {MmsSparqlQueryTable, QueryParam} from '#/element/QueryTable/model/QueryTable';
 
-import {SparqlSelectQuery} from '../../util/sparql-endpoint';
+import {Sparql, SparqlSelectQuery} from '../../util/sparql-endpoint';
 
 import type {Hash, SparqlString} from '../types';
 
@@ -49,9 +49,65 @@ const H_NATIVE_DNG_PATTERNS: Record<string, string> = {
 	`,
 };
 
+const H_NATIVE_DNG_PARAMS: Record<string, string> = {
+	id: /* syntax: sparql */ `
+		?artifact dct:identifier ?value .
+	`,
+	requirementName: /* syntax: sparql */ `
+		?artifact dct:title ?value .
+	`
+};
+
 interface BuildConfig {
 	bgp?: SparqlString;
 }
+
+export async function build_dng_select_param_query(this: MmsSparqlQueryTable, param: QueryParam, gc_build?: BuildConfig): Promise<SparqlSelectQuery> {
+	const a_bgp: string[] = [];
+
+	const a_selects = [
+		'?value',
+		'(count(?artifact) as ?count)'
+	];
+
+	// get format for native parameters
+	if(param.key in H_NATIVE_DNG_PARAMS) {
+		a_bgp.push(H_NATIVE_DNG_PARAMS[param.key]);
+	}
+	// use property formatting for parameter
+	else {
+		a_bgp.push(`?_attr a rdf:Property ;
+				rdfs:label ${Sparql.literal(param.value)} .
+
+			?artifact a oslc_rm:Requirement ;
+				?_attr [rdfs:label ?value] .
+		`)
+	}
+
+	const k_connection = await this.fetchConnection();
+
+	return new SparqlSelectQuery({
+		select: [...a_selects],
+		from: `<${k_connection.modelGraph}>`,
+		bgp: /* syntax: sparql */ `
+			?artifact a oslc_rm:Requirement ;
+				oslc:instanceShape [
+					dct:title "Requirement"^^rdf:XMLLiteral ;
+				] ;
+			.
+			# exclude requirements that are part of a requirement document
+			filter not exists {
+				?collection a oslc_rm:RequirementCollection ;
+					oslc_rm:uses ?artifact ;
+					.
+			}
+
+			${a_bgp.join('\n')}
+		`,
+		group: '?value order by desc(?count)'
+	});
+}
+
 
 export async function build_dng_select_query_from_params(this: MmsSparqlQueryTable, gc_build?: BuildConfig): Promise<SparqlSelectQuery> {
 	const a_bgp: string[] = [];
@@ -149,9 +205,13 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 					dct:title "Requirement"^^rdf:XMLLiteral ;
 				] ;
 				.
-
+			# exclude requirements that are part of a requirement document
+			filter not exists {
+				?collection a oslc_rm:RequirementCollection ;
+					oslc_rm:uses ?artifact ;
+					.
+			}
 			${a_bgp.join('\n')}
-
 			${sq_bgp || ''}
 		`,
 		group: a_aggregates.length ? a_selects.join(' ') : null,

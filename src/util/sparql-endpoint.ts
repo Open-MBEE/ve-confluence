@@ -162,6 +162,10 @@ export class SparqlSelectQuery implements ConnectionQuery {
 		this._gc_query = gc_query;
 	}
 
+	stringify(): string {
+		return stringify_select_query_descriptor(this._gc_query)
+	}
+
 	paginate(n_limit: number, n_offset = 0): string {
 		return (
 			stringify_select_query_descriptor(this._gc_query)

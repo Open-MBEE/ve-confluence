@@ -109,6 +109,12 @@ export namespace VeoPath {
 		Id extends DotFragment = DotFragment,
 	> = HardcodedObject<'queryBuilder', Type, Group, Id>;
 
+	export type ParamQueryBuilder<
+		Type extends DotFragment = DotFragment,
+		Group extends DotFragment = DotFragment,
+		Id extends DotFragment = DotFragment,
+	> = HardcodedObject<'paramQueryBuilder', Type, Group, Id>;
+	
 	export type SparqlQueryBuilder<
 		Group extends DotFragment = DotFragment,
 		Id extends DotFragment = DotFragment,

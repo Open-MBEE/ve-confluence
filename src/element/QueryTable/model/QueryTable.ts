@@ -168,12 +168,12 @@ export class QueryFieldGroup extends VeOdm<QueryFieldGroup.Serialized> {
 
 export namespace QueryBuilder {
 	export interface Serialized extends TypedPrimitive<'QueryBuilder'> {
-		function: (this: QueryTable) => Promise<ConnectionQuery>;
+		function: (this: QueryTable, param?: QueryParam) => Promise<ConnectionQuery>;
 	}
 }
 
 export class QueryBuilder extends VeOdm<QueryBuilder.Serialized> {
-	get function(): (this: QueryTable) => Promise<ConnectionQuery> {
+	get function(): (this: QueryTable, param?: QueryParam) => Promise<ConnectionQuery> {
 		return this._gc_serialized.function;
 	}
 }
@@ -186,6 +186,7 @@ export namespace QueryType {
 		queryParametersPaths: VeoPath.QueryParameter<ConnectionType>[];
 		queryFieldGroupPath: VeoPath.QueryFieldGroup;
 		queryBuilderPath: VeoPath.QueryBuilder;
+		paramQueryBuilderPath: VeoPath.QueryBuilder;
 	}
 }
 
@@ -193,6 +194,13 @@ export class QueryType<ConnectionType extends DotFragment=DotFragment> extends V
 	get queryBuilder(): QueryBuilder {
 		const gc_builder = this._k_store.resolveSync<QueryBuilder.Serialized>(
 			this._gc_serialized.queryBuilderPath
+		);
+		return new QueryBuilder(gc_builder, this._g_context);
+	}
+
+	get paramQueryBuilder(): QueryBuilder {
+		const gc_builder = this._k_store.resolveSync<QueryBuilder.Serialized>(
+			this._gc_serialized.paramQueryBuilderPath
 		);
 		return new QueryBuilder(gc_builder, this._g_context);
 	}
@@ -286,12 +294,20 @@ export abstract class QueryTable<
 		return this._h_param_values_lists[si_param];
 	}
 
+
+
 	fetchQueryBuilder(): Promise<ConnectionQuery> {
 		return this.queryType.queryBuilder.function.call(this);
+	}
+
+	fetchParamQueryBuilder(param: QueryParam): Promise<ConnectionQuery> {
+		return this.queryType.paramQueryBuilder.function.call(this, param);
 	}
 }
 
 export interface ConnectionQuery {
+	stringify() : string;
+
 	paginate(n_limit: number, n_offset?: number): string;
 
 	count(): string;
