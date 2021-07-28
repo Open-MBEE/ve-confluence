@@ -6,11 +6,9 @@ import type {
 	TypedKeyedLabeledObject,
 	TypedObject,
 	QueryRow,
-	ValuedObject,
 	TypedKeyedPrimitive,
 	TypedPrimitive,
 	ValuedLabeledObject,
-	Hash,
 	TypedKeyedUuidedObject,
 	Instantiable,
 } from '#/common/types';
@@ -18,8 +16,6 @@ import type {
 import type {VeoPath} from '#/common/veo';
 
 import {
-	Primitive,
-	Serializable,
 	VeOdm,
 	VeOdmKeyed,
 	VeOdmKeyedLabeled,
@@ -253,6 +249,7 @@ const N_QUERY_TABLE_BUILD_RESULTS_LIMIT = 1 << 10;
 export abstract class QueryTable<
 	ConnectionType extends string=string,
 	Serialized extends QueryTable.Serialized<ConnectionType>=QueryTable.Serialized<ConnectionType>,
+	LocalQueryType extends QueryType<ConnectionType>=QueryType<ConnectionType>,
 > extends VeOdmPageElement<Serialized> {
 	protected _h_param_values_lists: Record<string, ParamValuesList> = {};
 
@@ -262,7 +259,7 @@ export abstract class QueryTable<
 
 	abstract setQueryType(g_query_type: ValuedLabeledObject): void;
 
-	abstract get queryTypeOptions(): Record<string, QueryType>;
+	abstract get queryTypeOptions(): Record<VeoPath.QueryType, LocalQueryType>;
 
 	async init(): Promise<void> {
 		await super.init();
@@ -305,11 +302,6 @@ export abstract class QueryTable<
 	fetchQueryBuilder(): Promise<ConnectionQuery> {
 		return this.queryType.queryBuilder.function.call(this);
 	}
-
-	async fromSerialized(gc_serialized: Serialized): Promise<void> {
-		super.fromSerialized(gc_serialized);
-		await this.init();
-	}
 }
 
 export interface ConnectionQuery {
@@ -335,9 +327,10 @@ export namespace SparqlQueryTable {
 export abstract class SparqlQueryTable<
 	Serialized extends SparqlQueryTable.Serialized=SparqlQueryTable.Serialized,
 	LocalQueryType extends QueryType<'sparql'>=QueryType<'sparql'>,
-> extends QueryTable<'sparql', Serialized> {
-	protected _h_options!: Record<string, LocalQueryType>;
+> extends QueryTable<'sparql', Serialized, LocalQueryType> {
+	protected _h_options!: Record<VeoPath.SparqlQueryType, LocalQueryType>;
 
+	// @ts-expect-error weired serialized unions
 	abstract fetchConnection(): Promise<SparqlConnection>;
 
 	initSync(): void {
@@ -355,7 +348,7 @@ export abstract class SparqlQueryTable<
 			label: s_label,
 		} = g_query_type;
 
-		const h_options: Record<string, QueryType> = this._h_options;
+		const h_options = this._h_options as Record<string, LocalQueryType>;
 		for(const sp_test in h_options) {
 			const k_test = h_options[sp_test];
 			if(si_value === k_test.value && s_label === k_test.label) {
@@ -369,7 +362,7 @@ export abstract class SparqlQueryTable<
 		throw new Error(`Unable to set .queryType property on QueryTable instance since ${JSON.stringify(g_query_type)} did not match any known queryType options`);
 	}
 
-	get queryTypeOptions(): Record<VeoPath.SparqlQueryType, QueryType> {
+	get queryTypeOptions(): Record<VeoPath.SparqlQueryType, LocalQueryType> {
 		return this._h_options;
 	}
 }

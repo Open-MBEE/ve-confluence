@@ -91,6 +91,20 @@
 	// the model version descriptor
 	let g_version: ModelVersionDescriptor;
 
+	// prep a simple concat hash for query parameters to prevent redundant queries
+	let si_query_hash_previous = '';
+
+	// published query hash
+	let si_query_hash_published = b_published? k_query_table.hash(): '';
+
+	// whether or not there are any filters applied
+	let b_filtered = false;
+
+	// 
+	// $: b_changed = '' !== si_query_hash_previous && (!b_published || b_changed_published_parameters);
+	$: b_changed = b_published? si_query_hash_previous !== si_query_hash_published: '' !== si_query_hash_previous;
+	// let b_not_changed = '' === si_query_hash_previous || (b_published && !b_changed_published_parameters)
+
 	// once the component mounts
 	onMount(async() => {
 		// get query table's connection
@@ -155,8 +169,8 @@
 	function clear_preview(): void {
 		b_busy_loading = false;
 
-		// clear query hash
-		si_query_hash_previous = '';
+		// redo query hash
+		si_query_hash_previous = k_query_table.hash();
 
 		s_status_info = 'PREVIEW (0 results)';
 		xc_info_mode = G_INFO_MODES.PREVIEW;
@@ -173,16 +187,11 @@
 		return h_out;
 	};
 
-	// prep a simple concat hash for query parameters to prevent redundant queries
-	let si_query_hash_previous = '';
-
-	// published query hash
-	let si_query_hash_published = b_published? k_query_table.hash(): '';
-
 	async function render() {
 		xc_info_mode = G_INFO_MODES.LOADING;
 
-		let b_filtered = false;
+		// reset filter status
+		b_filtered = false;
 
 		// each parameter
 		for(const g_param of await k_query_table.queryType.fetchParameters()) {
@@ -242,6 +251,9 @@
 	}
 
 	function toggle_parameters() {
+		// do not allow closing while pending edits
+		if(b_published && b_changed) return;
+
 		// toggle parameters display
 		b_display_parameters = !b_display_parameters;
 
@@ -261,16 +273,16 @@
 
 		// allow toggle to trigger svelte change to dom
 		queueMicrotask(() => {
-			// table is published
-			if(b_published) {
-				// force css-transition by setting background-color
-				dm_parameters.style.backgroundColor = 'var(--ve-color-light-background)';
+			// // table is published
+			// if(b_published) {
+			// 	// force css-transition by setting background-color
+			// 	dm_parameters.style.backgroundColor = 'var(--ve-color-light-background)';
 
-				// after starting the slide transition
-				queueMicrotask(() => {
-					dm_parameters.style.backgroundColor = 'var(--ve-color-dark-background)';
-				});
-			}
+			// 	// after starting the slide transition
+			// 	queueMicrotask(() => {
+			// 		dm_parameters.style.backgroundColor = 'var(--ve-color-dark-background)';
+			// 	});
+			// }
 
 			// start slide transition
 			create_in_transition(dm_parameters, slide, {
@@ -450,11 +462,19 @@
 		// set query type on model
 		k_query_table.setQueryType(dv_select.detail);
 
-		// trigger svelte update for query type change
-		k_query_table = k_query_table;
+		// clear parameters
+		for(const si_param in k_query_table.parameterValues) {
+			k_query_table.parameterValuesList(si_param).clear();
+		}
 
 		// clear preview
 		clear_preview();
+
+		// not filtered
+		b_filtered = false;
+
+		// trigger svelte update for query type change
+		k_query_table = k_query_table;
 	}
 </script>
 
@@ -497,16 +517,28 @@
 			}
 		}
 
-		&.published:not(.expanded) {
+		&.published:not(.changed) {
+			&.expanded {
+				.config {
+					.tabs {
+						border-bottom: 1px solid var(--ve-color-medium-light-text);
+					}
+				}
+			}
+
 			.table-wrap {
 				border: 0;
 			}
 
 			.config {
 				background-color: var(--ve-color-light-background);
-				.transition(background-color 0.2s ease-out;);
+				// .transition(background-color 0.2s ease-out;);
 
 				.tabs {
+					.active {
+						border-bottom: 3px solid var(--ve-color-dark-text);
+					}
+
 					.parameters {
 						color: var(--ve-color-dark-text);
 					}
@@ -522,6 +554,11 @@
 
 			.config-body {
 				background-color: var(--ve-color-light-background);
+				color: var(--ve-color-medium-text);
+
+				.query-type {
+					color: var(--ve-color-dark-text);
+				}
 			}
 		}
 
@@ -583,7 +620,7 @@
 		}
 
 		.config-body {
-			.transition(background-color 0.49s ease-out;);
+			.transition(background-color 0.5s ease-out;);
 
 			background-color: var(--ve-color-dark-background);
 			color: var(--ve-color-medium-light-text);
@@ -699,13 +736,13 @@
 					</span>
 				{/if}
 				{#if b_display_parameters}
-					<button class="ve-button-primary" on:click={publish_table} disabled={'' === si_query_hash_previous || (b_published && !b_changed_published_parameters)}>{b_published? 'Update': 'Publish'}</button>
+					<button class="ve-button-primary" on:click={publish_table} disabled={!b_changed || !b_filtered}>{b_published? 'Update': 'Publish'}</button>
 					<button class="ve-button-secondary" on:click={reset_table}>Cancel</button>
 				{/if}
 			</span>
 		</div>
 
-		<div class="ve-table" class:published={b_published} class:expanded={b_display_parameters}>
+		<div class="ve-table" class:published={b_published} class:changed={b_changed} class:expanded={b_display_parameters}>
 			<div class="config">
 				<span class="tabs">
 					<span class="parameters" on:click={toggle_parameters} class:active={b_display_parameters}>

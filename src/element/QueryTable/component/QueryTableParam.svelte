@@ -144,6 +144,12 @@
 		margin-bottom: 2px;
 	}
 
+	:global(.published:not(.changed)) {
+		.param-label {
+			color: var(--ve-color-dark-text);
+		}
+	}
+
 	.param-label {
 		color: var(--ve-color-light-text);
 		margin-right: 6em;
@@ -216,9 +222,9 @@
 </legend>
 <span class="param-values">
 	{#if XC_LOAD_NOT === xc_load}
-		<p>{lang.loading_pending}</p>
+		<p>{lang.basic.loading_pending}</p>
 	{:else if XC_LOAD_ERROR === xc_load}
-		<p style="color:red;">{lang.loading_failed}</p>
+		<p style="color:red;">{lang.basic.loading_failed}</p>
 	{:else}
 		<Select
 			items={a_options.map(g_opt => g_opt.data)}
