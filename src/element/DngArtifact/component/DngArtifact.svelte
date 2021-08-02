@@ -1,9 +1,13 @@
 <script lang="ts">
 	import {onMount} from 'svelte';
+
 	import H_PREFIXES from '#/common/prefixes';
-	import { dd } from '#/util/dom';
-import type { Context } from '#/model/Serializable';
-import { MmsSparqlConnection } from '#/model/Connection';
+
+	import {dd} from '#/util/dom';
+
+	import type {Context} from '#/model/Serializable';
+
+	import {MmsSparqlConnection} from '#/model/Connection';
 
 	export let ym_anchor: HTMLElement;
 	export let g_link: Record<string, string>;
@@ -50,7 +54,7 @@ import { MmsSparqlConnection } from '#/model/Connection';
 	onMount(async() => {
 		// enable tooltip
 		jQuery(dm_macro).tipsy();
-		
+
 		// href IRI specified
 		if(p_href) {
 			const du_href = new URL(p_href);
@@ -67,8 +71,9 @@ import { MmsSparqlConnection } from '#/model/Connection';
 			}
 
 			// resolve connection path
-			const gc_sparql_connection = await g_context.store.resolve<MmsSparqlConnection.Serialized>('document#connection.sparql.mms.dng');
-			const k_sparql = new MmsSparqlConnection(gc_sparql_connection, g_context);
+			const sr_connection = 'document#connection.sparql.mms.dng';
+			const gc_sparql_connection = await g_context.store.resolve<MmsSparqlConnection.Serialized>(sr_connection);
+			const k_sparql = new MmsSparqlConnection(sr_connection, gc_sparql_connection, g_context);
 
 			// find artifact by IRI
 			const a_artifacts = await k_sparql.execute(/* syntax: sparql */ `
@@ -90,7 +95,7 @@ import { MmsSparqlConnection } from '#/model/Connection';
 					title: {value:_s_title},
 					identifier: {value:s_identifier},
 					types: {value:s_types},
-					primaryText: {value:_s_primary_text},
+					primaryText: {value:s_primary_text_value},
 				} = a_artifacts[0];
 
 				// split concat'd types list
@@ -100,27 +105,17 @@ import { MmsSparqlConnection } from '#/model/Connection';
 				if(a_types.includes(H_PREFIXES.oslc_rm+'Requirement')) {
 					si_artifact = s_identifier;
 					s_type = 'Requirement';
-					s_title = _s_title;
-					s_primary_text = _s_primary_text;
-
-					// use requirement title in place of pasted link
-					if(ym_anchor.textContent === p_href) {
-						s_label = s_title
-					}
-					// use narrative text if present
-					else {
-						s_label = String(ym_anchor.textContent)
-					}
+					s_primary_text = s_primary_text_value;
 				}
 			}
 		}
 	});
 
 	// reactively assign tooltip text based on query result
-	$: s_tooltip = `DNG ${si_artifact}, ${s_title}: `+((() => {
-		const dm = dd('div');
-		dm.innerHTML = s_primary_text;
-		return dm;
+	$: s_tooltip = `DNG ${si_artifact}: `+((() => {
+		const dm_tooltip = dd('div');
+		dm_tooltip.innerHTML = s_primary_text;
+		return dm_tooltip;
 	})().textContent || '').trim();
 
 </script>
