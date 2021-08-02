@@ -12,8 +12,6 @@ import type {
 import SparqlEndpoint from '../util/sparql-endpoint';
 
 import {
-	Serializable,
-	VeOdm,
 	VeOdmLabeled,
 	VeOrmClass,
 } from './Serializable';
@@ -122,7 +120,7 @@ export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Se
 				id: 'null',
 				label: 'Unknown date/time',
 				// dateTime: 'Unknown date/time',
-				dateTime: '2020-04-20T04:20:00.69',  // temporary dummy value
+				dateTime: (new Date()).toISOString(),
 			};
 		}
 		// matched
@@ -153,7 +151,7 @@ export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Se
 					.
 			}
 		`);
-
+debugger;
 		// failed to match pattern
 		if(!a_rows.length) {
 			// TODO: run diagnostic queries

@@ -74,9 +74,9 @@ export class SparqlEndpoint {
 		this._k_helper = new SparqlQueryHelper(gc_init.variables || {});
 	}
 
-	async auth() {
+	async auth(): Promise<void> {
 		// authenticate to access the named graph
-		fetch(`${this._p_endpoint}/auth`, {
+		await fetch(`${this._p_endpoint}/auth`, {
 			method: 'POST',
 			mode: 'cors',
 			headers: {
@@ -91,8 +91,8 @@ export class SparqlEndpoint {
 	}
 
 	// submit SPARQL SELECT query
-	async select(z_select: SparqlQuery): Promise<SparqlBindings> {
-		let sq_select = z_select;
+	async select(z_select: string | SparqlQuery): Promise<SparqlBindings> {
+		let sq_select = z_select as string;
 
 		// apply helper
 		if('function' === typeof z_select) {
@@ -121,7 +121,11 @@ export class SparqlEndpoint {
 		}
 
 		// parse results as JSON
-		const g_res = await d_res.json();
+		const g_res = (await d_res.json()) as {
+			results: {
+				bindings: SparqlBindings;
+			};
+		};
 
 		// release async lock
 		f_release();
@@ -137,6 +141,7 @@ interface SelectQueryDescriptor {
 	from?: string;
 	bgp: string;
 	group?: string | null;
+	sort?: string[];
 }
 
 function stringify_select_query_descriptor(g_desc: SelectQueryDescriptor): string {
@@ -145,8 +150,9 @@ function stringify_select_query_descriptor(g_desc: SelectQueryDescriptor): strin
 	let s_tail = '';
 
 	if(g_desc.select) s_select = g_desc.select.join(' ');
-	if(g_desc.from) s_from += /* syntax: sparql */ `from ${g_desc.from}`;
-	if(g_desc.group) s_tail += /* syntax: sparql */ `group by ${g_desc.group}`;
+	if(g_desc.from) s_from += /* syntax: sparql */ ` from ${g_desc.from}`;
+	if(g_desc.group) s_tail += /* syntax: sparql */ ` group by ${g_desc.group}`;
+	if(g_desc.sort?.length) s_tail += /* syntax: sparql */ ` order by ${g_desc.sort.join(' ')}`;
 
 	return /* syntax: sparql */ `
 		select ${s_select} ${s_from} {
@@ -167,10 +173,7 @@ export class SparqlSelectQuery implements ConnectionQuery {
 	}
 
 	paginate(n_limit: number, n_offset = 0): string {
-		return (
-			stringify_select_query_descriptor(this._gc_query)
-			+ ` limit ${n_limit} offset ${n_offset}`
-		);
+		return stringify_select_query_descriptor(this._gc_query)+` limit ${n_limit} offset ${n_offset}`;
 	}
 
 	count(): string {
@@ -181,6 +184,10 @@ export class SparqlSelectQuery implements ConnectionQuery {
 			...g_desc,
 			select: [`(count(${g_desc.count || '*'}) as ?count)`],
 		});
+	}
+
+	all(): string {
+		return stringify_select_query_descriptor(this._gc_query);
 	}
 }
 

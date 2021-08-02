@@ -205,15 +205,21 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 					dct:title "Requirement"^^rdf:XMLLiteral ;
 				] ;
 				.
+
 			# exclude requirements that are part of a requirement document
 			filter not exists {
 				?collection a oslc_rm:RequirementCollection ;
 					oslc_rm:uses ?artifact ;
 					.
 			}
+
 			${a_bgp.join('\n')}
 			${sq_bgp || ''}
 		`,
 		group: a_aggregates.length ? a_selects.join(' ') : null,
+		sort: [
+			...a_selects.includes('?idValue')? ['asc(?idValue)']: [],
+			'asc(?artifact)',
+		],
 	});
 }

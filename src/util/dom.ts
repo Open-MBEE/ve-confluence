@@ -67,8 +67,7 @@ type QueryResult<T extends string> = MatchEachElement<GetElementNames<T>>;
 
 export const qs = <T extends string>(dm_node: ParentNode | HTMLElement, sq_selector: T): QueryResult<T> => dm_node.querySelector(sq_selector) as QueryResult<T>;
 
-export const qsa = <T extends string>(dm_node: ParentNode | HTMLElement, sq_selector: T): QueryResult<T>[] =>
-	Array.prototype.slice.call(dm_node.querySelectorAll(sq_selector), 0);
+export const qsa = <T extends string>(dm_node: ParentNode | HTMLElement, sq_selector: T): QueryResult<T>[] => Array.prototype.slice.call(dm_node.querySelectorAll(sq_selector), 0);
 
 export function dd<T extends HTMLElement = HTMLElement>(
 	s_tag: string,
@@ -77,16 +76,30 @@ export function dd<T extends HTMLElement = HTMLElement>(
 ): T {
 	const dm_node = document.createElement(s_tag);
 
-	for (const si_attr in h_attrs) {
-		dm_node.setAttribute(si_attr, h_attrs[si_attr] + '');
+	for(const si_attr in h_attrs) {
+		dm_node.setAttribute(si_attr, h_attrs[si_attr]+'');
 	}
 
-	for (const w_child of a_children) {
+	for(const w_child of a_children) {
 		dm_node.append(w_child);
 	}
 
 	return dm_node as T;
 }
+
+
+const S_UUID_V4 = 'xxxxxxxx_xxxx_4xxx_yxxx_xxxxxxxxxxxx';
+const R_UUID_V4 = /[xy]/g;
+
+export const uuid_v4 = (): string => {
+	let dt_now = Date.now();
+	if('undefined' !== typeof performance) dt_now += performance.now();
+	return S_UUID_V4.replace(R_UUID_V4, (s) => {
+		const x_r = (dt_now + (Math.random()*16)) % 16 | 0;
+		dt_now = Math.floor(dt_now / 16);
+		return ('x' === s? x_r: ((x_r & 0x3) | 0x8)).toString(16);
+	});
+};
 
 // main page
 export const dm_main = document.getElementById('main') as HTMLDivElement;

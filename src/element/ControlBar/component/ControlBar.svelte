@@ -1,9 +1,7 @@
 <script lang="ts">
-	import type {IObjectStore} from '#/common/types';
-
 	import DatasetsTable from '#/ui/component/DatasetsTable.svelte';
 
-	import type { Context } from '#/model/Serializable';
+	import type {Context} from '#/model/Serializable';
 
 	import {
 		ConfluencePage,
@@ -11,13 +9,12 @@
 	} from '#/vendor/confluence/module/confluence';
 
 	import {
-		getContext,
 		onMount,
 	} from 'svelte';
 
 	import G_META from '#/common/meta';
 
-	import {lang} from '#/common/static';
+	import {lang, process} from '#/common/static';
 
 	import Fa from 'svelte-fa';
 
@@ -37,6 +34,8 @@
 		Tab,
 	} from 'svelte-tabs';
 
+	import type {JsonObject} from '#/common/types';
+
 	export let g_context: Context;
 
 	let b_ready = false;
@@ -46,26 +45,31 @@
 	let dm_icon_dropdown: HTMLDivElement;
 	let b_document = false;
 
+	const b_admin = location.hash.slice(1).split(/:/g).includes('admin');
+
 	let k_page: ConfluencePage | null = null;
 	let k_document: ConfluenceDocument | null = null;
 
 	function realign_control_bar() {
-        // when scrolling down the wiki header style changes, so update the control bar margin
-        if('' !== dm_main_header.style.position) {
-            dm_bar.style.marginTop = '0px';
+		// when scrolling down the wiki header style changes, so update the control bar margin
+		if('' !== dm_main_header.style.position) {
+			dm_bar.style.marginTop = '0px';
 
-            // when the 'overlay-header' class is applied for the nav bar, adjust margins
-            if('overlay-header' === dm_main_header.className) {
-                dm_bar.style.marginTop = '-10px';
-            }
-        }
-        else {
-            dm_bar.style.marginTop = '-20px';
-        }
-    }
+			// when the 'overlay-header' class is applied for the nav bar, adjust margins
+			if(dm_main_header.className.split(/\s+/g).includes('overlay-header')) {
+				dm_bar.style.marginTop = '-10px';
+			}
+		}
+		else {
+			dm_bar.style.marginTop = '-20px';
+		}
+	}
 
 	onMount(async() => {
 		b_ready = true;
+
+		// go async to allow svelte components to bind to local variables
+		await Promise.resolve();
 
 		// user does not have write permisisons
 		if('READ_WRITE' !== G_META.access_mode) {
@@ -111,17 +115,73 @@
 		}
 	}
 
-	async function create_document() {
+	async function create_document(h_paths: JsonObject) {
 		if(k_page) {
-			k_document = await ConfluenceDocument.createNew(k_page);
+			k_document = await ConfluenceDocument.createNew(k_page, h_paths);
+
+			// reload
+			location.reload();
 		}
 	}
 
-	async function reset_document() {
+	async function reset_document(h_paths: JsonObject) {
 		if(k_page) {
-			k_document = await ConfluenceDocument.createNew(k_page, true);
+			k_document = await ConfluenceDocument.createNew(k_page, h_paths, true);
+
+			// reload
+			location.reload();
 		}
 	}
+
+	async function reset_page(b_force=false): Promise<void> {
+		if(k_page) {
+			if(b_force) {
+				const g_bundle = await k_page.fetchMetadataBundle();
+				const n_version = g_bundle?.version.number || 0;
+
+				await k_page.initMetadata(n_version+1);
+
+				location.reload();
+			}
+			else {
+				// TODO: implement unused element garbage collection
+			}
+		}
+	}
+
+	const H_PATHS_CLIPPER = {
+		connection: {
+			sparql: {
+				mms: {
+					dng: {
+						type: 'MmsSparqlConnection',
+						label: 'DNG Requirements',
+						endpoint: 'https://ced.jpl.nasa.gov/sparql',
+						modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/data.europa-clipper',
+						metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/metadata.clipper',
+						contextPath: 'hardcoded#queryContext.sparql.dng.common',
+					},
+				},
+			},
+		},
+	};
+
+	const H_PATHS_MSR = {
+		connection: {
+			sparql: {
+				mms: {
+					dng: {
+						type: 'MmsSparqlConnection',
+						label: 'DNG Requirements',
+						endpoint: 'https://ced.jpl.nasa.gov/sparql',
+						modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/data.msr',
+						metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/metadata.msr',
+						contextPath: 'hardcoded#queryContext.sparql.dng.common',
+					},
+				},
+			},
+		},
+	};
 </script>
 
 <style lang="less">
@@ -203,6 +263,10 @@
 
 		.expanded {
 			border-top: 1px solid #8D8D8D;
+
+			h3 {
+				color: var(--ve-color-light-text);
+			}
 		}
 	}
 
@@ -213,10 +277,23 @@
 	:global(.svelte-tabs li.svelte-tabs__tab) {
 		color: white;
 		border-bottom-color: white;
+		border-bottom-width: 0px;
+	}
+
+	:global(.svelte-tabs li.svelte-tabs__selected) {
+		border-bottom-width: 3px;
 	}
 
 	.tab-body {
 		padding: 6px;
+	}
+
+	.version {
+		color: bisque;
+		position: absolute;
+		right: 4em;
+		font-size: 13px;
+		font-weight: 400;
 	}
 </style>
 
@@ -261,6 +338,9 @@
 					<!-- help icon -->
 					<Fa icon={faQuestionCircle} size="2x"></Fa>
 				</span>
+				<span class="version">
+					v{process.env.VERSION}
+				</span>
 				<span class="icon-dropdown animated rotate-expand" bind:this={dm_icon_dropdown}>
 					<!-- drop-down -->
 					<svg width="24" height="25" viewBox="0 0 24 25" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -272,20 +352,55 @@
 		{#if !b_collapsed}
 			<div class="expanded" transition:slide={{}}>
 				<Tabs>
-					{#if k_document}
-						<TabList>
-							<Tab>Status</Tab>
-						</TabList>
+					<TabList>
+						{#if k_document}
+							<Tab>Document Data Status</Tab>
+						{/if}
+						{#if b_admin}
+							<Tab>Admin</Tab>
+						{/if}
+					</TabList>
 
+					{#if k_document}
 						<TabPanel>
 							<div class="tab-body">
 								<p>New updates are available every Friday at 10:00 PM</p>
-								<button on:click={reset_document}>Reset this document's metadata</button>
-								<DatasetsTable {g_context}></DatasetsTable>
+								<!-- <DatasetsTable {g_context}></DatasetsTable> -->
 							</div>
 						</TabPanel>
-					{:else}
-						<button on:click={create_document}>Convert this page to become the document cover page of a new document</button>
+					{/if}
+
+					{#if b_admin}
+						<TabPanel>
+							<div class="tab-body">
+								<section>
+									<h3>Document</h3>
+									<div>
+										<span>
+											{#if k_document}
+												Reset document metadata to:
+											{:else}
+												Convert this page to become the document cover page of a new document:
+											{/if}
+										</span>
+										<span>
+											<button on:click={() => k_document? create_document(H_PATHS_CLIPPER): reset_document(H_PATHS_CLIPPER)}>Clipper preset</button>
+											<button on:click={() => k_document? create_document(H_PATHS_MSR): reset_document(H_PATHS_MSR)}>MSR preset</button>
+										</span>
+									</div>
+								</section>
+								<section>
+									<h3>Page</h3>
+									<div>
+										<span>Reset page metadata:</span>
+										<span>
+											<button on:click={() => reset_page()}>Clear all unused objects</button>
+											<button on:click={() => reset_page(true)}>Force reset metadata</button>
+										</span>
+									</div>
+								</section>
+							</div>
+						</TabPanel>
 					{/if}
 				</Tabs>
 			</div>
