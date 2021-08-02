@@ -31,10 +31,7 @@ import {
 	XhtmlString,
 } from '#/util/strings';
 
-import {
-		build_dng_select_param_query,
-		build_dng_select_query_from_params
- } from './helper/sparql-code';
+import {build_dng_select_param_query, build_dng_select_query_from_params} from './helper/sparql-code';
 
 import H_PREFIXES from './prefixes';
 
@@ -210,7 +207,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.simple',
 					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.basicParams',
 					paramQueryBuilderPath: 'hardcoded#paramQueryBuilder.sparql.dng.default',
-				}
+				},
 			},
 		},
 	}),
