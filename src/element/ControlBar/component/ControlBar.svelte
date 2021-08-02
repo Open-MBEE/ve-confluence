@@ -263,6 +263,10 @@
 
 		.expanded {
 			border-top: 1px solid #8D8D8D;
+
+			h3 {
+				color: var(--ve-color-light-text);
+			}
 		}
 	}
 
@@ -361,7 +365,7 @@
 						<TabPanel>
 							<div class="tab-body">
 								<p>New updates are available every Friday at 10:00 PM</p>
-								<DatasetsTable {g_context}></DatasetsTable>
+								<!-- <DatasetsTable {g_context}></DatasetsTable> -->
 							</div>
 						</TabPanel>
 					{/if}
@@ -370,7 +374,7 @@
 						<TabPanel>
 							<div class="tab-body">
 								<section>
-									<h4>Document</h4>
+									<h3>Document</h3>
 									<div>
 										<span>
 											{#if k_document}
@@ -386,7 +390,7 @@
 									</div>
 								</section>
 								<section>
-									<h4>Page</h4>
+									<h3>Page</h3>
 									<div>
 										<span>Reset page metadata:</span>
 										<span>
