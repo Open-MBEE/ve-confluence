@@ -135,6 +135,7 @@ module.exports = {
 					'k_node',
 				],
 			}],
+			'no-unsafe-assignment': ['warn'],
 
 			'restrict-template-expressions': ['warn', {
 				allowNumber: true,

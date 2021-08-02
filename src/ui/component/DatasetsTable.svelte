@@ -9,7 +9,14 @@
 	import type {
 		Context,
 	} from '#/model/Serializable';
-import type { VeoPath } from '#/common/veo';
+
+	import {
+		VeOdm,
+	} from '#/model/Serializable';
+
+	import type {VeoPath} from '#/common/veo';
+import SelectItem from './SelectItem.svelte';
+import { faCheckCircle } from '@fortawesome/free-solid-svg-icons';
 
 	export let g_context: Context;
 	let k_object_store = g_context.store;
@@ -80,15 +87,19 @@ import type { VeoPath } from '#/common/veo';
 	// };
 
 	// initialize connections
-	const A_CONNECTIONS: Connection[] = [];
+	let A_CONNECTIONS: Connection[] = [];
 	(async() => {
-		const h_connections = await k_object_store.options<Connection.Serialized>('page#connection.**', g_context);
-
+		const h_connections = await k_object_store.options<Connection.Serialized>('document#connection.**', g_context);
 		for(const sp_connection in h_connections) {
 			const gc_connection = (h_connections as Record<string, Connection.Serialized>)[sp_connection];
 			switch(gc_connection.type) {
 				case 'MmsSparqlConnection': {
-					A_CONNECTIONS.push(new MmsSparqlConnection(sp_connection as VeoPath.MmsSparqlConnection, gc_connection as MmsSparqlConnection.Serialized, g_context));
+					const k_connection = await VeOdm.createFromSerialized(
+						MmsSparqlConnection,
+						sp_connection as VeoPath.MmsSparqlConnection,
+						gc_connection as MmsSparqlConnection.Serialized, g_context
+					);
+					A_CONNECTIONS.push(k_connection as unknown as Connection);
 					break;
 				}
 
@@ -97,14 +108,23 @@ import type { VeoPath } from '#/common/veo';
 				}
 			}
 		}
+
+		A_CONNECTIONS = A_CONNECTIONS;
 	})();
+
+	function select_version() {
+
+	}
 </script>
 
 <style lang="less">
+	@import '/src/common/ve.less';
+
 	table {
 		text-align: left;
 		margin: 1em 0;
 		border-spacing: 3pt;
+		border-collapse: collapse;
 		
 		thead {
 			line-height: 10px;
@@ -114,8 +134,10 @@ import type { VeoPath } from '#/common/veo';
 					font-weight: 400;
 					font-size: 9pt;
 					color: var(--ve-color-medium-light-text);
-					min-width: 14em;
-					padding-bottom: 2pt;
+					padding-bottom: 4pt;
+
+					padding-left: 6px;
+					padding-right: 6px;
 				}
 			}
 		}
@@ -136,23 +158,50 @@ import type { VeoPath } from '#/common/veo';
 
 				&.data {
 					td {
+						border: 1px solid var(--ve-color-medium-light-text);
+						padding: 4px 6px;
+						font-size: 14px;
+
+						&.cell-version {
+							padding: 0 !important;
+						}
+
+						&.cell-align-center {
+							text-align: center;
+							padding: 0 !important;
+							vertical-align: middle;
+						}
+
 						&:nth-child(n-1) {
 							padding-right: 14pt;
 						}
 
+						--height: 26px;
 						--padding: 0;
 						// --inputPadding: 0;
-						--height: 20px;
+						--height: 24px;
 						--itemColor: var(--ve-color-dark-text);
 						--itemHoverBG: var(--ve-color-medium-light-text);
 
 						// --itemActiveBackground: var(--ve-color-light-text);
 						--itemIsActiveColor:  var(--ve-color-dark-text);
 						--itemIsActiveBG:  var(--ve-color-light-text);
-						--itemPadding: 2px 20px;
+						--itemPadding: 2px 6px;
+
+						--indicatorTop: -1px;
+						--indicatorWidth: 7px;
+						--indicatorHeight: 5px;
 
 						:global(.selectContainer) {
 							color: var(--ve-color-dark-text);
+
+							display: inline-flex;
+							width: fit-content;
+							min-width: 200px;
+							vertical-align: middle;
+
+							height: 28px;
+							border-radius: 0px;
 						}
 
 						:global(.selectContainer .listContainer) {
@@ -160,15 +209,21 @@ import type { VeoPath } from '#/common/veo';
 							margin-top: -5px;
 						}
 
-						// :global(.selectContainer div .active:before) {
-						//     display: inline-block;
-						//     text-rendering: auto;
-						//     -webkit-font-smoothing: antialiased;
-						//     font-family: "Font Awesome 5 Free";
-						//     content: "\f00c";
-						//     position: absolute;
-						//     left: 6px;
-						// }
+						:global(span.state-indicator) {
+							padding-right: 2px;
+						}
+
+						:global(.indicator + div:nth-child(n + 3)) {
+							margin-top: -5px;
+						}
+
+						:global(.multiSelectItem_clear > svg) {
+							transform: scale(0.9);
+						}
+
+						:global(.multiSelectItem) {
+							margin: 3px 0 3px 4px;
+						}
 
 						span.status {
 							background-color: var(--ve-color-dark-text);
@@ -197,19 +252,16 @@ import type { VeoPath } from '#/common/veo';
 			<tr>
 				<th>Data Type</th>
 				<th>Version</th>
+				<th>Tables</th>
 				<th>Status</th>
+				<th>Actions</th>
 			</tr>
 		</thead>
 		<tbody>
 			{#each A_CONNECTIONS as k_connection}
-				<tr class="hr">
-					<td colspan="3">
-						<hr>
-					</td>
-				</tr>
 				<tr class="data">
 					<td>{k_connection.label}</td>
-					<td>
+					<td class="cell-version">
 						{#await k_connection.fetchVersions()}
 							<Select
 								isDisabled={true}
@@ -218,20 +270,54 @@ import type { VeoPath } from '#/common/veo';
 							></Select>
 						{:then a_versions}
 							<Select
-								items={a_versions}
+								items={[
+									{
+										label: 'Mar 20, 2021 <span class="ve-tag-pill">Latest</span>',
+										value: '2021-03-20',
+									},
+									...a_versions,
+								]}
 								isClearable={false}
-								placeholder="Loading..."
+								placeholder="{a_versions.length}"
+								showIndicator={true}
+								indicatorSvg={/* syntax: html */ `
+									<svg width="7" height="5" viewBox="0 0 7 5" fill="none" xmlns="http://www.w3.org/2000/svg">
+										<path d="M3.5 4.5L0.468911 0.75L6.53109 0.75L3.5 4.5Z" fill="#333333"/>
+									</svg>
+								`}
+								Item={SelectItem}
+								containerStyles={'padding: 0px 40px 0px 6px;'}
+								listOffset={5}
+								on:select={select_version}
 							></Select>
 						{/await}
 					</td>
+					<td class="cell-align-center">
+						{#await g_context.document.findPathTags('page#elements.serialized.queryTable', g_context)}
+							Counting...
+						{:then c_tags}
+							{c_tags}
+						{/await}
+					</td>
+					<td class="cell-align-center">
+						<span class="ve-pill">
+							DRAFT
+
+							<Fa icon={faCheckCircle} size="sm" />
+							Published
+						</span>
+					</td>
 					<td>
-						<!-- <span class="status" bind:this={g_source.status_elmt}>
+						Publish N Tables
+					</td>
+					<!-- <td>
+						<span class="status" bind:this={g_source.status_elmt}>
 							<Fa icon={faCircleNotch} class="fa-spin" />
 							<span class="text">
 								Connecting...
 							</span>
-						</span> -->
-					</td>
+						</span>
+					</td> -->
 				</tr>
 			{/each}
 		</tbody>

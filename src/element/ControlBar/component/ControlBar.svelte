@@ -45,6 +45,8 @@
 	let dm_icon_dropdown: HTMLDivElement;
 	let b_document = false;
 
+	const b_admin = location.hash.slice(1).split(/:/g).includes('admin');
+
 	let k_page: ConfluencePage | null = null;
 	let k_document: ConfluenceDocument | null = null;
 
@@ -271,6 +273,11 @@
 	:global(.svelte-tabs li.svelte-tabs__tab) {
 		color: white;
 		border-bottom-color: white;
+		border-bottom-width: 0px;
+	}
+
+	:global(.svelte-tabs li.svelte-tabs__selected) {
+		border-bottom-width: 3px;
 	}
 
 	.tab-body {
@@ -341,25 +348,40 @@
 		{#if !b_collapsed}
 			<div class="expanded" transition:slide={{}}>
 				<Tabs>
-					{#if k_document}
-						<TabList>
-							<Tab>Status</Tab>
+					<TabList>
+						{#if k_document}
+							<Tab>Document Data Status</Tab>
+						{/if}
+						{#if b_admin}
 							<Tab>Admin</Tab>
-						</TabList>
+						{/if}
+					</TabList>
 
+					{#if k_document}
 						<TabPanel>
 							<div class="tab-body">
 								<p>New updates are available every Friday at 10:00 PM</p>
 								<DatasetsTable {g_context}></DatasetsTable>
 							</div>
+						</TabPanel>
+					{/if}
+
+					{#if b_admin}
+						<TabPanel>
 							<div class="tab-body">
 								<section>
 									<h4>Document</h4>
 									<div>
-										<span>Reset document metadata to:</span>
 										<span>
-											<button on:click={() => reset_document(H_PATHS_CLIPPER)}>Clipper preset</button>
-											<button on:click={() => reset_document(H_PATHS_MSR)}>MSR preset</button>
+											{#if k_document}
+												Reset document metadata to:
+											{:else}
+												Convert this page to become the document cover page of a new document:
+											{/if}
+										</span>
+										<span>
+											<button on:click={() => k_document? create_document(H_PATHS_CLIPPER): reset_document(H_PATHS_CLIPPER)}>Clipper preset</button>
+											<button on:click={() => k_document? create_document(H_PATHS_MSR): reset_document(H_PATHS_MSR)}>MSR preset</button>
 										</span>
 									</div>
 								</section>
@@ -375,10 +397,6 @@
 								</section>
 							</div>
 						</TabPanel>
-					{:else}
-						<h4>Convert this page to become the document cover page of a new document</h4><br>
-						<button on:click={() => create_document(H_PATHS_CLIPPER)}>Europa Clipper</button>
-						<button on:click={() => create_document(H_PATHS_MSR)}>Mars Sample Return</button>
 					{/if}
 				</Tabs>
 			</div>
