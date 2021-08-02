@@ -1,6 +1,6 @@
 import type {MmsSparqlQueryTable, QueryParam} from '#/element/QueryTable/model/QueryTable';
 
-import {Sparql, SparqlSelectQuery} from '../../util/sparql-endpoint';
+import {SparqlSelectQuery, Sparql} from '../../util/sparql-endpoint';
 
 import type {Hash, SparqlString} from '../types';
 
@@ -62,7 +62,7 @@ interface BuildConfig {
 	bgp?: SparqlString;
 }
 
-export async function build_dng_select_param_query(this: MmsSparqlQueryTable, param: QueryParam, gc_build?: BuildConfig): Promise<SparqlSelectQuery> {
+export async function build_dng_select_param_query(this: MmsSparqlQueryTable, param: QueryParam, gc_build?: BuildConfig): Promise<SparqlSelectQuery> {	
 	const a_bgp: string[] = [];
 
 	const a_selects = [
@@ -78,7 +78,6 @@ export async function build_dng_select_param_query(this: MmsSparqlQueryTable, pa
 	else {
 		a_bgp.push(`?_attr a rdf:Property ;
 				rdfs:label ${Sparql.literal(param.value)} .
-
 			?artifact a oslc_rm:Requirement ;
 				?_attr [rdfs:label ?value] .
 		`)
@@ -101,15 +100,13 @@ export async function build_dng_select_param_query(this: MmsSparqlQueryTable, pa
 					oslc_rm:uses ?artifact ;
 					.
 			}
-
 			${a_bgp.join('\n')}
 		`,
 		group: '?value order by desc(?count)'
 	});
 }
 
-
-export async function build_dng_select_query_from_params(this: MmsSparqlQueryTable, gc_build?: BuildConfig): Promise<SparqlSelectQuery> {
+export async function build_dng_select_query_from_params(this: MmsSparqlQueryTable, gc_build?: BuildConfig): Promise<SparqlSelectQuery> {	
 	const a_bgp: string[] = [];
 	const h_props = {};
 

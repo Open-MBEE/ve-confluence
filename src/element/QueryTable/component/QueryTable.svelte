@@ -458,14 +458,13 @@
 		await render();
 	}
 
-	function select_query_type(dv_select: CustomEvent<ValuedLabeledObject>) {
+	async function select_query_type(dv_select: CustomEvent<ValuedLabeledObject>) {
 		// set query type on model
 		k_query_table.setQueryType(dv_select.detail);
 
 		// clear parameters
-		for(const si_param in k_query_table.parameterValues) {
-			k_query_table.parameterValuesList(si_param).clear();
-		}
+		const g_params = await k_query_table.queryType.fetchParameters();
+		g_params.map(({key: g_key}) => k_query_table.parameterValuesList(g_key).clear());
 
 		// clear preview
 		clear_preview();

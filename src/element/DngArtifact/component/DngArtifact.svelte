@@ -106,6 +106,15 @@
 					si_artifact = s_identifier;
 					s_type = 'Requirement';
 					s_primary_text = s_primary_text_value;
+
+					// use requirement title in place of pasted link
+					if(ym_anchor.textContent === p_href) {
+						s_label = _s_title
+					}
+					// use narrative text if present
+					else {
+						s_label = String(ym_anchor.textContent)
+					}
 				}
 			}
 		}

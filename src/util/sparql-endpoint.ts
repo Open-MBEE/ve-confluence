@@ -169,7 +169,7 @@ export class SparqlSelectQuery implements ConnectionQuery {
 	}
 
 	stringify(): string {
-		return stringify_select_query_descriptor(this._gc_query)
+		return stringify_select_query_descriptor(this._gc_query);
 	}
 
 	paginate(n_limit: number, n_offset = 0): string {
