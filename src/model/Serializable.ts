@@ -41,11 +41,13 @@ export interface Context {
 
 
 export function deep_clone<InType extends Serializable | Primitive>(gc_serialized: InType): InType {
+	type OutType = InType[Extract<keyof InType, string>];
+
 	const gc_out = {} as InType;
 
 	for(const si_key in gc_serialized) {
 		const z_test = gc_serialized[si_key];
-		let w_out: InType[Extract<keyof InType, string>] | any = z_test;
+		let w_out: OutType = z_test;
 
 		switch(typeof z_test) {
 			// pass-by-value primitive
@@ -80,7 +82,7 @@ export function deep_clone<InType extends Serializable | Primitive>(gc_serialize
 							case 'bigint':
 							case 'string': {
 								// shallow clone array
-								w_out = z_test.slice(0);
+								w_out = z_test.slice(0) as OutType;
 								break;
 							}
 
@@ -94,23 +96,23 @@ export function deep_clone<InType extends Serializable | Primitive>(gc_serialize
 					}
 					// clone empty
 					else {
-						w_out = [];
+						w_out = [] as unknown as OutType;
 					}
 				}
 				// null
 				else if(null === z_test) {
-					w_out = null;
+					w_out = null as OutType;
 				}
 				// not array; deep clone
 				else {
-					w_out = deep_clone(z_test as Primitive);
+					w_out = deep_clone(z_test as Primitive) as unknown as OutType;
 				}
 
 				break;
 			}
 
 			default: {
-				throw new Error(`typeof ${z_test} === '${typeof z_test}' ??`);
+				throw new Error(`typeof ${z_test+''} === '${typeof z_test}' ??`);
 			}
 		}
 
@@ -171,7 +173,7 @@ export function deep_hash_object(gc_serialized: Serializable | Primitive): strin
 			}
 
 			default: {
-				throw new Error(`cannot deep hash ${z_test}`);
+				throw new Error(`cannot deep hash ${z_test+''}`);
 			}
 		}
 
@@ -181,7 +183,7 @@ export function deep_hash_object(gc_serialized: Serializable | Primitive): strin
 	return '{'+a_fields.join(',')+'}';
 }
 
-type VeOdmConstructor<
+export type VeOdmConstructor<
 	Serialized extends Serializable | Primitive,
 	InstanceType extends VeOdm<Serialized>,
 > = {

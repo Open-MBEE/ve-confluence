@@ -145,6 +145,7 @@ const A_DIRECTIVE_CORRELATIONS: CorrelationDescriptor[] = [
 
 let K_OBJECT_STORE: ObjectStore;
 let k_page: ConfluencePage;
+let kv_control_bar: ControlBar;
 const G_CONTEXT: Context = {} as Context;
 
 const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
@@ -270,7 +271,7 @@ export async function main(): Promise<void> {
 		throw new Error(`ERROR: No lang file defined! Did you forget to set the environment variables when building?`);
 	}
 
-	new ControlBar({
+	kv_control_bar = new ControlBar({
 		// target: dm_main.parentElement as HTMLElement,
 		// anchor: dm_main,
 		target: dm_main_header as HTMLElement,
@@ -431,22 +432,30 @@ export async function main(): Promise<void> {
 	}
 }
 
-const H_HASH_TRIGGERS: Record<string, () => Promise<void>> = {
-	async [SR_HASH_VE_PAGE_EDIT_MODE]() {
+const H_HASH_TRIGGERS: Record<string, (de_hash_change?: HashChangeEvent) => Promise<void>> = {
+	async [SR_HASH_VE_PAGE_EDIT_MODE.slice(1)]() {
 		return await inject_frame(p_original_edit_link);
+	},
+
+	async 'admin'(de_hash_change?: HashChangeEvent) {
+		if(de_hash_change && de_hash_change.oldURL !== de_hash_change.newURL) {
+			location.reload();
+		}
+
+		await Promise.resolve();
 	},
 };
 
 
 let p_original_edit_link = '';
 
-function hash_updated(): void {
-	const sr_hash = location.hash;
+function hash_updated(de_hash_change?: HashChangeEvent): void {
+	const a_hashes = location.hash.slice(1).split(/:/g);
 
-	if(sr_hash in H_HASH_TRIGGERS) {
-		void H_HASH_TRIGGERS[sr_hash]();
-
-		return;
+	for(const si_hash of a_hashes) {
+		if(si_hash in H_HASH_TRIGGERS) {
+			void H_HASH_TRIGGERS[si_hash](de_hash_change);
+		}
 	}
 }
 

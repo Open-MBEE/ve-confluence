@@ -151,7 +151,7 @@ export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Se
 					.
 			}
 		`);
-
+debugger;
 		// failed to match pattern
 		if(!a_rows.length) {
 			// TODO: run diagnostic queries

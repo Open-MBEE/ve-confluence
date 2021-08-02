@@ -25,9 +25,11 @@ import type {MmsSparqlConnection} from '#/model/Connection';
 import {G_META} from '#/common/meta';
 
 import {
+	Context,
 	JsonMetadataBundle,
 	JsonMetadataShape,
 	MetadataBundleVersionDescriptor,
+	VeOdm,
 	WritableAsynchronousSerializationLocation,
 } from '#/model/Serializable';
 
@@ -190,6 +192,7 @@ type DocumentInfo = ConfluenceApi.ContentResult<
 	BasicPageWithAncestorsType,
 	ConfluenceApi.KeyedInfo<DocumentMetadata, Ve4MetadataKeyDocument>
 >;
+
 
 async function confluence_get_json<Data extends JsonObject>(pr_path: string, gc_get?: {search?: Hash}): Promise<Response<Data>> {
 	// complete path with API
@@ -772,6 +775,50 @@ export class ConfluenceDocument extends ConfluenceEntity<DocumentMetadata> {
 
 	async isDocumentCoverPage(b_force=false): Promise<boolean> {
 		return !!(await this.fetchMetadataBundle(b_force))?.data;
+	}
+
+	async findPathTags(sr_path: VeoPath.Locatable, g_context: Context): Promise<number> {
+		const g_response = await confluence_get_json(`/content/search`, {
+			search: {
+				cql: [
+					'type=page',
+					`space.key=${G_META.space_key}`,
+					[
+						`id=${this._si_cover_page}`,
+						`ancestor=${this._si_cover_page}`,
+					].join(' or '),
+					`text~"${sr_path}"`,
+				].join(' and '),
+				expand: 'body.storage',
+				limit: '1000',
+			},
+		});
+
+		const g_search = g_response.data as ConfluenceApi.ContentResponse<ConfluenceApi.PageWithContent>;
+
+		// update table count...
+		// g_search.results.length;
+
+		const a_hits = [];
+
+		for(const g_page of g_search.results) {
+			const sx_page = g_page.body.storage.value;
+
+			const k_doc = new XHTMLDocument(sx_page);
+			const sq_select = `//ac:parameter[@ac:name="id"][starts-with(text(),"${sr_path}")]`;
+			const a_parameters = k_doc.select(sq_select) as Node[];
+
+			for(const ym_param of a_parameters) {
+				const sp_element = ym_param.textContent;
+				debugger;
+				const gc_serialized = await g_context.store.resolve(sp_element as VeoPath.Full);
+				debugger;
+				(await VeOdm.createFromSerialized(VeOdm, sp_element, gc_serialized, g_context)).hash()
+				console.dir(gc_serialized);
+			}
+		}
+
+		return a_hits.length;
 	}
 
 	// async getDataSource<SourceType extends Source>(si_key: SourceKey, b_force=false): Promise<SourceType | null> {
