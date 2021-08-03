@@ -171,16 +171,33 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 				id: {
 					value: 'Identifier',
 					sortPath: null,
-				}
+				},
+				capturingDoc: {
+					value: 'Capturing Document',
+					// sortPath: null,
+				},
 			},
 		},
+	}),
+
+	tableType: auto_key<QueryType.Serialized>({
+		sparql: {
+			dng: {
+				clipper: {
+					queryTypePaths: [
+						'hardcoded#queryType.sparql.dng.afsr',
+						'hardcoded#queryType.sparql.dng.asr',
+					]
+				}
+			}
+		}
 	}),
 
 	queryType: auto_key<QueryType.Serialized>({
 		sparql: {
 			dng: {
 				afsr: {
-					label: 'Appendix Flight Systems Requirements',
+					label: 'Clipper Appendix Flight Systems Requirements',
 					queryParametersPaths: [
 						'hardcoded#queryParameter.sparql.dng.sysvac',
 						'hardcoded#queryParameter.sparql.dng.maturity',
@@ -190,9 +207,29 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					paramQueryBuilderPath: 'hardcoded#paramQueryBuilder.sparql.dng.default',
 				},
 				asr: {
-					label: 'Appendix Subsystem Requirements',
+					label: 'Clipper Appendix Subsystem Requirements',
 					queryParametersPaths: [
 						'hardcoded#queryParameter.sparql.dng.sysvac',
+						'hardcoded#queryParameter.sparql.dng.maturity',
+					],
+					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basic',
+					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.basicParamsL3ChildrenAndL4s',
+					paramQueryBuilderPath: 'hardcoded#paramQueryBuilder.sparql.dng.default',
+				},
+				msrAfsr: {
+					label: 'MSR Appendix Flight Systems Requirements',
+					queryParametersPaths: [
+						'hardcoded#queryParameter.sparql.dng.capturingDoc',
+						'hardcoded#queryParameter.sparql.dng.maturity',
+					],
+					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basicWithChildren',
+					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.basicParamsL3',
+					paramQueryBuilderPath: 'hardcoded#paramQueryBuilder.sparql.dng.default',
+				},
+				msrAsr: {
+					label: 'MSR Appendix Subsystem Requirements',
+					queryParametersPaths: [
+						'hardcoded#queryParameter.sparql.dng.capturingDoc',
 						'hardcoded#queryParameter.sparql.dng.maturity',
 					],
 					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basic',
