@@ -76,6 +76,10 @@ export class XHTMLDocument {
 		}
 	}
 
+	clone(): XHTMLDocument {
+		return new XHTMLDocument(this.toString());
+	}
+
 	select<NodeType extends SelectedValue=SelectedValue>(sx_xpath: string): NodeType[] {
 		return xpathSelect(sx_xpath, this._y_doc) as NodeType[];
 	}

@@ -149,6 +149,33 @@
 		}
 	}
 
+	// const H_CONNECTION_TEMPLATE = {
+
+	// };
+
+	// const H_PRECONFIGURED_CONNECTIONS = {
+	// 	dng: {
+	// 		clipper: {
+	// 			endpoint: 'https://ced.jpl.nasa.gov/sparql',
+	// 			modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/data.europa-clipper',
+	// 			metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/metadata.clipper',
+	// 			contextPath: 'hardcoded#queryContext.sparql.dng.common',
+	// 		},
+	// 		msr: {
+	// 			endpoint: 'https://ced.jpl.nasa.gov/sparql',
+	// 			modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/data.msr',
+	// 			metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/metadata.msr',
+	// 			contextPath: 'hardcoded#queryContext.sparql.dng.common',
+	// 		},
+	// 		psyche: {
+	// 			endpoint: 'dngmdkneptuneinstance-xenorvo9hjet.czfuvclv0tgf.us-gov-west-1.neptune.amazonaws.com',
+	// 			modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/data.msr',
+	// 			metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/metadata.msr',
+	// 			contextPath: 'hardcoded#queryContext.sparql.dng.common',
+	// 		},
+	// 	},
+	// };
+
 	const H_PATHS_CLIPPER = {
 		connection: {
 			sparql: {
@@ -182,6 +209,7 @@
 			},
 		},
 	};
+
 </script>
 
 <style lang="less">
@@ -365,7 +393,7 @@
 						<TabPanel>
 							<div class="tab-body">
 								<p>New updates are available every Friday at 10:00 PM</p>
-								<!-- <DatasetsTable {g_context}></DatasetsTable> -->
+								<DatasetsTable {g_context}></DatasetsTable>
 							</div>
 						</TabPanel>
 					{/if}

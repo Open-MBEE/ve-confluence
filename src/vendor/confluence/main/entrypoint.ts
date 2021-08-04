@@ -294,12 +294,12 @@ export async function main(): Promise<void> {
 
 		(async() => {
 			// page is part of document
-			k_document = await k_page.getDocument();
+			k_document = await k_page.fetchDocument();
 		})(),
 
 		(async() => {
 			// load page's XHTML source
-			k_source = (await k_page.getContentAsXhtmlDocument()).document || null;
+			k_source = (await k_page.fetchContentAsXhtmlDocument()).document || null;
 		})(),
 	]);
 
