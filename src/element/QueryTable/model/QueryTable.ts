@@ -31,6 +31,15 @@ import {
 
 import type {TypedString} from '#/util/strings';
 
+import {
+	autoCursorMutate,
+	ConfluencePage,
+	wrapCellInHtmlMacro,
+} from '#/vendor/confluence/module/confluence';
+
+import XHTMLDocument from '#/vendor/confluence/module/xhtml-document';
+import { process } from '#/common/static';
+
 export namespace QueryParamValue {
 	export interface Serialized extends TypedLabeledObject<'QueryParamValue'> {
 		value: string;
@@ -254,11 +263,32 @@ export namespace QueryTable {
 
 const N_QUERY_TABLE_BUILD_RESULTS_LIMIT = 1 << 10;
 
+
+function sanitize_false_directives(sx_html: string): string {
+	const d_parser = new DOMParser();
+	const d_doc = d_parser.parseFromString(sx_html, 'text/html');
+	const a_links = d_doc.querySelectorAll(`a[href^="${process.env.DOORS_NG_PREFIX || ''}"]`);
+	a_links.forEach(yn_link => yn_link.setAttribute('data-ve4', '{}'));
+	return d_doc.body.innerHTML;
+}
+
 export abstract class QueryTable<
 	ConnectionType extends string=string,
 	Serialized extends QueryTable.Serialized<ConnectionType>=QueryTable.Serialized<ConnectionType>,
 	LocalQueryType extends QueryType<ConnectionType>=QueryType<ConnectionType>,
 > extends VeOdmPageElement<Serialized> {
+	static cellRenderer(k_query_table: QueryTable): (g_row: QueryRow) => Record<string, TypedString> {
+		return (g_row: QueryRow): Record<string, TypedString> => {
+			const h_out: Record<string, TypedString> = {};
+
+			for(const k_field of k_query_table.queryType.fields) {
+				h_out[k_field.key] = k_field.cell(g_row);
+			}
+
+			return h_out;
+		};
+	}
+
 	protected _h_param_values_lists: Record<string, ParamValuesList> = {};
 
 	abstract fetchConnection(): Promise<Connection>;
@@ -309,14 +339,97 @@ export abstract class QueryTable<
 		return this._h_param_values_lists[si_param];
 	}
 
-
+	fetchParamQueryBuilder(param: QueryParam): Promise<ConnectionQuery> {
+		return this.queryType.paramQueryBuilder.function.call(this, param);
+	}
 
 	fetchQueryBuilder(): Promise<ConnectionQuery> {
 		return this.queryType.queryBuilder.function.call(this);
 	}
 
-	fetchParamQueryBuilder(param: QueryParam): Promise<ConnectionQuery> {
-		return this.queryType.paramQueryBuilder.function.call(this, param);
+	async exportResultsToCxhtml(this: QueryTable, k_connection: Connection, yn_anchor: Node, k_contents=this.getContext().source.clone()): Promise<{rows: QueryRow[]; contents: XHTMLDocument}> {
+		// fetch query builder
+		const k_query = await this.fetchQueryBuilder();
+
+		// execute query and download all rows
+		const a_rows = await k_connection.execute(k_query.all());
+
+		// build XHTML table
+		const a_fields = this.queryType.fields;
+		const f_builder = k_contents.builder();
+		const yn_table = f_builder('table', {}, [
+			f_builder('colgroup', {}, a_fields.map(() => f_builder('col'))),
+			f_builder('tbody', {}, [
+				f_builder('tr', {}, a_fields.map(g_field => f_builder('th', {}, [
+					g_field.label,
+				]))),
+				...a_rows.map(QueryTable.cellRenderer(this)).map(h_row => f_builder('tr', {}, [
+					...Object.values(h_row).map((ksx_cell) => {
+						const a_nodes: Array<Node | string> = [];
+						const sx_cell = ksx_cell.toString().trim();
+
+						// rich content type
+						if('text/plain' !== ksx_cell.contentType) {
+							// sanitize false directives
+							const sx_sanitize = sanitize_false_directives(sx_cell);
+
+							// sanitization changed string (making it HTML) or it already was HTML; wrap in HTML macro
+							if(sx_sanitize !== sx_cell || 'text/html' === ksx_cell.contentType) {
+								a_nodes.push(wrapCellInHtmlMacro(sx_sanitize, k_contents));
+							}
+							// update cell
+							else {
+								a_nodes.push(...XHTMLDocument.xhtmlToNodes(sx_sanitize));
+							}
+						}
+						else {
+							a_nodes.push(sx_cell);
+						}
+
+						// build cell using node or string
+						return f_builder('td', {}, a_nodes);
+					}),
+				])),
+			]),
+		]);
+
+		// wrap in confluence macro
+		const yn_macro = ConfluencePage.annotatedSpan({
+			params: {
+				id: this.path,
+			},
+			body: yn_table,
+		}, k_contents);
+
+		// use anchor
+		if(yn_anchor) {
+			// replace node
+			let yn_replace: Node = yn_anchor;
+
+			// not structured macro
+			if('structured-macro' !== (yn_anchor as unknown as {localName: string}).localName) {
+				// crawl out of p tags
+				yn_replace = yn_anchor.parentNode as Node;
+				while('p' === yn_replace.parentNode?.nodeName) {
+					yn_replace = yn_replace.parentNode;
+				}
+			}
+
+			// replace node
+			yn_replace.parentNode?.replaceChild(yn_macro, yn_replace);
+
+			// auto cusor mutate
+			autoCursorMutate(yn_macro, k_contents);
+		}
+		// no directive
+		else {
+			throw new Error(`No directive node was given`);
+		}
+
+		return {
+			rows: a_rows,
+			contents: k_contents,
+		};
 	}
 }
 
@@ -400,6 +513,7 @@ export class MmsSparqlQueryTable<
 		const gc_serialized = await this._k_store.resolve<MmsSparqlConnection.Serialized>(sp_connection);
 		return new MmsSparqlConnection(sp_connection, gc_serialized, this._g_context);
 	}
+
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars

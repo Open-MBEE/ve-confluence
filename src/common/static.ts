@@ -31,6 +31,17 @@ static_css += /* syntax: css */ `
 		--ve-color-button-light: #EDEDED;
 		--ve-color-error-red: #FF6060;
 	}
+
+	.ve-tag-pill {
+		cursor: default;
+		background-color: var(--ve-color-medium-text);
+		border-radius: 17px;
+		font-size: 10px;
+		color: var(--ve-color-light-text);
+		padding: 2px 4px;
+		font-weight: 500;
+		vertical-align: middle;
+	}
 `;
 
 export const static_js = '';

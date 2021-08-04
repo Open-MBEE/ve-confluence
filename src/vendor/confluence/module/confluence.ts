@@ -29,7 +29,9 @@ import {
 	JsonMetadataBundle,
 	JsonMetadataShape,
 	MetadataBundleVersionDescriptor,
+	Serializable,
 	VeOdm,
+	VeOdmConstructor,
 	WritableAsynchronousSerializationLocation,
 } from '#/model/Serializable';
 
@@ -192,6 +194,20 @@ type DocumentInfo = ConfluenceApi.ContentResult<
 	BasicPageWithAncestorsType,
 	ConfluenceApi.KeyedInfo<DocumentMetadata, Ve4MetadataKeyDocument>
 >;
+
+
+export type OdmMap<
+	Serialized extends Serializable=Serializable,
+	InstanceType extends VeOdm<Serialized>=VeOdm<Serialized>,
+> = Record<string, {
+	odm: InstanceType,
+	anchor: Node,
+}>;
+
+export type PageMap<
+	Serialized extends Serializable=Serializable,
+	InstanceType extends VeOdm<Serialized>=VeOdm<Serialized>,
+> = Map<ConfluenceApi.BasicPage, OdmMap<Serialized, InstanceType>>;
 
 
 async function confluence_get_json<Data extends JsonObject>(pr_path: string, gc_get?: {search?: Hash}): Promise<Response<Data>> {
@@ -426,7 +442,7 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 		const n_local = a_versions?.length? +a_versions[a_versions.length - 1]: 1;
 
 		// compare versions
-		const n_remote = await k_page.getVersionNumber();
+		const n_remote = await k_page.fetchVersionNumber();
 
 		// versions are out-of-sync
 		if(n_local !== n_remote) {
@@ -517,7 +533,7 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 		return (this._g_info = g_info);
 	}
 
-	async getAncestry(b_force=false): Promise<ConfluenceApi.BasicPage[]> {
+	async fetchAncestry(b_force=false): Promise<ConfluenceApi.BasicPage[]> {
 		return (await this._info(b_force))?.ancestors || [];
 	}
 
@@ -531,13 +547,13 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 		return normalize_metadata<PageMetadata>(g_info?.metadata.properties[G_VE4_METADATA_KEYS.CONFLUENCE_PAGE]);
 	}
 
-	async getVersionNumber(b_force=false): Promise<ConfluenceApi.PageVersionNumber> {
+	async fetchVersionNumber(b_force=false): Promise<ConfluenceApi.PageVersionNumber> {
 		const g_page = await this._content(b_force);
 
 		return g_page?.version.number || 1;
 	}
 
-	async getContentAsString(b_force=false): Promise<{versionNumber: ConfluenceApi.PageVersionNumber; value: Cxhtml}> {
+	async fetchContentAsString(b_force=false): Promise<{versionNumber: ConfluenceApi.PageVersionNumber; value: Cxhtml}> {
 		const g_page = await this._content(b_force);
 
 		return {
@@ -546,11 +562,11 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 		};
 	}
 
-	async getContentAsXhtmlDocument(): Promise<{versionNumber: ConfluenceApi.PageVersionNumber; document: XhtmlDocument}> {
+	async fetchContentAsXhtmlDocument(): Promise<{versionNumber: ConfluenceApi.PageVersionNumber; document: XhtmlDocument}> {
 		const {
 			versionNumber: n_version,
 			value: sx_value,
-		} = await this.getContentAsString();
+		} = await this.fetchContentAsString();
 
 		return {
 			versionNumber: n_version,
@@ -561,7 +577,7 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 	async postContent(k_contents: XhtmlDocument, s_message=''): Promise<Response<JsonObject>> {
 		const {
 			versionNumber: n_version,
-		} = await this.getContentAsXhtmlDocument();
+		} = await this.fetchContentAsXhtmlDocument();
 
 		// const f_builder = k_content.builder();
 
@@ -655,12 +671,12 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 		return await new ConfluenceDocument(this._si_page, this._s_page_title).isDocumentCoverPage();
 	}
 
-	async getDocument(b_force=false): Promise<ConfluenceDocument | null> {
+	async fetchDocument(b_force=false): Promise<ConfluenceDocument | null> {
 		// already cached and not forced; return answer
 		if(this._b_cached_document && !b_force) return this._k_document;
 
 		// fetch ancestry
-		const a_ancestry = await this.getAncestry();
+		const a_ancestry = await this.fetchAncestry();
 
 		// this is cover page; cache and return it
 		if(await this.isDocumentCoverPage()) {
@@ -686,7 +702,7 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 	}
 
 	async isDocumentMember(): Promise<boolean> {
-		return null !== await this.getDocument();
+		return null !== await this.fetchDocument();
 	}
 }
 
@@ -777,7 +793,10 @@ export class ConfluenceDocument extends ConfluenceEntity<DocumentMetadata> {
 		return !!(await this.fetchMetadataBundle(b_force))?.data;
 	}
 
-	async findPathTags(sr_path: VeoPath.Locatable, g_context: Context): Promise<number> {
+	async findPathTags<
+		Serialized extends Serializable=Serializable,
+		InstanceType extends VeOdm<Serialized>=VeOdm<Serialized>,
+	>(sr_path: VeoPath.Locatable, g_context: Context, dc_class: VeOdmConstructor<Serialized, InstanceType>=VeOdm as unknown as VeOdmConstructor<Serialized, InstanceType>): Promise<PageMap<Serialized, InstanceType>> {
 		const g_response = await confluence_get_json(`/content/search`, {
 			search: {
 				cql: [
@@ -796,29 +815,32 @@ export class ConfluenceDocument extends ConfluenceEntity<DocumentMetadata> {
 
 		const g_search = g_response.data as ConfluenceApi.ContentResponse<ConfluenceApi.PageWithContent>;
 
-		// update table count...
-		// g_search.results.length;
-
-		const a_hits = [];
+		const h_hits: PageMap<Serialized, InstanceType> = new Map();
 
 		for(const g_page of g_search.results) {
 			const sx_page = g_page.body.storage.value;
 
 			const k_doc = new XHTMLDocument(sx_page);
 			const sq_select = `//ac:parameter[@ac:name="id"][starts-with(text(),"${sr_path}")]`;
-			const a_parameters = k_doc.select(sq_select) as Node[];
+			const a_parameters = k_doc.select(sq_select) as Node[];  // eslint-disable-line @typescript-eslint/no-unnecessary-type-assertion
+
+			// page path
+			const h_page: OdmMap<Serialized, InstanceType> = {};
+			h_hits.set(g_page, h_page);
 
 			for(const ym_param of a_parameters) {
-				const sp_element = ym_param.textContent;
-				debugger;
-				const gc_serialized = await g_context.store.resolve(sp_element as VeoPath.Full);
-				debugger;
-				(await VeOdm.createFromSerialized(VeOdm, sp_element, gc_serialized, g_context)).hash()
-				console.dir(gc_serialized);
+				const sp_element = ym_param.textContent as VeoPath.Full;
+
+				const gc_serialized = await g_context.store.resolve<Serialized>(sp_element);
+
+				h_page[sp_element] = {
+					odm: await VeOdm.createFromSerialized<Serialized, InstanceType>(dc_class, sp_element, gc_serialized, g_context),
+					anchor: ym_param.parentNode!,
+				};
 			}
 		}
 
-		return a_hits.length;
+		return h_hits;
 	}
 
 	// async getDataSource<SourceType extends Source>(si_key: SourceKey, b_force=false): Promise<SourceType | null> {

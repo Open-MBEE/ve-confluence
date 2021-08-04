@@ -73,7 +73,7 @@
 <div class="item {itemClasses}">
 	<span class="state-indicator">
 		{#if isActive}
-			<Fa icon={faCheck} />
+			<Fa icon={faCheck} size="xs" />
 		{:else}
 			<i class="fa-fw" />
 		{/if}

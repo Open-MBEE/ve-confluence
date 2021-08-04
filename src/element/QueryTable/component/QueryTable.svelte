@@ -23,8 +23,7 @@
 
 	import QueryTableParam from './QueryTableParam.svelte';
 
-	import type {
-		QueryField,
+	import {
 		QueryTable,
 	} from '../model/QueryTable';
 
@@ -177,16 +176,6 @@
 		g_preview.rows = [];
 	}
 
-	const F_RENDER_CELL = (g_row: QueryRow): Record<string, TypedString> => {
-		const h_out: Record<string, TypedString> = {};
-
-		for(const k_field of k_query_table.queryType.fields) {
-			h_out[k_field.key] = k_field.cell(g_row);
-		}
-
-		return h_out;
-	};
-
 	async function render() {
 		xc_info_mode = G_INFO_MODES.LOADING;
 
@@ -239,7 +228,7 @@
 					});
 			}
 
-			g_preview.rows = a_rows.map(F_RENDER_CELL);
+			g_preview.rows = a_rows.map(QueryTable.cellRenderer(k_query_table));
 
 			// no longer busy loading
 			b_busy_loading = false;
@@ -292,28 +281,21 @@
 		});
 	}
 
-	function sanitize_false_directives(sx_html: string): string {
-		const d_parser = new DOMParser();
-		const d_doc = d_parser.parseFromString(sx_html, 'text/html');
-		const a_links = d_doc.querySelectorAll(`a[href^="${process.env.DOORS_NG_PREFIX}"]`);
-		a_links.forEach(yn_link => yn_link.setAttribute('data-ve4', '{}'));
-		return d_doc.body.innerHTML;
-	}
-
 	async function publish_table() {
 		xc_info_mode = G_INFO_MODES.LOADING;
 
 		// get page content as xhtml document
 		const {
-			source: k_contents,
 			page: k_page,
 		} = k_query_table.getContext();
 
-		// fetch query builder
-		const k_query = await k_query_table.fetchQueryBuilder();
+		// commit query table state
+		const g_payload = await k_query_table.save(`Auto-saved from user table publish`);
 
-		// execute query and download all rows
-		const a_rows = await k_connection.execute(k_query.all());
+		const {
+			rows: a_rows,
+			contents: k_contents,
+		} = await k_query_table.exportResultsToCxhtml(k_connection, yn_directive);
 
 		// prepare commit message
 		let s_commit_message = '';
@@ -342,45 +324,6 @@
 				+` from ${k_connection.label} on ${s_display_version}`;
 		}
 
-		// commit query table state
-		const g_payload = await k_query_table.save(s_commit_message);
-
-		// build XHTML table
-		const yn_table = build_xhtml_table(k_query_table.queryType.fields, a_rows);
-
-		// wrap in confluence macro
-		const yn_macro = ConfluencePage.annotatedSpan({
-			params: {
-				id: k_query_table.path,
-			},
-			body: yn_table,
-		}, k_contents);
-
-		// use directive as anchor
-		if(yn_directive) {
-			// replace node
-			let yn_replace: Node = yn_directive;
-
-			// not structured macro
-			if('structured-macro' !== yn_directive.localName) {
-				// crawl out of p tags
-				yn_replace = yn_directive.parentNode as Node;
-				while('p' === yn_replace.parentNode?.nodeName) {
-					yn_replace = yn_replace.parentNode;
-				}
-			}
-
-			// replace node
-			yn_replace.parentNode?.replaceChild(yn_macro, yn_replace);
-
-			// auto cusor mutate
-			autoCursorMutate(yn_macro, k_contents);
-		}
-		// no directive
-		else {
-			throw new Error(`No directive node was given`);
-		}
-
 		// upload contents
 		const g_res = await k_page.postContent(k_contents, s_commit_message);
 
@@ -397,47 +340,6 @@
 		}
 	}
 
-	function build_xhtml_table(a_fields: QueryField[], a_rows: QueryRow[]): Node {
-		const k_contents = k_query_table.getContext().source;
-
-		const f_builder = k_contents.builder();
-
-		return f_builder('table', {}, [
-			f_builder('colgroup', {}, a_fields.map(() => f_builder('col'))),
-			f_builder('tbody', {}, [
-				f_builder('tr', {}, a_fields.map(g_field => f_builder('th', {}, [
-					g_field.label,
-				]))),
-				...a_rows.map(F_RENDER_CELL).map(h_row => f_builder('tr', {}, [
-					...Object.values(h_row).map((ksx_cell) => {
-						const a_nodes: Array<Node | string> = [];
-						let sx_cell = ksx_cell.toString().trim();
-
-						// rich content type
-						if('text/plain' !== ksx_cell.contentType) {
-							// sanitize false directives
-							const sx_sanitize = sanitize_false_directives(sx_cell);
-
-							// sanitization changed string (making it HTML) or it already was HTML; wrap in HTML macro
-							if(sx_sanitize !== sx_cell || 'text/html' === ksx_cell.contentType) {
-								a_nodes.push(wrapCellInHtmlMacro(sx_sanitize, k_contents));
-							}
-							// update cell
-							else {
-								a_nodes.push(...XHTMLDocument.xhtmlToNodes(sx_sanitize));
-							}
-						}
-						else {
-							a_nodes.push(sx_cell);
-						}
-
-						// build cell using node or string
-						return f_builder('td', {}, a_nodes);
-					}),
-				])),
-			]),
-		]);
-	}
 
 	async function reset_table() {
 		// hide parameters
