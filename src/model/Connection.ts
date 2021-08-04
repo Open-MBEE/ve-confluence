@@ -20,6 +20,7 @@ export interface ModelVersionDescriptor {
 	id: string;
 	label: string;
 	dateTime: string;
+	data?: Record<string, boolean | number | string>;
 }
 
 export namespace Connection {
@@ -90,6 +91,23 @@ export namespace MmsSparqlConnection {
 	}
 }
 
+const dt_now = new Date();
+const dt_old = new Date(dt_now.getTime() - (48*60*60*1e3));
+const date_format = (dt: Date): string => dt.toDateString().replace(/^\w+\s+/, '').replace(/(\d+)\s+/, '$1, ');
+
+const G_DUMMY_VERSION_LATEST = {
+	id: 'dummy-latest-commit-id',
+	label: date_format(dt_now),
+	dateTime: dt_now.toISOString(),
+};
+
+const G_DUMMY_VERSION_CURRENT = {
+	id: 'dummy-current-commit-id',
+	label: date_format(dt_old),
+	dateTime: dt_old.toISOString(),
+};
+
+
 export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Serialized> {
 	get modelGraph(): UrlString {
 		return this._gc_serialized.modelGraph;
@@ -115,13 +133,15 @@ export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Se
 
 		// failed to match pattern
 		if(!a_rows.length) {
-			// TODO: run diagnostic queries
-			return {
-				id: 'null',
-				label: 'Unknown date/time',
-				// dateTime: 'Unknown date/time',
-				dateTime: (new Date()).toISOString(),
-			};
+			return G_DUMMY_VERSION_CURRENT;
+		
+			// // TODO: run diagnostic queries
+			// return {
+			// 	id: 'null',
+			// 	label: 'Unknown date/time',
+			// 	// dateTime: 'Unknown date/time',
+			// 	dateTime: (new Date()).toISOString(),
+			// };
 		}
 		// matched
 		else {
@@ -151,11 +171,16 @@ export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Se
 					.
 			}
 		`);
-debugger;
+
 		// failed to match pattern
 		if(!a_rows.length) {
-			// TODO: run diagnostic queries
-			return [];
+			return [
+				G_DUMMY_VERSION_CURRENT,
+				G_DUMMY_VERSION_LATEST,
+			];
+
+			// // TODO: run diagnostic queries
+			// return [];
 		}
 		// matched
 		else {

@@ -190,7 +190,7 @@ export type VeOdmConstructor<
 	new(sp_path: VeoPath.Full, gc_serialized: Serialized, g_context: Context): InstanceType;
 };
 
-export abstract class VeOdm<Serialized extends Serializable | Primitive> {
+export class VeOdm<Serialized extends Serializable | Primitive> {
 	static async createFromSerialized<
 		Serialized extends Serializable | Primitive,
 		InstanceType extends VeOdm<Serialized>,
