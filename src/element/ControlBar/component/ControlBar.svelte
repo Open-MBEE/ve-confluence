@@ -99,7 +99,7 @@
 		k_page = await ConfluencePage.fromCurrentPage();
 
 		if(await k_page.isDocumentMember()) {
-			k_document = await k_page.getDocument();
+			k_document = await k_page.fetchDocument();
 		}
 	});
 
