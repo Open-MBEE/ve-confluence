@@ -38,6 +38,7 @@ import {
 } from '#/vendor/confluence/module/confluence';
 
 import XHTMLDocument from '#/vendor/confluence/module/xhtml-document';
+import { process } from '#/common/static';
 
 export namespace QueryParamValue {
 	export interface Serialized extends TypedLabeledObject<'QueryParamValue'> {

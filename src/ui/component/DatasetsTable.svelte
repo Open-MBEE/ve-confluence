@@ -30,7 +30,10 @@
 
 	import Fa from 'svelte-fa';
 
-	import {ConfluenceEntity, ConfluencePage, PageMap} from '#/vendor/confluence/module/confluence';
+	import {ConfluenceEntity, ConfluencePage} from '#/vendor/confluence/module/confluence';
+
+
+	import type {PageMap} from '#/vendor/confluence/module/confluence';
 
 	import {MmsSparqlQueryTable, QueryTable} from '#/element/QueryTable/model/QueryTable';
 
@@ -467,7 +470,9 @@
 						{#await locate_tables(k_connection)}
 							Counting...
 						{:then h_tags}
-							{Object.keys(h_tags).length}
+							{#key hmw_connections}
+								{[...hmw_connections.get(k_connection)?.tables.values() || []].reduce((c_out, h_values) => c_out+Object.values(h_values).length, 0)}
+							{/key}
 						{/await}
 					</td>
 					<td class="cell-no-border">
@@ -488,14 +493,14 @@
 										<span class="status">
 											<Fa icon={faCircleNotch} class="fa-spin" />
 											<span class="text">
-												{`${g_data?.published_tables}/${Object.keys(g_data?.tables || {}).length}`} Updating Tables
+												{g_data?.tables_touched_count}/{Object.keys(g_data?.tables || {}).length} Updating Tables
 											</span>
 										</span>
 									{:else if G_STATUS.UPDATED === xc_status_mode}
 										<span class="status">
 											<Fa icon={faCheckCircle} />
 											<span class="text">
-												Tables Updated
+												{g_data?.tables_touched_count}/{Object.keys(g_data?.tables || {}).length} Tables Updated
 											</span>
 										</span>
 									{/if}
