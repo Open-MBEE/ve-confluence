@@ -178,7 +178,7 @@ export class SparqlSelectQuery implements ConnectionQuery {
 
 		return stringify_select_query_descriptor({
 			...g_desc,
-			select: [`(count(${g_desc.count || '*'}) as ?count)`],
+			select: [`(count(distinct ${g_desc.count || '*'}) as ?count)`],
 		});
 	}
 

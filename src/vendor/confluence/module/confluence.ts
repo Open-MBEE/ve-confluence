@@ -286,10 +286,16 @@ const H_CACHE_PAGES: Record<string, ConfluencePage> = {};
 export abstract class ConfluenceEntity<MetadataType extends PageOrDocumentMetadata> extends WritableAsynchronousSerializationLocation<MetadataType> {
 	abstract postMetadata(gm_document: MetadataType, n_version: number, s_message: string): Promise<JsonObject>;
 
+	/**
+	 * Write an entire metadata object and specify the version info to use for the commit
+	 */
 	writeMetadataObject(g_metadata: MetadataType, g_version: MetadataBundleVersionDescriptor): Promise<JsonObject> {
 		return this.postMetadata(g_metadata, g_version.number, g_version.message);
 	}
 
+	/**
+	 * Write a serializable value to a specific path in the metadata oobject
+	 */
 	async writeMetadataValue(w_value: JsonValue, a_frags: DotFragment[], s_message=''): Promise<JsonObject> {
 		// start at metadata object root
 		const g_bundle = await this.fetchMetadataBundle();

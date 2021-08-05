@@ -30,12 +30,16 @@
 
 	import Fa from 'svelte-fa';
 
-	import {ConfluenceEntity, ConfluencePage} from '#/vendor/confluence/module/confluence';
+	import {
+		ConfluenceEntity,
+		ConfluencePage,
+	} from '#/vendor/confluence/module/confluence';
 
 
 	import type {PageMap} from '#/vendor/confluence/module/confluence';
 
-	import {MmsSparqlQueryTable, QueryTable} from '#/element/QueryTable/model/QueryTable';
+	import {MmsSparqlQueryTable,
+		QueryTable} from '#/element/QueryTable/model/QueryTable';
 
 	type CustomDataProperties = {
 		status_mode: G_STATUS;
@@ -224,7 +228,7 @@
 		return hm_tables;
 	}
 
-	async function fetch_version_info(k_connection: Connection) {
+	async function fetch_version_info(k_connection: Connection): Promise<[ModelVersionDescriptor[], ModelVersionDescriptor]> {
 		const [a_versions_raw, g_version_current_raw] = await Promise.all([
 			k_connection.fetchVersions(),
 			k_connection.fetchCurrentVersion(),
@@ -351,10 +355,6 @@
 						// --itemActiveBackground: var(--ve-color-medium-light-text);
 						--itemIsActiveBG:  var(--ve-color-light-text);
 
-						// --itemHoverBG: #f00;
-						--itemActiveBackground: #0f0;
-						// --itemIsActiveBG:  #00f;
-
 						--itemPadding: 2px 6px;
 
 						--indicatorTop: 1px;
@@ -366,7 +366,7 @@
 
 							display: inline-flex;
 							width: fit-content;
-							min-width: 200px;
+							min-width: 260px;
 							vertical-align: middle;
 
 							height: 28px;

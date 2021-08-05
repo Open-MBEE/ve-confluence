@@ -107,6 +107,41 @@ const G_DUMMY_VERSION_CURRENT = {
 	dateTime: dt_old.toISOString(),
 };
 
+interface CommitResult {
+	commit: {
+		value: string;
+	};
+	commitDateTime: {
+		value: string;
+	};
+}
+
+function commit_result_to_model_version(g_result: CommitResult): ModelVersionDescriptor {
+	const {
+		commit: {value:p_commit},
+		commitDateTime: {value:s_datetime},
+	} = g_result;
+
+	const dt_commit = new Date(s_datetime);
+
+	// format datetime
+	const s_label = Intl.DateTimeFormat('en-US', {
+		year: 'numeric',
+		weekday: 'short',
+		month: 'short',
+		day: '2-digit',
+		hour: 'numeric',
+		minute: '2-digit',
+		hour12: true,
+		formatMatcher: 'basic',
+	}).format(dt_commit);
+
+	return {
+		id: p_commit,
+		label: s_label,
+		dateTime: s_datetime,
+	};
+}
 
 export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Serialized> {
 	get modelGraph(): UrlString {
@@ -121,40 +156,28 @@ export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Se
 		const a_rows = await this.execute(`
 			select ?commit ?commitDateTime from <${this.metadataGraph}> {
 				?snapshot a mms:Snapshot ;
-					mms:graph <${this.modelGraph}> ;
-					mms:materializes/mms:commit ?commit ;
+					mms:modelGraph <${this.modelGraph}> ;
+					mms:materializes ?commit ;
 					.
 
 				?commit a mms:Commit ;
-					mms:submitted ?dateTime ;
+					mms:submitted ?commitDateTime ;
 					.
 			}
-		`);
+		`) as unknown as CommitResult[];
 
 		// failed to match pattern
 		if(!a_rows.length) {
-			return G_DUMMY_VERSION_CURRENT;
-		
-			// // TODO: run diagnostic queries
-			// return {
-			// 	id: 'null',
-			// 	label: 'Unknown date/time',
-			// 	// dateTime: 'Unknown date/time',
-			// 	dateTime: (new Date()).toISOString(),
-			// };
+			// TODO: run diagnostic queries
+			return {
+				id: 'null',
+				label: 'Unknown date/time',
+				dateTime: 'Unknown date/time',
+			};
 		}
 		// matched
 		else {
-			const {
-				commit: {value:p_commit},
-				commitDateTime: {value:s_datetime},
-			} = a_rows[0];
-
-			return {
-				id: p_commit,
-				label: new URL(p_commit).pathname.replace(/[^/]*\//g, ''),
-				dateTime: s_datetime,
-			};
+			return commit_result_to_model_version(a_rows[0]);
 		}
 	}
 
@@ -162,40 +185,24 @@ export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Se
 		const a_rows = await this.execute(`
 			select ?commit ?commitDateTime from <${this.metadataGraph}> {
 				?snapshot a mms:Snapshot ;
-					mms:materializes/mms:commit ?commit ;
-					mms:graph ?modelGraph ;
+					mms:materializes ?commit ;
+					mms:modelGraph ?modelGraph ;
 					.
 
 				?commit a mms:Commit ;
-					mms:submitted ?dateTime ;
+					mms:submitted ?commitDateTime ;
 					.
 			}
-		`);
+		`) as unknown as CommitResult[];
 
 		// failed to match pattern
 		if(!a_rows.length) {
-			return [
-				G_DUMMY_VERSION_CURRENT,
-				G_DUMMY_VERSION_LATEST,
-			];
-
-			// // TODO: run diagnostic queries
-			// return [];
+			// TODO: run diagnostic queries
+			return [];
 		}
 		// matched
 		else {
-			return a_rows.map((g_row) => {
-				const {
-					commit: {value:p_commit},
-					commitDateTime: {value:s_datetime},
-				} = g_row;
-
-				return {
-					id: g_row.commit.value,
-					label: new URL(p_commit).pathname.replace(/[^/]*\//g, ''),
-					dateTime: s_datetime,
-				};
-			});
+			return a_rows.map(commit_result_to_model_version);
 		}
 	}
 

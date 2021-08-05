@@ -124,9 +124,8 @@
 	}
 
 	function handle_clear(dv_select: CustomEvent<ValuedLabeledObject[]>) {
+		// svelte-select will now dispatch on:select(null) for clear events
 		k_values.clear();
-
-		f_dispatch('change');
 	}
 </script>
 

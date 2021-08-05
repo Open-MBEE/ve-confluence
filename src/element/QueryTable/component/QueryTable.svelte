@@ -121,7 +121,12 @@
 			g_version = await k_connection.fetchCurrentVersion();
 
 			// parse datetime string
-			const dt_version = new Date(g_version.dateTime);
+			let dt_version = new Date(g_version.dateTime);
+
+			// invalid date; replace with now
+			if('Invalid Date' === dt_version.toString()) {
+				dt_version = new Date();
+			}
 
 			// update display version
 			s_display_version = `${dt_version.toDateString()} @${dt_version.toLocaleTimeString()}`;
