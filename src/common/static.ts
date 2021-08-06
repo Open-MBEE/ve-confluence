@@ -19,15 +19,28 @@ static_css += /* syntax: css */ `
 
 		--ve-color-light-background: #F5F5F5;
 		--ve-color-dark-background: #404040;
+		--ve-color-darker-background: #333333;
 		--ve-color-dark-text: #333333;
 		--ve-color-medium-text: #8D8D8D;
 		--ve-color-medium-light-text: #D0D0D0;
 		--ve-color-light-text: #FFFFFF;
 		--ve-color-accent-light: #2C7E8F;
 		--ve-color-accent-dark: #205C68;
+		--ve-color-accent-darker: #E6E6E6;
 		--ve-color-accent-dark-border: #102E34
 		--ve-color-button-light: #EDEDED;
 		--ve-color-error-red: #FF6060;
+	}
+
+	.ve-tag-pill {
+		cursor: default;
+		background-color: var(--ve-color-medium-text);
+		border-radius: 17px;
+		font-size: 10px;
+		color: var(--ve-color-light-text);
+		padding: 2px 4px;
+		font-weight: 500;
+		vertical-align: middle;
 	}
 `;
 

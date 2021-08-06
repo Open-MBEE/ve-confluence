@@ -1,5 +1,5 @@
 interface AsyncLock {
-	data: any;
+	data: any;  // eslint-disable-line @typescript-eslint/no-explicit-any
 	free: () => void;
 }
 
@@ -16,7 +16,7 @@ type ConfirmableAsyncLock = AsyncLock & {
  */
 function AsyncLockPool$_release(
 	k_self: AsyncLockPool,
-	g_lock: AsyncLock,
+	g_lock: AsyncLock
 ): () => void {
 	return () => {
 		// remove self from locks
@@ -27,9 +27,9 @@ function AsyncLockPool$_release(
 
 		queueMicrotask(() => {
 			// at least one promise waiting for lock
-			if (k_self._a_awaits.length) {
-				let g_lock_await =
-					k_self._a_awaits.shift() as ConfirmableAsyncLock;
+			if(k_self._a_awaits.length) {
+				const g_lock_await
+					= k_self._a_awaits.shift() as ConfirmableAsyncLock;
 
 				g_lock_await.confirm(g_lock_await.free);
 			}
@@ -63,12 +63,12 @@ export class AsyncLockPool {
 	 */
 	acquire(w_data = null): Promise<() => void> {
 		// at least one free lock
-		if (this._c_free > 0) {
+		if(0 < this._c_free) {
 			// consume a lock
 			this._c_free -= 1;
 
 			// create lock object
-			let g_lock: AsyncLock = {
+			const g_lock: AsyncLock = {
 				data: w_data,
 			} as AsyncLock;
 
@@ -80,9 +80,10 @@ export class AsyncLockPool {
 
 			// done
 			return Promise.resolve(g_lock.free);
-		} else {
+		}
+		else {
 			return new Promise((fk_acquire) => {
-				let g_lock = {
+				const g_lock = {
 					confirm: fk_acquire,
 					data: w_data,
 				} as ConfirmableAsyncLock;

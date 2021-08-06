@@ -12,6 +12,7 @@
 }
 
 [class^='ve-button-'] {
+	cursor: pointer;
 	font-size: 12px;
 	font-weight: 500;
 	letter-spacing: 1px;
@@ -23,18 +24,88 @@
 	box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.15);
 }
 
+.ve-disabled() {
+	cursor: default;
+	background-color: var(--ve-color-medium-light-text);
+	color: var(--ve-color-medium-text);
+	border-color: var(--ve-color-medium-light-text);
+	font-style: italic;
+}
+
 .ve-button-primary {
 	background-color: var(--ve-color-accent-light);
 	color: var(--ve-color-light-text);
 	border-color: var(--ve-color-accent-dark);
+
+	&[disabled] {
+		.ve-disabled();
+	}
+
+	&:not([disabled]) {
+		&:hover {
+			background-color: var(--ve-color-accent-dark);
+		}
+
+		&:focus, &:active {
+			background-color: var(--ve-color-accent-dark);
+			border-color: var(--ve-color-accent-dark-border);
+		}
+	}
 }
 
 .ve-button-secondary {
 	background-color: var(--ve-color-light-background);
 	color: var(--ve-color-medium-text);
 	border-color: var(--ve-color-medium-light-text);
+
+	&[disabled] {
+		.ve-disabled();
+	}
+
+	&:not([disabled]) {
+		&:hover {
+			background-color: var(--ve-color-button-light, #ededed);
+		}
+
+		&:focus, &:active {
+			background-color: var(--ve-color-button-light);
+			border-color: var(--ve-color-medium-text);
+		}
+	}
+}
+
+.ve-pill {
+	cursor: default;
+	background-color: var(--ve-color-dark-text);
+	color: var(--ve-color-light-text);
+	border-radius: 10%;
+
+	font-size: 12px;
+	font-weight: 500;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+	padding: 3pt 5pt;
+	border-radius: 2pt;
+}
+
+.ve-tag-pill {
+	cursor: default;
+    background-color: var(--ve-color-medium-text);
+    border-radius: 17px;
+    font-size: 10px;
+    color: var(--ve-color-light-text);
+    padding: 2px 4px;
+    font-weight: 500;
+	vertical-align: middle;
 }
 
 .buttons button:nth-child(n + 1) {
 	margin-left: 0.3em;
+}
+
+.transition (@transition) {
+	-webkit-transition: @transition;  
+	-moz-transition:    @transition;
+	-ms-transition:     @transition; 
+	-o-transition:      @transition;  
 }

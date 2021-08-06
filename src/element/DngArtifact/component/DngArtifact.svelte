@@ -1,7 +1,20 @@
 <script lang="ts">
 	import {onMount} from 'svelte';
+
 	import H_PREFIXES from '#/common/prefixes';
-	import { dd } from '#/util/dom';
+
+	import {dd} from '#/util/dom';
+
+	import type {Context} from '#/model/Serializable';
+
+	import {MmsSparqlConnection} from '#/model/Connection';
+
+	export let ym_anchor: HTMLElement;
+	export let g_link: Record<string, string>;
+
+	
+	// hide original element
+	ym_anchor.style.display = 'none';
 
 	/**
 	 * input href of artifact
@@ -17,6 +30,8 @@
 	 * optional input artifact id
 	 */
 	export let si_artifact = '';
+
+	export let g_context: Context;
 
 
 	// canonical iri of the dng artifact
@@ -36,7 +51,7 @@
 	onMount(async() => {
 		// enable tooltip
 		jQuery(dm_macro).tipsy();
-		
+
 		// href IRI specified
 		if(p_href) {
 			const du_href = new URL(p_href);
@@ -46,17 +61,27 @@
 			if(du_href.pathname.startsWith('/rm/web')) {
 				p_artifact = (new URLSearchParams(du_href.hash.slice(1))).get('artifactURI') || 'invalid-artifact-url://';
 			}
+			// clear search params
+			else {
+				du_href.search = '';
+				p_artifact = du_href.toString();
+			}
+
+			// resolve connection path
+			const sr_connection = 'document#connection.sparql.mms.dng';
+			const gc_sparql_connection = await g_context.store.resolve<MmsSparqlConnection.Serialized>(sr_connection);
+			const k_sparql = new MmsSparqlConnection(sr_connection, gc_sparql_connection, g_context);
 
 			// find artifact by IRI
-			const a_artifacts = await k_sparql.select(k => /* syntax: sparql */ `
-				select ?title ?identifier ?primaryText (group_concat(?type; separator="\\u0000") as ?types) from ${k.var('DATA_GRAPH')} {
-					${k.iri(p_artifact)} a ?type ;
+			const a_artifacts = await k_sparql.execute(/* syntax: sparql */ `
+				select ?title ?identifier ?primaryText (group_concat(?type; separator="\\u0000") as ?types) from <${k_sparql.modelGraph}> {
+					<${p_artifact}> a ?type ;
 						dct:title ?title ;
 						dct:identifier ?identifier ;
 						.
 					
 					optional {
-						${k.iri(p_artifact)} jazz_rm:primaryText ?primaryText .
+						<${p_artifact}> jazz_rm:primaryText ?primaryText .
 					}
 				} group by ?title ?identifier ?primaryText	
 			`);
@@ -67,7 +92,7 @@
 					title: {value:s_title},
 					identifier: {value:s_identifier},
 					types: {value:s_types},
-					primaryText: {value:_s_primary_text},
+					primaryText: {value:s_primary_text_value},
 				} = a_artifacts[0];
 
 				// split concat'd types list
@@ -78,7 +103,7 @@
 					si_artifact = s_identifier;
 					s_label = s_title;
 					s_type = 'Requirement';
-					s_primary_text = _s_primary_text;
+					s_primary_text = s_primary_text_value;
 				}
 			}
 		}
@@ -86,9 +111,9 @@
 
 	// reactively assign tooltip text based on query result
 	$: s_tooltip = `DNG ${si_artifact}: `+((() => {
-		const dm = dd('div');
-		dm.innerHTML = s_primary_text;
-		return dm;
+		const dm_tooltip = dd('div');
+		dm_tooltip.innerHTML = s_primary_text;
+		return dm_tooltip;
 	})().textContent || '').trim();
 
 </script>
@@ -104,10 +129,10 @@
 </style>
 
 <span class="wrapper">
-	<input type="text" value="{si_artifact}" >
+	<!-- <input type="text" value="{si_artifact}" >
 	<span class="info">
 		<span class="label">{s_label}</span>
-	</span>
+	</span> -->
 	<span class="preview">
 		<span bind:this={dm_macro} style="background-color:lemonchiffon;" id="ve4-directive-tooltip-d2b512da419f477f801de24b5c336546" class="inline-first-p conf-macro output-inline" data-hasbody="true" data-macro-name="span" original-title="{s_tooltip}">
 			<a href="{p_artifact}" class="external-link" rel="nofollow">{s_label}</a>
