@@ -14,8 +14,10 @@
 	import {
 		faCheckCircle,
 		faCircleNotch,
+		faEdit,
 		faFilter,
 		faHistory,
+		faPen,
 		faQuestionCircle,
 	} from '@fortawesome/free-solid-svg-icons';
 
@@ -653,8 +655,8 @@
 			<div class="config">
 				<span class="tabs">
 					<span class="parameters" on:click={toggle_parameters} class:active={b_display_parameters}>
-						<Fa icon={faFilter} size="xs" />
-						Parameters
+						<Fa icon={faPen} size="xs" />
+						Edit Query
 					</span>
 					<span class="version">
 						<Fa icon={faHistory} size="xs" />

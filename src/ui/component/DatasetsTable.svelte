@@ -89,6 +89,8 @@
 	let yc_select: SvelteComponent;
 	let hmw_connections = new WeakMap<Connection, CustomDataProperties>();
 
+	let dm_warning: HTMLDivElement;
+
 	// initialize connections
 	let A_CONNECTIONS: Connection[] = [];
 	(async() => {
@@ -142,6 +144,11 @@
 		g_modal_context = d_event.detail;
 	}
 
+	// for preventing the browser window from being closed during asynchronous data operations
+	const f_cancel_unload = (d_event_before_unload: BeforeUnloadEvent) => {
+		d_event_before_unload.preventDefault();
+		d_event_before_unload.returnValue = '';
+	};
 
 	function select_version_for(k_connection: Connection) {
 		return function select_version(this: Select, d_event: CustomEvent<ModelVersionDescriptor>) {
@@ -151,15 +158,35 @@
 			// return to current
 			if(g_version_new.id === g_version_current.id) return;
 
-			//
+			// open confirmation modal
 			g_modal_context.open(UpdateDatasetConfirmation, {
 				g_modal_context,
 				k_connection,
 				g_version: g_version_new,
 				hm_tables: hmw_connections.get(k_connection)?.tables,
-				confirm() {
-					void change_version(k_connection, g_version_new);
+
+				// upon confirmation
+				async confirm() {
+					// unsaved changes tab close
+					window.addEventListener('beforeunload', f_cancel_unload);
+
+					// apply changes
+					try {
+						await change_version(k_connection, g_version_new);
+					}
+					// catch error
+					catch(e_change) {
+						// render to warning
+						dm_warning.style.visibility = 'visible';
+						dm_warning.innerHTML = `<b>Error</b>: ${k_connection.label} could not be published. Please contact CAE for assistance. Error details:`
+							+`<code style="white-space:pre;">${(e_change as Error).stack?.replace(/</g, '&lt;') || (e_change as Error).toString()}</code>`;
+					}
+
+					// remove listener
+					window.removeEventListener('beforeunload', f_cancel_unload);
 				},
+
+				// upon cancellation
 				cancel() {
 					// h_selects[k_connection.hash()].$set({
 					yc_select.$set({
@@ -190,6 +217,15 @@
 	}
 
 	async function change_version(k_connection: Connection, g_version_new: ModelVersionDescriptor) {
+		// disable select
+		yc_select.$set({
+			isDisabled: true,
+		});
+
+		// show warning
+		dm_warning.style.visibility = 'visible';
+		dm_warning.innerText = 'Do not close this webpage until updates are complete.';
+	
 		// set status mode
 		set_connection_properties(k_connection, {
 			status_mode: G_STATUS.UPDATING,
@@ -205,8 +241,11 @@
 		let c_pages_touched = 0;
 		let c_pages_changed = 0;
 
-		// update document metadata
-		await k_connection.save();
+		// create new connection from existing
+		const k_connection_new = await k_connection.clone(g_version_new.modify);
+
+		// save to document
+		await k_connection_new.save();
 
 		// each page
 		const hm_tables = g_data.tables;
@@ -294,6 +333,10 @@
 		set_connection_properties(k_connection, {
 			status_mode: G_STATUS.UPDATED,
 		});
+
+		// hide warning
+		dm_warning.style.visibility = 'hidden';
+		dm_warning.innerHTML = '&nbsp;';
 	}
 
 	async function locate_tables(k_connection: Connection): Promise<PageMap<MmsSparqlQueryTable.Serialized, MmsSparqlQueryTable>> {
@@ -324,7 +367,7 @@
 			};
 
 			g_version_latest.label += `
-				<span class="ve-tag-pill" style="position:relative; top:-2px;">
+				<span class="ve-tag-pill" style="position:relative; top:-2px; margin-left:2px;">
 					Latest
 				</span>
 			`;
@@ -439,6 +482,8 @@
 						--indicatorWidth: 7px;
 						--indicatorHeight: 5px;
 
+						--disabledColor: var(--ve-color-medium-text);
+
 						:global(.selectContainer) {
 							color: var(--ve-color-dark-text);
 
@@ -500,6 +545,11 @@
 				}
 			}
 		}
+	}
+
+	.warning {
+		color: var(--ve-color-error-red);
+		font-size: 14px;
 	}
 </style>
 
@@ -596,4 +646,8 @@
 			{/each}
 		</tbody>
 	</table>
+</div>
+
+<div class="warning" style="visibility:hidden;" bind:this={dm_warning}>
+	&nbsp;
 </div>

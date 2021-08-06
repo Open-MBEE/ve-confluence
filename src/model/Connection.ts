@@ -21,6 +21,7 @@ export interface ModelVersionDescriptor {
 	label: string;
 	dateTime: string;
 	data?: Record<string, boolean | number | string>;
+	modify?: Partial<MmsSparqlConnection.Serialized>;
 }
 
 export namespace Connection {
@@ -108,6 +109,9 @@ const G_DUMMY_VERSION_CURRENT = {
 };
 
 interface CommitResult {
+	modelGraph: {
+		value: `https://${string}`;
+	};
 	commit: {
 		value: string;
 	};
@@ -118,6 +122,7 @@ interface CommitResult {
 
 function commit_result_to_model_version(g_result: CommitResult): ModelVersionDescriptor {
 	const {
+		modelGraph: {value:p_model},
 		commit: {value:p_commit},
 		commitDateTime: {value:s_datetime},
 	} = g_result;
@@ -140,6 +145,9 @@ function commit_result_to_model_version(g_result: CommitResult): ModelVersionDes
 		id: p_commit,
 		label: s_label,
 		dateTime: s_datetime,
+		modify: {
+			modelGraph: p_model,
+		},
 	};
 }
 
@@ -154,15 +162,19 @@ export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Se
 
 	async fetchCurrentVersion(): Promise<ModelVersionDescriptor> {
 		const a_rows = await this.execute(`
-			select ?commit ?commitDateTime from <${this.metadataGraph}> {
+			select ?modelGraph ?commit ?commitDateTime from <${this.metadataGraph}> {
 				?snapshot a mms:Snapshot ;
-					mms:modelGraph <${this.modelGraph}> ;
+					mms:modelGraph ?modelGraph ;
 					mms:materializes ?commit ;
 					.
 
 				?commit a mms:Commit ;
 					mms:submitted ?commitDateTime ;
 					.
+
+				values ?modelGraph {
+					<${this.modelGraph}>
+				}
 			}
 		`) as unknown as CommitResult[];
 
@@ -183,7 +195,7 @@ export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Se
 
 	async fetchVersions(): Promise<ModelVersionDescriptor[]> {
 		const a_rows = await this.execute(`
-			select ?commit ?commitDateTime from <${this.metadataGraph}> {
+			select ?modelGraph ?commit ?commitDateTime from <${this.metadataGraph}> {
 				?snapshot a mms:Snapshot ;
 					mms:materializes ?commit ;
 					mms:modelGraph ?modelGraph ;

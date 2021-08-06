@@ -333,7 +333,7 @@ export abstract class ConfluenceEntity<MetadataType extends PageOrDocumentMetada
 		// write object
 		return await this.writeMetadataObject(g_data, {
 			number: g_bundle.version.number+1,
-			message: `PUT ${a_frags.join('.')}`+(s_message? `: ${s_message}`: ''),
+			message: `PUT ${a_frags.join('.')}`+(s_message? `: ${s_message}`: ` to ${JSON.stringify(w_value)}`),
 		});
 	}
 }

@@ -266,6 +266,9 @@ qs,
 	async function overwrite_document_json() {
 		if(!b_document_json_writable || !k_document) return;
 
+		// disable button while it overwrites
+		b_document_json_writable = false;
+
 		const g_bundle = await k_document.fetchMetadataBundle();
 		const n_version = g_bundle?.version.number || 0;
 
@@ -380,7 +383,7 @@ qs,
 	}
 
 	:global(.svelte-tabs) {
-		padding: 0 20px 12px 20px;
+		padding: 0 20px 2px 20px;
 	}
 
 	:global(.svelte-tabs li.svelte-tabs__tab) {
