@@ -9,19 +9,73 @@ import type {
 } from '#/common/types';
 
 import type {
+	MmsSparqlQueryTable,
 	QueryField,
 	QueryParam,
 	QueryType,
 } from '#/element/QueryTable/model/QueryTable';
 
+import {
+	MetadataBundle,
+	MetadataShape,
+	ReadonlySynchronousSerializationLocation,
+} from '#/model/Serializable';
+
+import type {SparqlSelectQuery} from '#/util/sparql-endpoint';
+
+import {
+	plain,
+	html,
+	xhtml,
+	escape_html,
+	XhtmlString,
+} from '#/util/strings';
+
 import {build_dng_select_query_from_params} from './helper/sparql-code';
 
 import H_PREFIXES from './prefixes';
 
-export type HardcodedGroup<ValueType extends PrimitiveValue = PrimitiveValue> = Record<DotFragment, ValueType>;
-export type HardcodedObjectType<ValueType extends PrimitiveValue = PrimitiveValue> = Record<DotFragment, HardcodedGroup<ValueType>>;
-export type HardcodedObjectCategory<ValueType extends PrimitiveValue = PrimitiveValue> = Record<DotFragment, HardcodedObjectType<ValueType>>;
-export type HardcodedObjectRoot<ValueType extends PrimitiveValue = PrimitiveValue> = Record<DotFragment, HardcodedObjectCategory<ValueType>>;
+export interface HardcodedGroup<ValueType extends PrimitiveValue=PrimitiveValue> extends PrimitiveObject {
+	[si_frag: string]: ValueType;
+}
+
+export interface HardcodedObjectType<ValueType extends PrimitiveValue=PrimitiveValue> extends PrimitiveObject {
+	[si_frag: string]: HardcodedGroup<ValueType>;
+}
+
+export interface HardcodedObjectCategory<ValueType extends PrimitiveValue=PrimitiveValue> extends PrimitiveObject {
+	[si_frag: string]: HardcodedObjectType<ValueType>;
+}
+
+export interface HardcodedObjectRoot<ValueType extends PrimitiveValue=PrimitiveValue> extends PrimitiveObject {
+	[si_frag: string]: HardcodedObjectCategory<ValueType>;
+}
+
+export interface HardcodedShape extends MetadataShape<'Hardcoded'> {
+	schema: '1.0';
+	paths: HardcodedObjectRoot;
+}
+
+export class HardcodedLocation extends ReadonlySynchronousSerializationLocation<HardcodedShape> {
+	// eslint-disable-next-line class-methods-use-this
+	getMetadataBundle(): MetadataBundle<HardcodedShape> {
+		return {
+			schema: '1.0',
+			version: {
+				number: 0,
+				message: 'Static hardcoded version',
+			},
+			storage: {},
+			data: {
+				type: 'Hardcoded',
+				schema: '1.0',
+				paths: H_HARDCODED_OBJECTS,
+			},
+		};
+	}
+}
+
+export const K_HARDCODED = new HardcodedLocation();
 
 function auto_type(h_tree: Record<DotFragment, HardcodedObjectCategory>): HardcodedObjectRoot<TypedObject | PrimitiveValue> {
 	for(const si_category in h_tree) {
@@ -52,7 +106,7 @@ function auto_type(h_tree: Record<DotFragment, HardcodedObjectCategory>): Hardco
 
 type AddsKey<ValueType extends PrimitiveValue> = Record<
 	DotFragment,
-	HardcodedObjectType<Omit<ValueType, 'type'> & {key: string;}>
+	HardcodedObjectType<Omit<ValueType, 'type'> & {key: string}>
 >;
 
 type NoTypeOrKey<ValueType extends PrimitiveObject> = Record<
@@ -80,12 +134,11 @@ function auto_key<ValueType extends PrimitiveObject>(
 	return h_subtree as unknown as AddsKey<ValueType>;
 }
 
-const escape_html = (s: string) => s.replace(/</g, '&lt;');
 
-const unordered_list = (si_key: string) => (g: QueryRow) => /* syntax: html */ `
+const unordered_list = (si_key: string) => (g: QueryRow): XhtmlString => xhtml`
 	<ul>${(g[si_key]?.value || '')
 		.split('\0')
-		.map(s => `<li>${escape_html(s)}</li>`)
+		.map(s => `<li>${escape_html(s) || '&nbsp;'}</li>`)
 		.join('')}</ul>
 `;
 
@@ -129,7 +182,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 						'hardcoded#queryParameter.sparql.dng.maturity',
 					],
 					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basicWithChildren',
-					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.basicParams',
+					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.basicParamsL3',
 				},
 				asr: {
 					label: 'Appendix Subsystem Requirements',
@@ -138,7 +191,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 						'hardcoded#queryParameter.sparql.dng.maturity',
 					],
 					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basic',
-					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.basicParams',
+					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.basicParamsL3ChildrenAndL4s',
 				},
 			},
 		},
@@ -168,21 +221,21 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					label: null, // inherit from value
 					source: 'native',
 					hasMany: false,
-					cell: (g: QueryRow) => escape_html(g.idValue.value),
+					cell: (g: QueryRow) => plain`${escape_html(g.idValue.value)}`,
 				},
 				requirementName: {
 					value: 'Requirement Name',
 					label: null, // inherit from value
 					source: 'native',
 					hasMany: false,
-					cell: (g: QueryRow) => /* syntax: html */ `<a href="${g.artifact.value}">${escape_html(g.requirementNameValue.value)}</a>`,
+					cell: (g: QueryRow) => xhtml`<a href="${g.artifact.value}">${escape_html(g.requirementNameValue.value)}</a>`,
 				},
 				requirementText: {
 					value: 'Requirement Text',
 					label: null, // inherit from value
 					source: 'native',
 					hasMany: false,
-					cell: (g: QueryRow) => g.requirementTextValue.value,
+					cell: (g: QueryRow) => html`${g.requirementTextValue.value}`,
 				},
 				keyDriver: {
 					value: 'Key/Driver [S]',
@@ -196,24 +249,24 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					label: null, // inherit from value
 					source: 'attribute',
 					hasMany: true,
-					cell: (g: QueryRow) => escape_html(g.affectedSystemsValue?.value || ''),
+					cell: (g: QueryRow) => plain`${escape_html(g.affectedSystemsValue?.value || '')}`,
 				},
 				maturity: {
 					value: 'Maturity',
 					label: null, // inherit from value
 					source: 'attribute',
 					hasMany: false,
-					cell: (g: QueryRow) => g.maturityValue?.value || '',
+					cell: (g: QueryRow) => plain`${escape_html(g.maturityValue?.value || '')}`,
 				},
 				children: {
 					value: 'Child Requirements',
 					label: null,  // inherit from value
 					source: 'native',
 					hasMany: true,
-					cell: (g: QueryRow) => `<ul>${
+					cell: (g: QueryRow) => xhtml`<ul>${
 						g.childrenValue.value
 							.split(/\0/g)
-							.map(s => /* syntax: html*/ `<li>${escape_html(s)}</li>`)
+							.map((s, i) => /* syntax: html*/ `<li><a href="${g.children.value.split(/\0/g)[i]}">${escape_html(s)}</a></li>`)
 							.join('')
 					}</ul>`,
 				},
@@ -226,6 +279,40 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 			dng: {
 				basicParams: {
 					function: build_dng_select_query_from_params,
+				},
+				basicParamsL3: {
+					function(this: MmsSparqlQueryTable): Promise<SparqlSelectQuery> {
+						return build_dng_select_query_from_params.call(this, {
+							bgp: /* syntax: js */ `
+								?_level a rdf:Property ;
+									rdfs:label "Level" ;
+									.
+
+								?artifact ?_level [rdfs:label "L3"] .
+							`,
+						});
+					},
+				},
+				basicParamsL3ChildrenAndL4s: {
+					function(this: MmsSparqlQueryTable): Promise<SparqlSelectQuery> {
+						return build_dng_select_query_from_params.call(this, {
+							bgp: /* syntax: js */ `
+								?_level a rdf:Property ;
+									rdfs:label "Level" ;
+									.
+
+								{
+									?artifact ?_level [rdfs:label "L4"] .
+								} union {
+									?artifact a oslc_rm:Requirement ;
+										ibm_type:Decomposition ?parent ;
+										.
+
+									?parent ?_level [rdfs:label "L3"] .
+								}
+							`,
+						});
+					},
 				},
 			},
 		},
@@ -244,7 +331,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 	utility: {
 		function: {
 			sort: {
-				label_asc:(g_a: Labeled, g_b: Labeled) => g_a.label < g_b.label ? -1 : 1,
+				label_asc: (g_a: Labeled, g_b: Labeled) => g_a.label < g_b.label ? -1 : 1,
 			},
 		},
 	},

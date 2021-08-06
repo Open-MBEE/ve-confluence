@@ -1,35 +1,43 @@
 <script lang="ts">
 	import {createEventDispatcher} from 'svelte';
-	const dispatch = createEventDispatcher();
-	import {lang} from '#/common/static';
-	import Select from 'svelte-select';
 
+	import {lang} from '#/common/static';
+
+	import Select from 'svelte-select';
+	
 	import type {
-		ParamValuesList,
 		QueryParam,
 		QueryTable,
 	} from '#/element/QueryTable/model/QueryTable';
+	
+	import type {MmsSparqlConnection} from '#/model/Connection';
+	
+	import {Sparql} from '#/util/sparql-endpoint';
 
-	import type {
-		MmsSparqlConnection,
-	} from '#/model/Connection';
-
-	import {
-		Sparql,
-	} from '#/util/sparql-endpoint';
-
+	import type {ValuedLabeledObject} from '#/common/types';
+	
 	interface Option {
-		label: string;
-		value: string;
 		count: number;
 		state: number;
+		data: ValuedLabeledObject;
 	}
 	
+	const f_dispatch = createEventDispatcher();
+
 	export let k_param: QueryParam;
-	export let k_values: ParamValuesList;
 	export let k_query_table: QueryTable;
+	
+	let k_values = k_query_table.parameterValuesList(k_param.key);
+	$: k_values = k_query_table.parameterValuesList(k_param.key);
+
+	k_query_table.onRestore((k_new: typeof k_query_table): Promise<void> => {
+		k_query_table = k_new;
+		return Promise.resolve();
+	});
 
 	let a_options: Option[] = [];
+
+	let a_init_values = [...k_values];
 
 	const XC_STATE_HIDDEN = 0;
 	const XC_STATE_VISIBLE = 1;
@@ -42,14 +50,14 @@
 
 	let xc_load = XC_LOAD_NOT;
 
-	async function load_param(k_param: QueryParam) {
+	async function load_param(k_param_load: QueryParam) {
 		if(k_query_table.type.startsWith('MmsSparql')) {
 			const k_connection = (await k_query_table.fetchConnection()) as MmsSparqlConnection;
 
 			const a_rows = await k_connection.execute(/* syntax: sparql */ `
 				select ?value (count(?req) as ?count) from <${k_connection.modelGraph}> {
 					?_attr a rdf:Property ;
-						rdfs:label ${Sparql.literal(k_param.value)} .
+						rdfs:label ${Sparql.literal(k_param_load.value)} .
 
 					?req a oslc_rm:Requirement ;
 						?_attr [rdfs:label ?value] .
@@ -58,14 +66,16 @@
 			`);
 
 			a_options = a_rows.map(({value:g_value, count:g_count}) => ({
-				label: g_value.value,
-				value: g_value.value,
-				count: +(g_count.value),
+				count: +g_count.value,
 				state: XC_STATE_VISIBLE,
+				data: {
+					label: g_value.value,
+					value: g_value.value,
+				},
 			}));
 
 			if(k_param.sort) {
-				a_options = a_options.sort(k_param.sort);
+				a_options = a_options.map(g_opt => g_opt.data).sort(k_param.sort).map(g_data => a_options.find(g_opt => g_opt.data.value === g_data.value)) as Option[];
 			}
 		}
 	}
@@ -77,18 +87,17 @@
 				await load_param(k_param);
 			}
 			catch(_e_query) {
-				e_query = _e_query;
+				e_query = _e_query as Error;
 			}
 		}
-
 		xc_load = XC_LOAD_YES;
 	})();
 
-	function format_param_value_label(g_value: Option) {
-		const n_count = g_value.count;
-		let s_label = g_value.label;
+	function format_param_value_label(g_opt: Option) {
+		const n_count = g_opt.count;
+		let s_label = g_opt.data.label;
 
-		if(n_count >= 1000) {
+		if(1000 <= n_count) {
 			s_label += ` [>${Math.floor(n_count / 1000)}k]`;
 		}
 		else {
@@ -98,25 +107,25 @@
 		return s_label;
 	}
 
-	function select_value(dv_select: CustomEvent<Option[]>) {
+	function select_value(dv_select: CustomEvent<ValuedLabeledObject[]>) {
 		if(dv_select.detail) {
-			for(const g_value of dv_select.detail) {
-				if(g_value.state) {
-					k_values.add(g_value);
+			for(const g_data of dv_select.detail) {
+				const g_opt = a_options.find(g_opt_find => g_opt_find.data.value === g_data.value) as Option;
+				if(XC_STATE_VISIBLE === g_opt.state) {
+					k_values.add(g_data);
 				}
 				else {
-					k_values.delete(g_value);
+					k_values.delete(g_data);
 				}
 			}
 		}
 
-		dispatch('change');
+		f_dispatch('change');
 	}
 
-	function handle_clear(dv_select: CustomEvent<Option[]>) {
+	function handle_clear(dv_select: CustomEvent<ValuedLabeledObject[]>) {
+		// svelte-select will now dispatch on:select(null) for clear events
 		k_values.clear();
-
-		dispatch('change');
 	}
 </script>
 
@@ -132,6 +141,12 @@
 	[class^="param-"] {
 		align-self: center;
 		margin-bottom: 2px;
+	}
+
+	:global(.published:not(.changed)) {
+		.param-label {
+			color: var(--ve-color-dark-text);
+		}
 	}
 
 	.param-label {
@@ -170,7 +185,7 @@
 
 		--multiClearHoverBG: var(--ve-color-light-background);
 		--multiClearHoverFill: var(--ve-color-dark-text);
-		
+
 		--multiLabelMargin: 0;
 
 		--multiSelectPadding: 0 0 0 2px;
@@ -206,12 +221,13 @@
 </legend>
 <span class="param-values">
 	{#if XC_LOAD_NOT === xc_load}
-		<p>{lang.loading_pending}</p>
+		<p>{lang.basic.loading_pending}</p>
 	{:else if XC_LOAD_ERROR === xc_load}
-		<p style="color:red;">{lang.loading_failed}</p>
+		<p style="color:red;">{lang.basic.loading_failed}</p>
 	{:else}
 		<Select
-			items={a_options} 
+			items={a_options.map(g_opt => g_opt.data)}
+			value={a_init_values.length? a_init_values: null}
 			placeholder="Select Attribute Value(s)"
 			isMulti={true}
 			isClearable={false}

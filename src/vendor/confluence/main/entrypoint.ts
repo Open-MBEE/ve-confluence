@@ -1,5 +1,4 @@
 import {
-	PageMetadata,
 	ConfluencePage,
 	ConfluenceDocument,
 } from '#/vendor/confluence/module/confluence';
@@ -18,9 +17,11 @@ import {format} from '#/util/intl';
 import {
 	qs,
 	qsa,
-	dm_main,
 	dm_content,
+	dm_sidebar,
 	dm_main_header,
+	uuid_v4,
+	dm_main,
 } from '#/util/dom';
 
 import type {SvelteComponent} from 'svelte';
@@ -35,11 +36,17 @@ import type XhtmlDocument from '#/vendor/confluence/module/xhtml-document';
 
 import {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
 
-import {ObjectStore} from '#/vendor/confluence/module/object-store';
 
-import {H_HARDCODED_OBJECTS} from '#/common/hardcoded';
+import {H_HARDCODED_OBJECTS, K_HARDCODED} from '#/common/hardcoded';
 
-import type {Context} from '#/model/Serializable';
+import {Context, VeOdm} from '#/model/Serializable';
+
+import {ObjectStore} from '#/model/ObjectStore';
+import { xpathEvaluate, xpathSelect, xpathSelect1 } from '#/vendor/confluence/module/xhtml-document';
+import type { VeoPath } from '#/common/veo';
+import type { TypedKeyedUuidedObject, TypedObject, TypedPrimitive } from '#/common/types';
+import { inject_frame, SR_HASH_VE_PAGE_EDIT_MODE } from './inject-frame';
+
 
 // write static css
 {
@@ -116,24 +123,30 @@ type ControlBarConfig = {
 const P_DNG_WEB_PREFIX = process.env.DOORS_NG_PREFIX;
 
 // for excluding elements that are within active directives
-const SX_PARAMETER_ID = `ac:parameter[@ac:name="id"][starts-with(text(),"{SI_VIEW_PREFIX}-")]`;
-const SX_EXCLUDE_ACTIVE_DIRECTIVES = /* syntax: xpath */ `[not(ancestor::ac:structured-macro[@ac:name="span"][child::${SX_PARAMETER_ID}])]`;
+const SX_PARAMETER_ID_PAGE_ELEMENT = `ac:parameter[@ac:name="id"][starts-with(text(),"page#elements.")]`;
+const SX_EXCLUDE_ACTIVE_ELEMENTS = /* syntax: xpath */ `[not(ancestor::ac:structured-macro[@ac:name="span"][child::${SX_PARAMETER_ID_PAGE_ELEMENT}])]`;
 
 const A_DIRECTIVE_CORRELATIONS: CorrelationDescriptor[] = [
 	// dng web link
 	{
-		storage: /* syntax: xpath */ `.//a[starts-with(@href,"${P_DNG_WEB_PREFIX}")]${SX_EXCLUDE_ACTIVE_DIRECTIVES}`,
-		live: `a[href^="${P_DNG_WEB_PREFIX}"]`,
+		storage: /* syntax: xpath */ `.//a[starts-with(@href,"${P_DNG_WEB_PREFIX}")]${SX_EXCLUDE_ACTIVE_ELEMENTS}`,
+		live: `a[href^="${P_DNG_WEB_PREFIX}"]:not([data-ve4])`,
 		directive: ([ym_anchor, g_link]) => ({
 			component: DngArtifact,
 			props: {
+				ym_anchor,
+				g_link,
 				p_href: ym_anchor.getAttribute('href'),
 				s_label: ym_anchor.textContent?.trim() || '',
+				g_context: G_CONTEXT,
 			},
 		}),
 	},
 ];
 
+let K_OBJECT_STORE: ObjectStore;
+let k_page: ConfluencePage;
+let kv_control_bar: ControlBar;
 const G_CONTEXT: Context = {} as Context;
 
 const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
@@ -144,29 +157,35 @@ const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 	// 		p_url: ym_anchor.getAttribute('href'),
 	// 	},
 	// }),
-	'CAE CED Table Element': () => ({
-		component: QueryTable,
-		props: {
-			k_query_table: new MmsSparqlQueryTable(
-				{
-					type: 'MmsSparqlQueryTable',
-					group: 'dng',
-					queryTypePath: 'hardcoded#queryType.sparql.dng.afsr',
-					connectionPath: 'document#connection.sparql.mms.dng',
-					parameterValues: {},
-				},
-				G_CONTEXT,
-			),
-		},
-	}),
+
+	'CAE CED Table Element': ([, g_struct]: [HTMLElement, Record<string, any>]) => {
+		const si_uuid = (g_struct.uuid as string) || uuid_v4().replace(/_/g, '-');
+		const si_key: VeoPath.Full = `page#elements.serialized.queryTable.${si_uuid}`;
+
+		return {
+			component: QueryTable,
+			props: {
+				k_query_table: new MmsSparqlQueryTable(si_key,
+					{
+						type: 'MmsSparqlQueryTable',
+						key: si_key,
+						uuid: si_uuid,
+						group: 'dng',
+						queryTypePath: 'hardcoded#queryType.sparql.dng.afsr',
+						connectionPath: 'document#connection.sparql.mms.dng',
+						parameterValues: {},
+					},
+					G_CONTEXT
+				),
+			},
+		};
+	},
 };
 
 const xpath_attrs = (a_attrs: string[]) => a_attrs.map(sx => `[${sx}]`).join('');
 
-let k_page: ConfluencePage;
 let k_document: ConfluenceDocument | null;
 let k_source: XhtmlDocument;
-let gm_page: PageMetadata | null;
 
 function control_bar(gc_bar: ControlBarConfig) {
 	const g_props = {...gc_bar.props};
@@ -213,8 +232,7 @@ function* correlate(gc_correlator: CorrelationDescriptor): Generator<ViewBundle>
 		throw new Error(format(lang.error.xpath_dom_mismatch, {
 			node_count: nl_nodes,
 			element_count: a_elmts.length,
-		})
-		);
+		}));
 	}
 
 	// apply struct mapper
@@ -243,7 +261,7 @@ function render_component(g_bundle: ViewBundle, b_hide_anchor = false) {
 		anchor: dm_anchor,
 		props: {
 			...g_bundle.props || {},
-			g_node: g_bundle.node,
+			yn_directive: g_bundle.node,
 			// ...GM_CONTEXT,
 		},
 	});
@@ -254,11 +272,12 @@ export async function main(): Promise<void> {
 		throw new Error(`ERROR: No lang file defined! Did you forget to set the environment variables when building?`);
 	}
 
-	new ControlBar({
-		// target: dm_main.parentElement as HTMLElement,
-		// anchor: dm_main,
-		target: dm_main_header as HTMLElement, 
+	const dm_header = qs(document.body, '#header');
+	kv_control_bar = new ControlBar({
+		target: dm_main_header as HTMLElement,
 		anchor: qs(dm_main_header, 'div#navigation'),
+		// target: dm_header.parentElement as HTMLElement,
+		// anchor: dm_header.nextSibling as HTMLElement,
 		props: {
 			g_context: G_CONTEXT,
 		},
@@ -270,18 +289,19 @@ export async function main(): Promise<void> {
 	await Promise.allSettled([
 		(async() => {
 			// fetch page metadata
-			const g_meta = await k_page.getMetadata();
-			gm_page = g_meta?.value || null;
+			const g_meta = await k_page.fetchMetadataBundle(true);
+
+			// get or initialize page metadata
 		})(),
 
 		(async() => {
 			// page is part of document
-			k_document = await k_page.getDocument();
+			k_document = await k_page.fetchDocument();
 		})(),
 
 		(async() => {
 			// load page's XHTML source
-			k_source = (await k_page.getContentAsXhtmlDocument())?.value || null;
+			k_source = (await k_page.fetchContentAsXhtmlDocument()).document || null;
 		})(),
 	]);
 
@@ -292,10 +312,23 @@ export async function main(): Promise<void> {
 	}
 
 	// initialize object store
-	G_CONTEXT.store = new ObjectStore(k_page, k_document, H_HARDCODED_OBJECTS);
+	G_CONTEXT.store = K_OBJECT_STORE = new ObjectStore({
+		page: k_page,
+		document: k_document,
+		hardcoded: K_HARDCODED,
+	});
+
+	// set page source
+	G_CONTEXT.source = k_source;
+
+	// set page
+	G_CONTEXT.page = k_page;
+
+	// set document
+	G_CONTEXT.document = k_document;
 
 	// fetch document metadata
-	const gm_document = await k_document.getMetadata();
+	const gm_document = await k_document.fetchMetadataBundle();
 
 	// no metadata; error
 	if(!gm_document) {
@@ -305,7 +338,6 @@ export async function main(): Promise<void> {
 	// each page directive
 	for(const si_page_directive in H_PAGE_DIRECTIVES) {
 		const f_directive = H_PAGE_DIRECTIVES[si_page_directive];
-
 		// page refs
 		const dg_refs = correlate({
 			storage: `.//ri:page${xpath_attrs([
@@ -314,9 +346,12 @@ export async function main(): Promise<void> {
 			])}`,
 			live: `a[href="/display/${G_META.space_key}/${si_page_directive.replace(/ /g, '+')}"]`,
 			struct: (ym_node) => {
-				const ym_parent = ym_node.parentNode as Node;
+				const ym_parent = ym_node.parentNode as Element;
+				// ym_parent.getAttribute('');
+				// debugger;
 				return {
 					label: ('ac:link' === ym_parent.nodeName? ym_parent.textContent: '') || si_page_directive,
+					// macro_id: (ym_parent 'ac:macro-id')
 				};
 			},
 			directive: f_directive,
@@ -348,19 +383,160 @@ export async function main(): Promise<void> {
 		}
 	}
 
-	// const _xhtmle = k_doc.builder();
-	// _xhtmle('ac:structured-macro', {
-	// 	'ac:name': 'span',
-	// 	'ac:schema-version': '1',
-	// 	'ac:macro-id': si_macro,
-	// }, [
-	// 	...a_children,
-	// 	_macro_param('atlassian-macro-output-type', 'INLINE'),
-	// 	_xhtmle('ac:rich-text-body', {}, a_body),
-	// ])
+	// interpret rendered elements
+	{
+		// xpath query for rendered elements
+		const a_macros = k_source.select<Node>(`//ac:structured-macro[@ac:name="span"][child::${SX_PARAMETER_ID_PAGE_ELEMENT}]`);
+
+		// translate into ve paths
+		const a_paths = a_macros.map(yn => [xpathSelect1<Text>(`./ac:parameter[@ac:name="id"]/text()`, yn).data, yn] as [VeoPath.Full, Node]);
+
+		// resolve serialized element
+		for(const [sp_element, yn_directive] of a_paths) {
+			const gc_element = await K_OBJECT_STORE.resolve<TypedKeyedUuidedObject>(sp_element);
+
+			// correlate to live DOM element
+			const a_spans = qsa(dm_main, `span[id="${sp_element}"]`);
+
+			// incorrect match
+			if(1 !== a_spans.length) {
+				throw new Error(`Expected exactly 1 annotated span element on page with id="${sp_element}" but found ${a_spans.length}`);
+			}
+
+			// select adjacent element
+			const dm_render = a_spans[0].parentElement!.nextSibling as HTMLElement;
+
+			// deserialize
+			switch(gc_element.type) {
+				case 'MmsSparqlQueryTable': {
+					// construct table model
+					const k_query_table = await VeOdm.createFromSerialized(MmsSparqlQueryTable, sp_element, gc_element as MmsSparqlQueryTable.Serialized, G_CONTEXT);
+
+					// inject component
+					new QueryTable({
+						target: dm_render.parentElement!,
+						anchor: dm_render,
+						props: {
+							k_query_table,
+							yn_directive,
+							dm_anchor: dm_render,
+							b_published: true,
+						},
+					});
+					break;
+				}
+
+				default: {
+					break;
+				}
+			}
+		}
+	}
 }
 
-async function dom_ready() {}
+const H_HASH_TRIGGERS: Record<string, (de_hash_change?: HashChangeEvent) => Promise<void>> = {
+	async [SR_HASH_VE_PAGE_EDIT_MODE.slice(1)]() {
+		return await inject_frame(p_original_edit_link);
+	},
+
+	async 'admin'(de_hash_change?: HashChangeEvent) {
+		if(de_hash_change && de_hash_change.oldURL !== de_hash_change.newURL) {
+			location.reload();
+		}
+
+		await Promise.resolve();
+	},
+
+	async 'beta'(de_hash_change?: HashChangeEvent) {
+		const m_path = /^(.*[^+])\+*$/.exec(location.pathname);
+		if(m_path) {
+			const s_expect = m_path[1]+'+';
+			if(location.pathname !== s_expect) {
+				location.href = s_expect+'#beta';
+				return;
+			}
+		}
+		else {
+			console.error(`Unmatchable pathname: ${location.pathname}`);
+		}
+
+		// update version info
+		kv_control_bar.$set({s_app_version:`${process.env.VERSION}-beta`});
+
+		// apply beta changes
+		replace_edit_button();
+
+		await Promise.resolve();
+	},
+};
+
+
+let p_original_edit_link = '';
+
+function replace_edit_button() {
+	const dm_edit = qs(dm_main, 'a#editPageLink')! as HTMLAnchorElement;
+	p_original_edit_link = dm_edit.href;
+	dm_edit.href = SR_HASH_VE_PAGE_EDIT_MODE;
+
+	// remove all event listeners
+	const dm_clone = dm_edit.cloneNode(true);
+	dm_edit.parentNode?.replaceChild(dm_clone, dm_edit);
+}
+
+function hash_updated(de_hash_change?: HashChangeEvent): void {
+	const a_hashes = location.hash.slice(1).split(/:/g);
+
+	for(const si_hash of a_hashes) {
+		if(si_hash in H_HASH_TRIGGERS) {
+			void H_HASH_TRIGGERS[si_hash](de_hash_change);
+		}
+	}
+}
+
+function dom_ready() {
+	// listen for hash change
+	window.addEventListener('hashchange', hash_updated);
+
+	INTERPRET_LOCATION: {
+		let si_page_title = location.pathname;
+
+		// viewpage.action
+		if(location.pathname.endsWith('viewpage.action')) {
+			const y_params = new URLSearchParams(location.search);
+
+			// normalize viewpage URL
+			si_page_title = encodeURIComponent(y_params.get('title')!).replace(/%20/g, '+');
+
+			// replace URL with page title version
+			history.replaceState(null, '', `/display/${y_params.get('spaceKey')!}/${si_page_title}`);
+		}
+
+		// special url indication
+		const m_special = /(\++)$/.exec(si_page_title);
+		if(m_special) {
+			switch(m_special[1]) {
+				// beta mode
+				case '+': {
+					location.hash = '#beta';
+					break INTERPRET_LOCATION;
+				}
+
+				// edit mode
+				case '+++': {
+					void H_HASH_TRIGGERS[SR_HASH_VE_PAGE_EDIT_MODE]();
+					break INTERPRET_LOCATION;
+				}
+
+				default: {
+					break;
+				}
+			}
+		}
+
+		// trigger update
+		hash_updated();
+	}
+}
 
 // entry point
 {

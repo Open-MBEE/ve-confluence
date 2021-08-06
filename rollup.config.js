@@ -1,7 +1,7 @@
 import fs from 'fs';
 import yaml from 'js-yaml';
 
-import alias from 'rollup-plugin-alias';
+import alias from '@rollup/plugin-alias';
 import svelte from 'rollup-plugin-svelte';
 import commonjs from '@rollup/plugin-commonjs';
 import resolve from '@rollup/plugin-node-resolve';
@@ -10,10 +10,11 @@ import { terser } from 'rollup-plugin-terser';
 import sveltePreprocess from 'svelte-preprocess';
 import typescript from '@rollup/plugin-typescript';
 import replace from '@rollup/plugin-replace';
-import url from '@rollup/plugin-url';
+// import url from '@rollup/plugin-url';
 import ttypescript from 'ttypescript';
-import tsPathsResolve from 'rollup-plugin-ts-paths-resolve';
+// import tsPathsResolve from 'rollup-plugin-ts-paths-resolve';
 import path from 'path';
+import * as G_PACKAGE from './package.json';
 
 const production = !process.env.ROLLUP_WATCH;
 
@@ -44,14 +45,29 @@ const replace_values = (h_replace) => Object.entries(h_replace).reduce((h_out, [
 	[`export let ${si_var}`]: `export let ${si_var} = ${JSON.stringify(w_value)}; //`,
 }), {});
 
-console.dir(replace_values({
+const H_REPLACE_IN = {
 	process: {
 		env: {
 			SPARQL_ENDPOINT: process.env.SPARQL_ENDPOINT,
 			DOORS_NG_PREFIX: process.env.DOORS_NG_PREFIX,
+			VERSION: G_PACKAGE.version,
 		},
 	},
 	lang: yaml.load(fs.readFileSync(`./resource/${process.env.LANG_FILE || 'lang.yaml'}`))[process.env.LANG],
+	static_css: [
+		'./submodule/animate.less/dist/css/animate.css',
+		// './node_modules/@fortawesome/fontawesome-free/css/all.min.css',
+	].map(pr => fs.readFileSync(pr, 'utf8')).join('\n'),
+	static_js: [
+		'./node_modules/@fortawesome/fontawesome-free/js/all.min.js',
+	].map(pr => fs.readFileSync(pr, 'utf8')).join('\n'),
+};
+
+const H_VALUES_OUT = replace_values(H_REPLACE_IN);
+
+console.dir(replace_values({
+	process: H_REPLACE_IN.process,
+	lang: H_REPLACE_IN.lang,
 }));
 
 const k_resolver = resolve({
@@ -77,22 +93,7 @@ export default {
 		replace({
 			preventAssignment: false,
 			delimiters: ['', ''],
-			values: replace_values({
-				process: {
-					env: {
-						SPARQL_ENDPOINT: process.env.SPARQL_ENDPOINT,
-						DOORS_NG_PREFIX: process.env.DOORS_NG_PREFIX,
-					},
-				},
-				lang: yaml.load(fs.readFileSync(`./resource/${process.env.LANG_FILE || 'lang.yaml'}`))[process.env.LANG],
-				static_css: [
-					'./submodule/animate.less/dist/css/animate.css',
-					// './node_modules/@fortawesome/fontawesome-free/css/all.min.css',
-				].map(pr => fs.readFileSync(pr, 'utf8')).join('\n'),
-				static_js: [
-					'./node_modules/@fortawesome/fontawesome-free/js/all.min.js',
-				].map(pr => fs.readFileSync(pr, 'utf8')).join('\n'),
-			}),
+			values: H_VALUES_OUT,
 		}),
 
 		// url({

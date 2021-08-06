@@ -2,23 +2,24 @@
 	export let isActive = false;
 	export let isFirst = false;
 	export let isHover = false;
-	export let getOptionLabel = undefined;
-	export let item = undefined;
+	export let getOptionLabel;
+	export let item;
 	export let filterText = '';
 
 	let itemClasses = '';
 
 	$: {
 		const classes = [];
-		if (isActive) classes.push('active');
-		if (isFirst) classes.push('first');
-		if (isHover) classes.push('hover');
-		if (item.isGroupHeader) classes.push('groupHeader');
-		if (item.isGroupItem) classes.push('groupItem');
+		if(isActive) classes.push('active');
+		if(isFirst) classes.push('first');
+		if(isHover) classes.push('hover');
+		if(item.isGroupHeader) classes.push('groupHeader');
+		if(item.isGroupItem) classes.push('groupItem');
 		itemClasses = classes.join(' ');
 	}
 
 	import Fa from 'svelte-fa';
+
 	import {
 		faCheck,
 	} from '@fortawesome/free-solid-svg-icons';
@@ -72,7 +73,7 @@
 <div class="item {itemClasses}">
 	<span class="state-indicator">
 		{#if isActive}
-			<Fa icon={faCheck} />
+			<Fa icon={faCheck} size="xs" />
 		{:else}
 			<i class="fa-fw" />
 		{/if}
