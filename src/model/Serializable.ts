@@ -17,6 +17,7 @@ import type {
 } from '#/vendor/confluence/module/confluence';
 
 import type XHTMLDocument from '#/vendor/confluence/module/xhtml-document';
+import type { SvelteComponent } from 'svelte';
 
 import type {
 	TypedKeyedLabeledObject,
@@ -207,6 +208,8 @@ export class VeOdm<Serialized extends Serializable | Primitive> {
 	protected readonly _gc_serialized_init: Serialized;
 	protected _g_context: Context;
 	protected _k_store: ObjectStore;
+
+	componentCache: Record<string, SvelteComponent> = {};
 
 	constructor(sp_path: VeoPath.Full, gc_serialized: Serialized, g_context: Context) {
 		this._sp_path = sp_path;
