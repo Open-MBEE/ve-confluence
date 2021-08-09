@@ -11,7 +11,6 @@
 	import type {MmsSparqlConnection} from '#/model/Connection';
 	
 	import type {ValuedLabeledObject} from '#/common/types';
-	import type { select_option } from 'svelte/internal';
 	
 	interface Option {
 		count: number;

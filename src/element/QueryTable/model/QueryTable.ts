@@ -223,7 +223,7 @@ export class QueryType<ConnectionType extends DotFragment=DotFragment> extends V
 
 	get paramQueryBuilder(): ParamQueryBuilder {
 		const sp_builder = this._gc_serialized.paramQueryBuilderPath;
-		const gc_builder = this._k_store.resolveSync<QueryBuilder.Serialized>(
+		const gc_builder = this._k_store.resolveSync<ParamQueryBuilder.Serialized>(
 			this._gc_serialized.paramQueryBuilderPath
 		);
 		return new ParamQueryBuilder(sp_builder, gc_builder, this._g_context);

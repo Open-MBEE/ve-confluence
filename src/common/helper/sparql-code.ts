@@ -85,7 +85,6 @@ export async function build_dng_select_param_query(this: MmsSparqlQueryTable, pa
 
 	// add filter for searching for parameters
 	if(searchText) {
-
 		a_bgp.push(`
 			filter contains(lcase(?value),lcase("${searchText}")) 
 		`);
