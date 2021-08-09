@@ -62,12 +62,12 @@ interface BuildConfig {
 	bgp?: SparqlString;
 }
 
-export async function build_dng_select_param_query(this: MmsSparqlQueryTable, param: QueryParam, gc_build?: BuildConfig): Promise<SparqlSelectQuery> {	
+export async function build_dng_select_param_query(this: MmsSparqlQueryTable, param: QueryParam, searchText?: string, gc_build?: BuildConfig): Promise<SparqlSelectQuery> {	
 	const a_bgp: string[] = [];
 
 	const a_selects = [
 		'?value',
-		'(count(?artifact) as ?count)'
+		'(count(?artifact) as ?count)',
 	];
 
 	// get format for native parameters
@@ -80,7 +80,15 @@ export async function build_dng_select_param_query(this: MmsSparqlQueryTable, pa
 				rdfs:label ${Sparql.literal(param.value)} .
 			?artifact a oslc_rm:Requirement ;
 				?_attr [rdfs:label ?value] .
-		`)
+		`);
+	}
+
+	// add filter for searching for parameters
+	if(searchText) {
+
+		a_bgp.push(`
+			filter contains(lcase(?value),lcase("${searchText}")) 
+		`);
 	}
 
 	const k_connection = await this.fetchConnection();
@@ -102,7 +110,7 @@ export async function build_dng_select_param_query(this: MmsSparqlQueryTable, pa
 			}
 			${a_bgp.join('\n')}
 		`,
-		group: '?value order by desc(?count)'
+		group: '?value order by desc(?count) limit 40',
 	});
 }
 

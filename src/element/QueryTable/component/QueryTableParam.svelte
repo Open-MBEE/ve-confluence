@@ -10,8 +10,8 @@
 	
 	import type {MmsSparqlConnection} from '#/model/Connection';
 	
-	import {Sparql} from '#/util/sparql-endpoint';
 	import type {ValuedLabeledObject} from '#/common/types';
+	import type { select_option } from 'svelte/internal';
 	
 	interface Option {
 		count: number;
@@ -31,6 +31,7 @@
 		return Promise.resolve();
 	});
 	let a_options: Option[] = [];
+	let a_selected_options: Option[] = [];
 	let a_init_values = [...k_values];
 	const XC_STATE_HIDDEN = 0;
 	const XC_STATE_VISIBLE = 1;
@@ -39,12 +40,14 @@
 	const XC_LOAD_YES = 2;
 	let e_query: Error | null = null;
 	let xc_load = XC_LOAD_NOT;
+	const get_option_label = (option: ValuedLabeledObject) => option.label;
+	const get_selection_label = (option: ValuedLabeledObject) => option.value;
 
-	async function load_param(k_param_load: QueryParam) {
+	async function load_param(filterText: string): Promise<ValuedLabeledObject[]> {
+		console.log("filter text is " + filterText);
 		if(k_query_table.type.startsWith('MmsSparql')) {
 			const k_connection = (await k_query_table.fetchConnection()) as MmsSparqlConnection;
-			let k_query = await k_query_table.fetchParamQueryBuilder(k_param_load);
-			
+			let k_query = await k_query_table.fetchParamQueryBuilder(k_param, filterText);
 			const a_rows = await k_connection.execute(/* syntax: sparql */ k_query.stringify());
 
 			a_options = a_rows.map(({value:g_value, count:g_count}) => ({
@@ -58,13 +61,26 @@
 			if(k_param.sort) {
 				a_options = a_options.map(g_opt => g_opt.data).sort(k_param.sort).map(g_data => a_options.find(g_opt => g_opt.data.value === g_data.value)) as Option[];
 			}
+			return Promise.resolve(a_options.map(option => option.data));
+		}
+		else {
+			return Promise.reject();
 		}
 	}
 	(async() => {
 		// if(!k_values.size) {
 		if(XC_LOAD_NOT === xc_load) {
+			// add initial selected values to Option array to track of their state
+			a_selected_options = a_init_values.map(({value:g_value}) => ({
+				count: 1,
+				state: XC_STATE_HIDDEN,
+				data: {
+					label: g_value,
+					value: g_value,
+				},
+			}));
 			try {
-				await load_param(k_param);
+				await load_param('');
 			}
 			catch(_e_query) {
 				e_query = _e_query as Error;
@@ -86,8 +102,18 @@
 	function select_value(dv_select: CustomEvent<ValuedLabeledObject[]>) {
 		if(dv_select.detail) {
 			for(const g_data of dv_select.detail) {
-				const g_opt = a_options.find(g_opt_find => g_opt_find.data.value === g_data.value) as Option;
-				if(XC_STATE_VISIBLE === g_opt.state) {
+				// check to see if param has been selected
+				let g_opt = a_selected_options.find(g_opt_find => g_opt_find.data.value === g_data.value) as Option;
+
+				// if it's not previously selected, it's in a_options
+				if(!g_opt) {
+					g_opt = a_options.find(g_opt_find => g_opt_find.data.value === g_data.value) as Option;
+				}
+				if(g_opt && XC_STATE_VISIBLE === g_opt.state) {
+					// add parameter to array to keep track of selected elements in the event that it is not in a_options
+					if(!a_selected_options.includes(g_opt)) {
+						a_selected_options.push(g_opt);
+					}
 					k_values.add(g_data);
 				}
 				else {
@@ -189,8 +215,11 @@
 		<p style="color:red;">{lang.basic.loading_failed}</p>
 	{:else}
 		<Select
+			loadOptions={load_param}
 			items={a_options.map(g_opt => g_opt.data)}
 			value={a_init_values.length? a_init_values: null}
+			getSelectionLabel={get_selection_label}
+			getOptionLabel={get_option_label}
 			placeholder="Select Attribute Value(s)"
 			isMulti={true}
 			containerClasses={'select-input'}
