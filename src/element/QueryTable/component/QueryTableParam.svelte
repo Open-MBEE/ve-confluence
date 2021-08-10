@@ -43,7 +43,6 @@
 	const get_selection_label = (option: ValuedLabeledObject) => option.value;
 
 	async function load_param(filterText: string): Promise<ValuedLabeledObject[]> {
-		console.log("filter text is " + filterText);
 		if(k_query_table.type.startsWith('MmsSparql')) {
 			const k_connection = (await k_query_table.fetchConnection()) as MmsSparqlConnection;
 			let k_query = await k_query_table.fetchParamQueryBuilder(k_param, filterText);

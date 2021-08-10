@@ -14,9 +14,8 @@
 	import {
 		faCheckCircle,
 		faCircleNotch,
-		faFilter,
 		faHistory,
-		faQuestionCircle,
+		faPencilAlt,
 	} from '@fortawesome/free-solid-svg-icons';
 
 	import SelectItem from '#/ui/component/SelectItem.svelte';
@@ -391,13 +390,27 @@
 		}
 
 		.label {
-			flex: 1 auto;
+			flex: 0.03 auto;
 
 			:global(svg) {
 				transform: scale(0.8);
 				cursor: pointer;
 			}
 		}
+
+		.info {
+				background-color: var(--ve-color-dark-text);
+				color: var(--ve-color-light-text);
+				border-radius: 2px;
+				margin-left: auto;
+				margin-top: 0;
+
+				font-size: 12px;
+				font-weight: 500;
+				letter-spacing: 1px;
+				align-self: center;
+				padding: 2pt 4pt;
+			}
 
 		.buttons {
 			flex: 1 auto;
@@ -447,10 +460,6 @@
 						color: var(--ve-color-medium-text);
 					}
 				}
-				.info {
-					background-color: var(--ve-color-light-background);
-					color: var(--ve-color-dark-text);
-				}
 			}
 
 			.config-body {
@@ -458,6 +467,13 @@
 				color: var(--ve-color-medium-text);
 
 				.query-type {
+					color: var(--ve-color-dark-text);
+				}
+			}
+			
+			.controls {
+				.info {
+					background-color: var(--ve-color-light-background);
 					color: var(--ve-color-dark-text);
 				}
 			}
@@ -503,20 +519,6 @@
 				.version {
 					color: var(--ve-color-medium-light-text);
 				}
-			}
-
-			.info {
-				background-color: var(--ve-color-dark-text);
-				color: var(--ve-color-light-text);
-				border-radius: 2px;
-				margin-left: auto;
-				margin-top: 0;
-
-				font-size: 12px;
-				font-weight: 500;
-				letter-spacing: 1px;
-				align-self: center;
-				padding: 2pt 4pt;
 			}
 		}
 
@@ -627,7 +629,15 @@
 		<div class="controls">
 			<span class="label">
 				Connected Data Table {g_source ? `with ${g_source.label}` : ''}
-				<Fa icon={faQuestionCircle} />
+			</span>
+			<span class="info">
+				{#if b_display_preview || !b_published}
+					{#if G_INFO_MODES.PREVIEW === xc_info_mode}
+						{s_status_info}
+					{:else if G_INFO_MODES.LOADING === xc_info_mode}
+						<Fa icon={faCircleNotch} class="fa-spin" /> LOADING PREVIEW
+					{/if}
+				{/if}
 			</span>
 			<span class="buttons">
 				{#if b_published}
@@ -638,7 +648,7 @@
 				{/if}
 				{#if b_display_parameters}
 					<button class="ve-button-primary" on:click={publish_table} disabled={!b_changed || !b_filtered}>{b_published? 'Update': 'Publish'}</button>
-					<button class="ve-button-secondary" on:click={reset_table}>Cancel</button>
+					<button class="ve-button-secondary" on:click={reset_table}>Cancel Changes</button>
 				{/if}
 			</span>
 		</div>
@@ -647,22 +657,13 @@
 			<div class="config">
 				<span class="tabs">
 					<span class="parameters" on:click={toggle_parameters} class:active={b_display_parameters}>
-						<Fa icon={faFilter} size="xs" />
-						Parameters
+						<Fa icon={faPencilAlt} size="sm" />
+						Edit Query
 					</span>
 					<span class="version">
 						<Fa icon={faHistory} size="xs" />
 						Version: {s_display_version}
 					</span>
-				</span>
-				<span class="info">
-					{#if b_display_preview || !b_published}
-						{#if G_INFO_MODES.PREVIEW === xc_info_mode}
-							{s_status_info}
-						{:else if G_INFO_MODES.LOADING === xc_info_mode}
-							<Fa icon={faCircleNotch} class="fa-spin" /> LOADING PREVIEW
-						{/if}
-					{/if}
 				</span>
 			</div>
 
