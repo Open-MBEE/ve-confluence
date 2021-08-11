@@ -110,5 +110,5 @@ export const dm_content = document.getElementById('main-content') as HTMLDivElem
 // main header
 export const dm_main_header = document.getElementById('main-header') as HTMLDivElement;
 
-// sidebar
-export const dm_sidebar = document.getElementsByClassName('ia-fixed-sidebar').item(0) as HTMLDivElement;
+// // sidebar
+// export const dm_sidebar = document.getElementsByClassName('ia-fixed-sidebar').item(0) as HTMLDivElement;

@@ -39,6 +39,7 @@ import type {VeoPath} from '#/common/veo';
 
 import type {QueryTable} from '#/element/QueryTable/model/QueryTable';
 import { uuid_v4 } from '#/util/dom';
+import { oderac } from '#/util/belt';
 
 const P_API_DEFAULT = '/rest/api';
 
@@ -157,6 +158,34 @@ export namespace ConfluenceApi {
 			_expandable: Hash;
 		};
 	};
+
+	interface Group extends JsonObject {
+		type: 'group';
+		name: string;
+	}
+
+	interface User extends JsonObject {
+		type: string;
+		displayName: string;
+		userKey: string;
+		username: string;
+	}
+
+	interface SimpleResponseSubject<Subject extends JsonObject> extends JsonObject {
+		limit: number;
+		results: Subject[];
+		size: number;
+		start: number;
+	}
+
+	export interface RestrictionsResponse extends JsonObject {
+		restrictions: {
+			group: SimpleResponseSubject<Group>;
+			user: SimpleResponseSubject<User>;
+		};
+	}
+
+	export type MemberOfResponse = SimpleResponseSubject<Group>;
 }
 
 type PageMetadataBundle = JsonMetadataBundle<PageMetadata>;
@@ -413,6 +442,22 @@ export function wrapCellInHtmlMacro(s_html: string, k_contents: XhtmlDocument): 
 	]);
 }
 
+// page elements
+const SX_PARAMETER_ID_PAGE_ELEMENT = `ac:parameter[@ac:name="id"][starts-with(text(),"page#elements.")]`;
+
+// for excluding elements that are within active directives
+const SX_EXCLUDE_ACTIVE_ELEMENTS = /* syntax: xpath */ `[not(ancestor::ac:structured-macro[@ac:name="span"][child::${SX_PARAMETER_ID_PAGE_ELEMENT}])]`;
+
+
+export class ConfluenceXhtmlDocument extends XhtmlDocument {
+	selectPageElements(): Node[] {
+		return this.select<Node>(`//ac:structured-macro[@ac:name="span"][child::${SX_PARAMETER_ID_PAGE_ELEMENT}]`);
+	}
+
+	clone(): ConfluenceXhtmlDocument {
+		return new ConfluenceXhtmlDocument(this.toString());
+	}
+}
 
 export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 	static annotatedSpan(gc_macro: MacroConfig, k_contents: XhtmlDocument): Node {
@@ -423,12 +468,9 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 			'ac:schema-version': '1',
 			'ac:macro-id': `${gc_macro.uuid || uuid_v4().replace(/_/g, '-')}`,
 		}, [
-			...Object.entries(gc_macro.params || {}).reduce((a_out: Node[], [si_param, s_value]) => [
-				...a_out,
-				f_builder('ac:parameter', {
-					'ac:name': si_param,
-				}, [s_value]),
-			], []),
+			...oderac(gc_macro.params || {}, (si_param, s_value) => f_builder('ac:parameter', {
+				'ac:name': si_param,
+			}, [s_value])),
 			f_builder('ac:parameter', {
 				'ac:name': 'atlassian-macro-output-type',
 			}, ['INLINE']),
@@ -568,7 +610,7 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 		};
 	}
 
-	async fetchContentAsXhtmlDocument(): Promise<{versionNumber: ConfluenceApi.PageVersionNumber; document: XhtmlDocument}> {
+	async fetchContentAsXhtmlDocument(): Promise<{versionNumber: ConfluenceApi.PageVersionNumber; document: ConfluenceXhtmlDocument}> {
 		const {
 			versionNumber: n_version,
 			value: sx_value,
@@ -576,7 +618,7 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 
 		return {
 			versionNumber: n_version,
-			document: new XhtmlDocument(sx_value),
+			document: new ConfluenceXhtmlDocument(sx_value),
 		};
 	}
 
@@ -847,6 +889,59 @@ export class ConfluenceDocument extends ConfluenceEntity<DocumentMetadata> {
 		}
 
 		return h_hits;
+	}
+
+	async fetchUserHasUpdatePermissions(): Promise<boolean> {
+		// fetch document cover page restrictions
+		const g_response_cover = await confluence_get_json<ConfluenceApi.RestrictionsResponse>(`/content/${this.coverPageId}/restriction/byOperation/update`, {
+			search: {
+				expand: ['restrictions.user', 'restrictions.group'].join(','),
+			},
+		});
+
+		// destructure response data
+		const {
+			group: {
+				results: a_groups_cover,
+			},
+			user: {
+				results: a_users_cover,
+			},
+		} = g_response_cover.data?.restrictions!;
+
+		// no restriction(s) exists
+		if(!a_groups_cover.length && !a_users_cover.length) {
+			return true;
+		}
+
+		// user key
+		const si_user_current = G_META.remote_user_key;
+
+		// each user
+		for(const g_user of a_users_cover) {
+			// found current user
+			if(g_user.userKey === si_user_current) return true;
+		}
+
+		// fetch user groups
+		const g_response_user = await confluence_get_json<ConfluenceApi.MemberOfResponse>('/user/memberof', {
+			search: {
+				key: G_META.remote_user_key,
+			},
+		});
+
+		// convert user groups into set
+		const as_groups_user = new Set((g_response_user.data?.results || []).map(g_group => g_group.name));
+
+		// each group
+		for(const g_group of a_groups_cover) {
+			// user belongs to authorized group
+			if(as_groups_user.has(g_group.name)) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	// async getDataSource<SourceType extends Source>(si_key: SourceKey, b_force=false): Promise<SourceType | null> {

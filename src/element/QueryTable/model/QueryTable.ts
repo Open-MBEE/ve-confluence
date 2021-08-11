@@ -334,7 +334,7 @@ export abstract class QueryTable<
 	}
 
 
-	async exportResultsToCxhtml(this: QueryTable, k_connection: Connection, yn_anchor: Node, k_contents=this.getContext().source.clone()): Promise<{rows: QueryRow[]; contents: XHTMLDocument}> {
+	async exportResultsToCxhtml(this: QueryTable, k_connection: Connection, yn_anchor: Node, k_contents=this.getContext().source): Promise<{rows: QueryRow[]; contents: XHTMLDocument}> {
 		// fetch query builder
 		const k_query = await this.fetchQueryBuilder();
 
