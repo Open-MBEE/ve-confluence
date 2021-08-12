@@ -193,12 +193,12 @@ export class QueryBuilder extends VeOdm<QueryBuilder.Serialized> {
 
 export namespace ParamQueryBuilder {
 	export interface Serialized extends TypedPrimitive<'ParamQueryBuilder'> {
-		function: (this: QueryTable, param: QueryParam, searchText?: string) => Promise<ConnectionQuery>;
+		function: (this: QueryTable, k_param: QueryParam, s_search_text?: string) => Promise<ConnectionQuery>;
 	}
 }
 
 export class ParamQueryBuilder extends VeOdm<ParamQueryBuilder.Serialized> {
-	get function(): (this: QueryTable, param: QueryParam, searchText?: string) => Promise<ConnectionQuery> {
+	get function(): (this: QueryTable, k_param: QueryParam, s_search_text?: string) => Promise<ConnectionQuery> {
 		return this._gc_serialized.function;
 	}
 }
@@ -351,8 +351,8 @@ export abstract class QueryTable<
 		return this._h_param_values_lists[si_param];
 	}
 
-	fetchParamQueryBuilder(param: QueryParam, searchText?: string): Promise<ConnectionQuery> {
-		return this.queryType.paramQueryBuilder.function.call(this, param, searchText);
+	fetchParamQueryBuilder(k_param: QueryParam, s_search_text?: string): Promise<ConnectionQuery> {
+		return this.queryType.paramQueryBuilder.function.call(this, k_param, s_search_text);
 	}
 
 	fetchQueryBuilder(): Promise<ConnectionQuery> {

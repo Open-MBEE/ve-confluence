@@ -1,3 +1,11 @@
+<script context="module" lang="ts">
+
+	export interface ModalContext {
+		open: (dc_component: any, g_props?: any, g_options?: any, g_callbacks?: any) => void;
+		close: () => void;
+	}
+
+</script>
 <script lang="ts">
 	import Select from 'svelte-select';
 
@@ -30,12 +38,30 @@
 
 	import Fa from 'svelte-fa';
 
-	import {ConfluenceEntity, ConfluencePage} from '#/vendor/confluence/module/confluence';
+	import Modal from 'svelte-simple-modal';
+	import ContextDummy from './ContextDummy.svelte';
+	// import {bind} from 'svelte-simple-modal';
+
+	import {
+		ConfluenceEntity,
+		ConfluencePage,
+	} from '#/vendor/confluence/module/confluence';
 
 
 	import type {PageMap} from '#/vendor/confluence/module/confluence';
 
-	import {MmsSparqlQueryTable, QueryTable} from '#/element/QueryTable/model/QueryTable';
+	import {
+		MmsSparqlQueryTable,
+		QueryTable,
+	} from '#/element/QueryTable/model/QueryTable';
+
+	import {
+		writable,
+	} from 'svelte/store';
+
+	import UpdateDatasetConfirmation from './UpdateDatasetConfirmation.svelte';
+
+	import type { SvelteComponent } from 'svelte/internal';
 
 	type CustomDataProperties = {
 		status_mode: G_STATUS;
@@ -59,7 +85,11 @@
 		ERROR,
 	}
 
+	let h_selects: Record<string, SvelteComponent> = {};
+	let yc_select: SvelteComponent;
 	let hmw_connections = new WeakMap<Connection, CustomDataProperties>();
+
+	let dm_warning: HTMLDivElement;
 
 	// initialize connections
 	let A_CONNECTIONS: Connection[] = [];
@@ -107,113 +137,206 @@
 		hmw_connections = hmw_connections;
 	}
 
+
+	let g_modal_context: ModalContext;
+
+	function modal_context_acquired(d_event: CustomEvent<ModalContext>) {
+		g_modal_context = d_event.detail;
+	}
+
+	// for preventing the browser window from being closed during asynchronous data operations
+	const f_cancel_unload = (d_event_before_unload: BeforeUnloadEvent) => {
+		d_event_before_unload.preventDefault();
+		d_event_before_unload.returnValue = '';
+	};
+
 	function select_version_for(k_connection: Connection) {
-		return async function select_version(this: Select, d_event: CustomEvent<ModelVersionDescriptor>) {
+		return function select_version(this: Select, d_event: CustomEvent<ModelVersionDescriptor>) {
 			// ref selected model version info
 			const g_version_new = d_event.detail;
 
-			// set status mode
-			set_connection_properties(k_connection, {
-				status_mode: G_STATUS.UPDATING,
-			});
+			// return to current
+			if(g_version_new.id === g_version_current.id) return;
 
-			// fetch connection data
-			const g_data = hmw_connections.get(k_connection);
-			if(!g_data) throw new Error(`No connection data found for ${k_connection.path}`);
+			// open confirmation modal
+			g_modal_context.open(UpdateDatasetConfirmation, {
+				g_modal_context,
+				k_connection,
+				g_version: g_version_new,
+				hm_tables: hmw_connections.get(k_connection)?.tables,
 
-			// counters
-			let c_tables_touched = 0;
-			let c_tables_changed = 0;
-			let c_pages_touched = 0;
-			let c_pages_changed = 0;
+				// upon confirmation
+				async confirm() {
+					// unsaved changes tab close
+					window.addEventListener('beforeunload', f_cancel_unload);
 
-			// each page
-			const hm_tables = g_data.tables;
-			for(const [g_page, h_odms] of hm_tables) {
-				// download page
-				const k_page = ConfluencePage.fromBasicPageInfo(g_page);
-
-				// fetch xhtml contents
-				let {
-					document: k_contents,
-				} = await k_page.fetchContentAsXhtmlDocument();
-
-				// count how many tables change on this page
-				let c_tables_changed_local = 0;
-
-				// cache page contents
-				let sx_page = k_contents.toString();
-
-				// each table
-				for(const sp_table in h_odms) {
-					const {
-						odm: k_odm,
-						anchor: yn_anchor,
-					} = h_odms[sp_table];
-
-					// clone page contents
-					const {
-						rows: a_rows,
-						contents: k_contents_update,
-					} = await (k_odm as unknown as QueryTable).exportResultsToCxhtml(k_connection, yn_anchor, k_contents);
-
-					// build new page
-					const sx_page_update = k_contents_update.toString();
-
-					// nothing changed
-					if(sx_page_update === sx_page) {
-						// update tables touched
-						set_connection_properties(k_connection, {
-							tables_touched_count: ++c_tables_touched,
-						});
+					// apply changes
+					try {
+						await change_version(k_connection, g_version_new);
 					}
-					// something changed
-					else {
-						c_tables_changed_local += 1;
-						sx_page = sx_page_update;
-						k_contents = k_contents_update;
-
-						// update tables changed
-						set_connection_properties(k_connection, {
-							tables_touched_count: ++c_tables_touched,
-							tables_changed_count: ++c_tables_changed,
-						});
+					// catch error
+					catch(e_change) {
+						// render to warning
+						dm_warning.style.visibility = 'visible';
+						dm_warning.innerHTML = `<b>Error</b>: ${k_connection.label} could not be published. Please contact CAE for assistance. Error details:`
+							+`<code style="white-space:pre;">${(e_change as Error).stack?.replace(/</g, '&lt;') || (e_change as Error).toString()}</code>`;
 					}
-				}
 
-				// nothing changed
-				if(!c_tables_changed_local) {
-					// update pages touched
-					set_connection_properties(k_connection, {
-						pages_touched_count: ++c_pages_touched,
+					// remove listener
+					window.removeEventListener('beforeunload', f_cancel_unload);
+				},
+
+				// upon cancellation
+				cancel() {
+					// h_selects[k_connection.hash()].$set({
+					yc_select.$set({
+						value: g_version_current,
 					});
-
-					// continue iterating pages
-					continue;
-				}
-
-				// prepare commit message
-				const s_verb = Date.parse(g_version_current.dateTime) < Date.parse(g_version_new.dateTime)? 'Updated': 'Changed';
-				const s_message = `
-					${s_verb} dataset version of  ${k_connection.label} from ${g_version_current.label} to ${g_version_new.label}
-					which affected ${c_tables_changed} tables
-				`.replace(/\t/, '').trim();
-
-				// post content
-				await k_page.postContent(k_contents, s_message);
-
-				// update pages touched/changed
-				set_connection_properties(k_connection, {
-					pages_touched_count: ++c_pages_touched,
-					pages_changed_count: ++c_pages_changed,
-				});
-			}
-
-			// set status mode
-			set_connection_properties(k_connection, {
-				status_mode: G_STATUS.UPDATED,
+				},
+			}, {
+				styleWindowWrap: {
+					marginLeft: 'auto',
+					marginRight: 'auto',
+					maxWidth: '450px',
+				},
+				styleWindow: {
+					backgroundColor: 'var(--ve-color-dark-background)',
+					color: 'var(--ve-color-light-text)',
+					borderRadius: '4px',
+					border: '2px solid var(--ve-color-darker-background)',
+					boxShadow: '0 5px 15px rgba(0, 0, 0, 0.5)',
+				},
+				styleContent: {
+					padding: '0',
+				},
+				styleCloseButton: {
+					display: 'none',
+				},
 			});
 		};
+	}
+
+	async function change_version(k_connection: Connection, g_version_new: ModelVersionDescriptor) {
+		// disable select
+		yc_select.$set({
+			isDisabled: true,
+		});
+
+		// show warning
+		dm_warning.style.visibility = 'visible';
+		dm_warning.innerText = 'Do not close this webpage until updates are complete.';
+	
+		// set status mode
+		set_connection_properties(k_connection, {
+			status_mode: G_STATUS.UPDATING,
+		});
+
+		// fetch connection data
+		const g_data = hmw_connections.get(k_connection);
+		if(!g_data) throw new Error(`No connection data found for ${k_connection.path}`);
+
+		// counters
+		let c_tables_touched = 0;
+		let c_tables_changed = 0;
+		let c_pages_touched = 0;
+		let c_pages_changed = 0;
+
+		// create new connection from existing
+		const k_connection_new = await k_connection.clone(g_version_new.modify);
+
+		// save to document
+		await k_connection_new.save();
+
+		// each page
+		const hm_tables = g_data.tables;
+		for(const [g_page, h_odms] of hm_tables) {
+			// download page
+			const k_page = ConfluencePage.fromBasicPageInfo(g_page);
+
+			// fetch xhtml contents
+			let {
+				document: k_contents,
+			} = await k_page.fetchContentAsXhtmlDocument();
+
+			// count how many tables change on this page
+			let c_tables_changed_local = 0;
+
+			// cache page contents
+			let sx_page = k_contents.toString();
+
+			// each table
+			for(const sp_table in h_odms) {
+				const {
+					odm: k_odm,
+					anchor: yn_anchor,
+				} = h_odms[sp_table];
+
+				// clone page contents
+				const {
+					rows: a_rows,
+					contents: k_contents_update,
+				} = await (k_odm as unknown as QueryTable).exportResultsToCxhtml(k_connection, yn_anchor, k_contents);
+
+				// build new page
+				const sx_page_update = k_contents_update.toString();
+
+				// nothing changed
+				if(sx_page_update === sx_page) {
+					// update tables touched
+					set_connection_properties(k_connection, {
+						tables_touched_count: ++c_tables_touched,
+					});
+				}
+				// something changed
+				else {
+					c_tables_changed_local += 1;
+					sx_page = sx_page_update;
+					k_contents = k_contents_update;
+
+					// update tables changed
+					set_connection_properties(k_connection, {
+						tables_touched_count: ++c_tables_touched,
+						tables_changed_count: ++c_tables_changed,
+					});
+				}
+			}
+
+			// nothing changed
+			if(!c_tables_changed_local) {
+				// update pages touched
+				set_connection_properties(k_connection, {
+					pages_touched_count: ++c_pages_touched,
+				});
+
+				// continue iterating pages
+				continue;
+			}
+
+			// prepare commit message
+			const s_verb = Date.parse(g_version_current.dateTime) < Date.parse(g_version_new.dateTime)? 'Updated': 'Changed';
+			const s_message = `
+				${s_verb} dataset version of  ${k_connection.label} from ${g_version_current.label} to ${g_version_new.label}
+				which affected ${c_tables_changed} tables
+			`.replace(/\t/, '').trim();
+
+			// post content
+			const g_response = await k_page.postContent(k_contents, s_message);
+
+			// update pages touched/changed
+			set_connection_properties(k_connection, {
+				pages_touched_count: ++c_pages_touched,
+				pages_changed_count: ++c_pages_changed,
+			});
+		}
+
+		// set status mode
+		set_connection_properties(k_connection, {
+			status_mode: G_STATUS.UPDATED,
+		});
+
+		// hide warning
+		dm_warning.style.visibility = 'hidden';
+		dm_warning.innerHTML = '&nbsp;';
 	}
 
 	async function locate_tables(k_connection: Connection): Promise<PageMap<MmsSparqlQueryTable.Serialized, MmsSparqlQueryTable>> {
@@ -224,7 +347,7 @@
 		return hm_tables;
 	}
 
-	async function fetch_version_info(k_connection: Connection) {
+	async function fetch_version_info(k_connection: Connection): Promise<[ModelVersionDescriptor[], ModelVersionDescriptor, string]> {
 		const [a_versions_raw, g_version_current_raw] = await Promise.all([
 			k_connection.fetchVersions(),
 			k_connection.fetchCurrentVersion(),
@@ -239,11 +362,12 @@
 			const g_version_latest = a_versions[0];
 			g_version_latest.data = {
 				...g_version_latest.data,
+				original_label: g_version_latest.label,
 				latest: true,
 			};
 
 			g_version_latest.label += `
-				<span class="ve-tag-pill" style="position:relative; top:-2px;">
+				<span class="ve-tag-pill" style="position:relative; top:-2px; margin-left:2px;">
 					Latest
 				</span>
 			`;
@@ -267,6 +391,7 @@
 		return [
 			a_versions,
 			g_version_current,
+			k_connection.hash(),
 		];
 	}
 
@@ -351,22 +476,20 @@
 						// --itemActiveBackground: var(--ve-color-medium-light-text);
 						--itemIsActiveBG:  var(--ve-color-light-text);
 
-						// --itemHoverBG: #f00;
-						--itemActiveBackground: #0f0;
-						// --itemIsActiveBG:  #00f;
-
 						--itemPadding: 2px 6px;
 
 						--indicatorTop: 1px;
 						--indicatorWidth: 7px;
 						--indicatorHeight: 5px;
 
+						--disabledColor: var(--ve-color-medium-text);
+
 						:global(.selectContainer) {
 							color: var(--ve-color-dark-text);
 
 							display: inline-flex;
 							width: fit-content;
-							min-width: 200px;
+							min-width: 260px;
 							vertical-align: middle;
 
 							height: 28px;
@@ -423,6 +546,11 @@
 			}
 		}
 	}
+
+	.warning {
+		color: var(--ve-color-error-red);
+		font-size: 14px;
+	}
 </style>
 
 <div>
@@ -446,8 +574,10 @@
 								isClearable={false}
 								placeholder="Loading..."
 							></Select>
-						{:then [a_versions, g_current_version]}
+						{:then [a_versions, g_current_version, s_hash]}
+						<!-- bind:this={h_selects['@'+s_hash]} -->
 							<Select
+								bind:this={yc_select}
 								optionIdentifier={'id'}
 								value={g_current_version}
 								items={a_versions}
@@ -465,6 +595,10 @@
 								on:select={select_version_for(k_connection)}
 							></Select>
 						{/await}
+
+						<Modal>
+							<ContextDummy on:acquire={modal_context_acquired} />
+						</Modal>
 					</td>
 					<td class="cell-align-center">
 						{#await locate_tables(k_connection)}
@@ -493,14 +627,14 @@
 										<span class="status">
 											<Fa icon={faCircleNotch} class="fa-spin" />
 											<span class="text">
-												{g_data?.tables_touched_count}/{Object.keys(g_data?.tables || {}).length} Updating Tables
+												{g_data?.tables_touched_count}/{g_data?.tables.size} Updating Tables
 											</span>
 										</span>
 									{:else if G_STATUS.UPDATED === xc_status_mode}
 										<span class="status">
 											<Fa icon={faCheckCircle} />
 											<span class="text">
-												{g_data?.tables_touched_count}/{Object.keys(g_data?.tables || {}).length} Tables Updated
+												{g_data?.tables_touched_count}/{g_data?.tables.size} Tables Updated
 											</span>
 										</span>
 									{/if}
@@ -512,4 +646,8 @@
 			{/each}
 		</tbody>
 	</table>
+</div>
+
+<div class="warning" style="visibility:hidden;" bind:this={dm_warning}>
+	&nbsp;
 </div>

@@ -1,7 +1,6 @@
 import type {MmsSparqlQueryTable, QueryParam} from '#/element/QueryTable/model/QueryTable';
 
 import {SparqlSelectQuery, Sparql} from '../../util/sparql-endpoint';
-
 import type {Hash, SparqlString} from '../types';
 
 const terse_lit = (s: string) => `"${s.replace(/[\r\n]+/g, '').replace(/"/g, '\\"')}"`;
@@ -55,14 +54,14 @@ const H_NATIVE_DNG_PARAMS: Record<string, string> = {
 	`,
 	requirementName: /* syntax: sparql */ `
 		?artifact dct:title ?value .
-	`
+	`,
 };
 
 interface BuildConfig {
 	bgp?: SparqlString;
 }
 
-export async function build_dng_select_param_query(this: MmsSparqlQueryTable, param: QueryParam, searchText?: string, gc_build?: BuildConfig): Promise<SparqlSelectQuery> {	
+export async function build_dng_select_param_query(this: MmsSparqlQueryTable, k_param: QueryParam, s_seach_text?: string, gc_build?: BuildConfig): Promise<SparqlSelectQuery> {	
 	const a_bgp: string[] = [];
 
 	const a_selects = [
@@ -71,22 +70,22 @@ export async function build_dng_select_param_query(this: MmsSparqlQueryTable, pa
 	];
 
 	// get format for native parameters
-	if(param.key in H_NATIVE_DNG_PARAMS) {
-		a_bgp.push(H_NATIVE_DNG_PARAMS[param.key]);
+	if(k_param.key in H_NATIVE_DNG_PARAMS) {
+		a_bgp.push(H_NATIVE_DNG_PARAMS[k_param.key]);
 	}
 	// use property formatting for parameter
 	else {
 		a_bgp.push(`?_attr a rdf:Property ;
-				rdfs:label ${Sparql.literal(param.value)} .
+				rdfs:label ${Sparql.literal(k_param.value)} .
 			?artifact a oslc_rm:Requirement ;
 				?_attr [rdfs:label ?value] .
 		`);
 	}
 
 	// add filter for searching for parameters
-	if(searchText) {
+	if(s_seach_text) {
 		a_bgp.push(`
-			filter contains(lcase(?value),lcase("${searchText}")) 
+			filter contains(lcase(?value),lcase("${s_seach_text}")) 
 		`);
 	}
 
@@ -156,7 +155,6 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 		value: s_value,
 		hasMany: b_many,
 	} of this.queryType.fields) {
-
 		// attr already captured from filter; select value variable and skip it
 		if(si_param in h_props) {
 			a_selects.push(`?${si_param}Value`);

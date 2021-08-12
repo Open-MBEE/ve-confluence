@@ -18,6 +18,7 @@ import {
 	qs,
 	qsa,
 	dm_content,
+	dm_sidebar,
 	dm_main_header,
 	uuid_v4,
 	dm_main,
@@ -271,11 +272,12 @@ export async function main(): Promise<void> {
 		throw new Error(`ERROR: No lang file defined! Did you forget to set the environment variables when building?`);
 	}
 
+	const dm_header = qs(document.body, '#header');
 	kv_control_bar = new ControlBar({
-		// target: dm_main.parentElement as HTMLElement,
-		// anchor: dm_main,
 		target: dm_main_header as HTMLElement,
 		anchor: qs(dm_main_header, 'div#navigation'),
+		// target: dm_header.parentElement as HTMLElement,
+		// anchor: dm_header.nextSibling as HTMLElement,
 		props: {
 			g_context: G_CONTEXT,
 		},
@@ -444,10 +446,42 @@ const H_HASH_TRIGGERS: Record<string, (de_hash_change?: HashChangeEvent) => Prom
 
 		await Promise.resolve();
 	},
+
+	async 'beta'(de_hash_change?: HashChangeEvent) {
+		const m_path = /^(.*[^+])\+*$/.exec(location.pathname);
+		if(m_path) {
+			const s_expect = m_path[1]+'+';
+			if(location.pathname !== s_expect) {
+				location.href = s_expect+'#beta';
+				return;
+			}
+		}
+		else {
+			console.error(`Unmatchable pathname: ${location.pathname}`);
+		}
+
+		// update version info
+		kv_control_bar.$set({s_app_version:`${process.env.VERSION}-beta`});
+
+		// apply beta changes
+		replace_edit_button();
+
+		await Promise.resolve();
+	},
 };
 
 
 let p_original_edit_link = '';
+
+function replace_edit_button() {
+	const dm_edit = qs(dm_main, 'a#editPageLink')! as HTMLAnchorElement;
+	p_original_edit_link = dm_edit.href;
+	dm_edit.href = SR_HASH_VE_PAGE_EDIT_MODE;
+
+	// remove all event listeners
+	const dm_clone = dm_edit.cloneNode(true);
+	dm_edit.parentNode?.replaceChild(dm_clone, dm_edit);
+}
 
 function hash_updated(de_hash_change?: HashChangeEvent): void {
 	const a_hashes = location.hash.slice(1).split(/:/g);
@@ -460,14 +494,6 @@ function hash_updated(de_hash_change?: HashChangeEvent): void {
 }
 
 function dom_ready() {
-	const dm_edit = qs(dm_main, 'a#editPageLink')! as HTMLAnchorElement;
-	p_original_edit_link = dm_edit.href;
-	dm_edit.href = SR_HASH_VE_PAGE_EDIT_MODE;
-
-	// remove all event listeners
-	const dm_clone = dm_edit.cloneNode(true);
-	dm_edit.parentNode?.replaceChild(dm_clone, dm_edit);
-
 	// listen for hash change
 	window.addEventListener('hashchange', hash_updated);
 
@@ -489,6 +515,12 @@ function dom_ready() {
 		const m_special = /(\++)$/.exec(si_page_title);
 		if(m_special) {
 			switch(m_special[1]) {
+				// beta mode
+				case '+': {
+					location.hash = '#beta';
+					break INTERPRET_LOCATION;
+				}
+
 				// edit mode
 				case '+++': {
 					void H_HASH_TRIGGERS[SR_HASH_VE_PAGE_EDIT_MODE]();
