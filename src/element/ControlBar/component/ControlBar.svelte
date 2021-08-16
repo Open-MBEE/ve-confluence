@@ -8,13 +8,21 @@
 		ConfluenceDocument,
 	} from '#/vendor/confluence/module/confluence';
 
+	import type {
+		DocumentMetadata,
+		PageMetadata,
+	} from '#/vendor/confluence/module/confluence';
+
 	import {
 		onMount,
 	} from 'svelte';
 
 	import G_META from '#/common/meta';
 
-	import {lang, process} from '#/common/static';
+	import {
+		lang,
+		process,
+	} from '#/common/static';
 
 	import Fa from 'svelte-fa';
 
@@ -23,6 +31,8 @@
 	import {
 		dm_main,
 		dm_main_header,
+		// dm_sidebar,
+		qs,
 	} from '#/util/dom';
 
 	import {slide} from 'svelte/transition';
@@ -35,15 +45,58 @@
 	} from 'svelte-tabs';
 
 	import type {JsonObject} from '#/common/types';
+import { oderac, oderaf } from '#/util/belt';
+import { xpathSelect1 } from '#/vendor/confluence/module/xhtml-document';
 
 	export let g_context: Context;
 
+	export let s_app_version = process.env.VERSION;
+
+	let dm_expanded: HTMLDivElement;
+
 	let b_ready = false;
 	let b_read_only = false;
+	let b_read_only_page = false;
+
 	let dm_bar: HTMLDivElement;
 	let b_collapsed = true;
 	let dm_icon_dropdown: HTMLDivElement;
 	let b_document = false;
+
+	let sx_document_metadata_remote: string;
+	$: sx_document_metadata_local = '';
+	let g_document_metadata_editted: DocumentMetadata | Error;
+	$: b_document_json_valid = g_document_metadata_editted && !(g_document_metadata_editted instanceof Error);
+	$: b_document_json_writable = b_document_json_valid && JSON.stringify(g_document_metadata_editted) !== sx_document_metadata_remote;
+	
+	let sx_page_metadata_remote: string;
+	$: sx_page_metadata_local = '';
+	let g_page_metadata_editted: PageMetadata | Error;
+	$: b_page_json_valid = g_page_metadata_editted && !(g_page_metadata_editted instanceof Error);
+	$: b_page_json_writable = b_page_json_valid && JSON.stringify(g_page_metadata_editted) !== sx_page_metadata_remote;
+	
+	const dm_sidebar = qs(document.body, '.ia-fixed-sidebar') as HTMLDivElement;
+	// if(dm_sidebar) {
+	// 	let dm_sidebar_scrollable = (qs(dm_sidebar, '.ia-scrollable-section') as HTMLDivElement);
+	// 	let n_pre_scrolltop = dm_sidebar.scrollTop || 0;
+	// }
+	
+	$: {
+		try {
+			g_document_metadata_editted = JSON.parse(sx_document_metadata_local) as DocumentMetadata;
+		}
+		catch(e_parse) {
+			g_document_metadata_editted = e_parse as Error;
+		}
+
+		try {
+			g_page_metadata_editted = JSON.parse(sx_page_metadata_local) as PageMetadata;
+		}
+		catch(e_parse) {
+			g_page_metadata_editted = e_parse as Error;
+		}
+	}
+
 
 	const b_admin = location.hash.slice(1).split(/:/g).includes('admin');
 
@@ -51,10 +104,8 @@
 	let k_document: ConfluenceDocument | null = null;
 
 	function realign_control_bar() {
-		// when scrolling down the wiki header style changes, so update the control bar margin
 		if('' !== dm_main_header.style.position) {
 			dm_bar.style.marginTop = '0px';
-
 			// when the 'overlay-header' class is applied for the nav bar, adjust margins
 			if(dm_main_header.className.split(/\s+/g).includes('overlay-header')) {
 				dm_bar.style.marginTop = '-10px';
@@ -63,6 +114,20 @@
 		else {
 			dm_bar.style.marginTop = '-20px';
 		}
+
+
+		// // when scrolling down the wiki header style changes, so update the control bar margin
+		// if('' !== dm_sidebar.style.width) {
+		// 	dm_sidebar.style.marginTop = `${dm_bar.getBoundingClientRect().height || 38}px`;
+
+		// 	dm_sidebar_scrollable.scrollTop = n_pre_scrolltop;
+
+		// 	debugger;
+
+		// 	if(dm_expanded) {
+		// 		dm_expanded.style.paddingLeft = `calc(${dm_sidebar.style.width} + 20px)`;
+		// 	}
+		// }
 	}
 
 	onMount(async() => {
@@ -71,13 +136,16 @@
 		// go async to allow svelte components to bind to local variables
 		await Promise.resolve();
 
-		// user does not have write permisisons
+		// user does not have write permisisons to this page
 		if('READ_WRITE' !== G_META.access_mode) {
 			b_read_only = true;
 		}
 
 		// initial control bar alignment
 		queueMicrotask(realign_control_bar);
+
+		// // wait for transition to complete and then realign again
+		// setTimeout(realign_control_bar, 1500);
 
 		// create new observer
 		const d_observer = new MutationObserver((a_mutations) => {
@@ -90,16 +158,37 @@
 			}
 		});
 
-		// start observing 'main' attribute changes
-		d_observer.observe(dm_main, {attributes:true});
+		// // start observing 'sidebar' attribute changes
+		// d_observer.observe(dm_sidebar, {attributes:true});
 
-		// start observing 'main-header' attribute changes
-		d_observer.observe(dm_main_header, {attributes:true})
+		d_observer.observe(dm_main, {attributes:true});
+		d_observer.observe(dm_main_header, {attributes:true});
 
 		k_page = await ConfluencePage.fromCurrentPage();
 
+		LOAD_DOCUMENT_METADATA:
 		if(await k_page.isDocumentMember()) {
-			k_document = await k_page.fetchDocument();
+			k_document = await k_page.fetchDocument()!;
+
+			if(!k_document) break LOAD_DOCUMENT_METADATA;
+
+			const g_bundle = await k_document.fetchMetadataBundle();
+
+			sx_document_metadata_local = JSON.stringify(g_bundle?.data, null, '  ');
+			sx_document_metadata_remote = JSON.stringify(g_bundle?.data);
+
+			// user does not have edit permissions to document
+			b_read_only ||= !(await k_document.fetchUserHasUpdatePermissions());  // eslint-disable-line @typescript-eslint/no-unsafe-call
+		}
+
+		LOAD_PAGE_METADATA:
+		{
+			if(!k_page) break LOAD_PAGE_METADATA;
+
+			const g_bundle = await k_page.fetchMetadataBundle();
+
+			sx_page_metadata_local = JSON.stringify(g_bundle?.data, null, '  ');
+			sx_page_metadata_remote = JSON.stringify(g_bundle?.data);
 		}
 	});
 
@@ -133,6 +222,10 @@
 		}
 	}
 
+	/**
+	 * {a: {b: {c: 'yellow', d:'orange'}}} => ['a.b.c', 'a.b.d']
+	 */
+
 	async function reset_page(b_force=false): Promise<void> {
 		if(k_page) {
 			if(b_force) {
@@ -144,7 +237,74 @@
 				location.reload();
 			}
 			else {
-				// TODO: implement unused element garbage collection
+				const g_bundle = await k_page.fetchMetadataBundle();
+				const h_elements = g_bundle?.data.paths.elements;
+				if(g_bundle && h_elements) {
+					// disable button while it overwrites
+					b_page_json_writable = false;
+
+					// allow to update dom
+					await Promise.resolve();
+
+					const as_elements = new Set((function flatten_obj(h_in: Record<string, any>, c_levels: number, a_path: string[]=[]): string[] {
+						return oderaf(h_in, (si_key, z_value) => {
+							if(c_levels) {
+								if('object' === typeof z_value) {
+									return flatten_obj(z_value, c_levels-1, [...a_path, si_key]);
+								}
+								// cannot go deeper
+								else {
+									throw new Error(`Cannot go deeper inside nested object to flatten`);
+								}
+							}
+							else {
+								return [[...a_path, si_key].join('.')];
+							}
+						});
+					})(h_elements, 2));
+
+					const as_nodes = new Set(g_context.source_original.selectPageElements()
+						.map(yn => xpathSelect1<Node>('ac:parameter[@ac:name="id"]', yn).firstChild!.nodeValue?.replace(/^page#elements\./, '')));
+
+					// each element
+					for(const sp_element of as_elements) {
+						// element is not on page
+						if(!as_nodes.has(sp_element)) {
+							// delete from elements
+							const a_dots = sp_element.split(/\./g);
+
+							let z_node: Record<string, any> = h_elements;
+							const nl_dots = a_dots.length;
+							for(let i_dot=0; i_dot<nl_dots-1; i_dot++) {
+								z_node = z_node[a_dots[i_dot]];
+							}
+
+							delete z_node[a_dots[nl_dots-1]];
+
+							// no more keys
+							for(let i_up=nl_dots-2; i_up>=0; i_up--) {
+								if(!Object.keys(z_node).length) {
+									let z_trav = h_elements;
+									for(let i_dot=0; i_dot<i_up; i_dot++) {
+										z_trav = z_trav[a_dots[i_dot]];
+									}
+									z_node = z_trav;
+									continue;
+								}
+								else {
+									break;
+								}
+							}
+						}
+					}
+
+					await k_page.writeMetadataObject(g_bundle?.data, {
+						number: (g_bundle?.version.number || 0)+1,
+						message: 'Clear unused objects',
+					});
+
+					location.reload();
+				}
 			}
 		}
 	}
@@ -185,7 +345,7 @@
 						label: 'DNG Requirements',
 						endpoint: 'https://ced.jpl.nasa.gov/sparql',
 						modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/data.europa-clipper',
-						metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/metadata.clipper',
+						metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/Metadata.Europa',
 						contextPath: 'hardcoded#queryContext.sparql.dng.common',
 					},
 				},
@@ -210,6 +370,40 @@
 		},
 	};
 
+
+	async function overwrite_document_json() {
+		if(!b_document_json_writable || !k_document) return;
+
+		// disable button while it overwrites
+		b_document_json_writable = false;
+
+		const g_bundle = await k_document.fetchMetadataBundle();
+		const n_version = g_bundle?.version.number || 0;
+
+		await k_document.writeMetadataObject(g_document_metadata_editted as DocumentMetadata, {
+			number: n_version+1,
+			message: 'Manual admin overwrite',
+		});
+
+		location.reload();
+	}
+
+	async function overwrite_page_json() {
+		if(!b_page_json_writable || !k_page) return;
+
+		// disable button while it overwrites
+		b_page_json_writable = false;
+
+		const g_bundle = await k_page.fetchMetadataBundle();
+		const n_version = g_bundle?.version.number || 0;
+
+		await k_page.writeMetadataObject(g_page_metadata_editted as PageMetadata, {
+			number: n_version+1,
+			message: 'Manual admin overwrite',
+		});
+
+		location.reload();
+	}
 </script>
 
 <style lang="less">
@@ -255,11 +449,12 @@
 	.ve-control-bar {
 		background-color: var(--ve-color-dark-background);
 		color: var(--ve-color-light-text);
+
 		// margins to offset wiki 'main' content padding
 		margin-left: -40px;
-        margin-right: -40px;
-        margin-top: -20px;
-        margin-bottom: 20px;
+		margin-right: -40px;
+		margin-top: -20px;
+		margin-bottom: 20px;
 		
 		.heading {
 			position: relative;
@@ -286,20 +481,44 @@
 					position: absolute;
 					right: 1em;
 				}
+
+				.icon-readonly {
+					background-color: var(--ve-color-light-text);
+					color: var(--ve-color-dark-text);
+					padding: 2px 8px;
+					border-radius: 17px;
+					font-size: 12px;
+					line-height: 14px;
+					margin-left: 8pt;
+				}
 			}
 		}
 
 		.expanded {
 			border-top: 1px solid #8D8D8D;
 
+			section {
+				&>div {
+					margin: 6pt 0;
+				}
+
+				&:nth-child(n+2) {
+					margin-top: 12pt;
+				}
+			}
+
 			h3 {
 				color: var(--ve-color-light-text);
+			}
+
+			h4 {
+				color: rgba(255, 255, 255, 0.7);
 			}
 		}
 	}
 
 	:global(.svelte-tabs) {
-		padding: 0 20px 12px 20px;
+		padding: 0 20px 2px 20px;
 	}
 
 	:global(.svelte-tabs li.svelte-tabs__tab) {
@@ -323,10 +542,18 @@
 		font-size: 13px;
 		font-weight: 400;
 	}
+
+	.code-edit {
+		width: 700px;
+		height: 200px;
+		font-size: small;
+		background-color: rgba(255, 255, 255, 0.1);
+		color: #ddd;
+	}
 </style>
 
 {#if b_ready}
-	<div class="ve-control-bar" bind:this={dm_bar} transition:slide={{}}>
+	<header class="ve-control-bar" bind:this={dm_bar} transition:slide={{}}>
 		<div class="heading" on:click={toggle_collapse}>
 			<div class="heading-center">
 				<!-- ve icon -->
@@ -367,7 +594,7 @@
 					<Fa icon={faQuestionCircle} size="2x"></Fa>
 				</span>
 				<span class="version">
-					v{process.env.VERSION}
+					v{s_app_version}
 				</span>
 				<span class="icon-dropdown animated rotate-expand" bind:this={dm_icon_dropdown}>
 					<!-- drop-down -->
@@ -378,7 +605,7 @@
 			</div>
 		</div>
 		{#if !b_collapsed}
-			<div class="expanded" transition:slide={{}}>
+			<div class="expanded" transition:slide={{}} bind:this={dm_expanded}>
 				<Tabs>
 					<TabList>
 						{#if k_document}
@@ -403,27 +630,64 @@
 							<div class="tab-body">
 								<section>
 									<h3>Document</h3>
+									{#if k_document}
+										<div>
+											<h4>
+												Edit document metadata:
+											</h4>
+
+											<p>
+												<textarea bind:value={sx_document_metadata_local} class="code-edit" spellcheck="false" />
+											</p>
+											<button class="ve-button-primary" disabled={b_read_only || !b_document_json_writable} on:click={overwrite_document_json}>
+												{#if b_document_json_writable}
+													Overwrite JSON
+												{:else if b_document_json_valid}
+													JSON is unchanged
+												{:else}
+													Invalid JSON
+												{/if}
+											</button>
+										</div>
+									{/if}
 									<div>
-										<span>
+										<h4>
 											{#if k_document}
-												Reset document metadata to:
+												Reset document metadata to a preset: 
 											{:else}
 												Convert this page to become the document cover page of a new document:
 											{/if}
-										</span>
-										<span>
-											<button on:click={() => k_document? create_document(H_PATHS_CLIPPER): reset_document(H_PATHS_CLIPPER)}>Clipper preset</button>
-											<button on:click={() => k_document? create_document(H_PATHS_MSR): reset_document(H_PATHS_MSR)}>MSR preset</button>
-										</span>
+										</h4>
+										<button class="ve-button-primary" on:click={() => k_document? create_document(H_PATHS_CLIPPER): reset_document(H_PATHS_CLIPPER)}>Clipper preset</button>
+										<button class="ve-button-primary" on:click={() => k_document? create_document(H_PATHS_MSR): reset_document(H_PATHS_MSR)}>MSR preset</button>
 									</div>
 								</section>
 								<section>
 									<h3>Page</h3>
 									<div>
-										<span>Reset page metadata:</span>
+										<h4>
+											Edit page metadata:
+										</h4>
+
+										<p>
+											<textarea bind:value={sx_page_metadata_local} class="code-edit" spellcheck="false" />
+										</p>
+										<button class="ve-button-primary" disabled={b_read_only_page || !b_page_json_writable} on:click={overwrite_page_json}>
+											{#if b_page_json_writable}
+												Overwrite JSON
+											{:else if b_page_json_valid}
+												JSON is unchanged
+											{:else}
+												Invalid JSON
+											{/if}
+										</button>
+									</div>
+
+									<div>
+										<h4>Reset page metadata:</h4>
 										<span>
-											<button on:click={() => reset_page()}>Clear all unused objects</button>
-											<button on:click={() => reset_page(true)}>Force reset metadata</button>
+											<button class="ve-button-primary" disabled={b_read_only_page} on:click={() => reset_page()}>Clear all unused objects</button>
+											<button class="ve-button-primary" disabled={b_read_only_page} on:click={() => reset_page(true)}>Force reset metadata</button>
 										</span>
 									</div>
 								</section>
@@ -433,5 +697,5 @@
 				</Tabs>
 			</div>
 		{/if}
-	</div>
+	</header>
 {/if}

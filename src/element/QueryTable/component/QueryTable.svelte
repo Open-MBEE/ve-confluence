@@ -14,8 +14,10 @@
 	import {
 		faCheckCircle,
 		faCircleNotch,
+		faEdit,
 		faFilter,
 		faHistory,
+		faPen,
 		faQuestionCircle,
 	} from '@fortawesome/free-solid-svg-icons';
 
@@ -121,7 +123,12 @@
 			g_version = await k_connection.fetchCurrentVersion();
 
 			// parse datetime string
-			const dt_version = new Date(g_version.dateTime);
+			let dt_version = new Date(g_version.dateTime);
+
+			// invalid date; replace with now
+			if('Invalid Date' === dt_version.toString()) {
+				dt_version = new Date();
+			}
 
 			// update display version
 			s_display_version = `${dt_version.toDateString()} @${dt_version.toLocaleTimeString()}`;
@@ -648,8 +655,8 @@
 			<div class="config">
 				<span class="tabs">
 					<span class="parameters" on:click={toggle_parameters} class:active={b_display_parameters}>
-						<Fa icon={faFilter} size="xs" />
-						Parameters
+						<Fa icon={faPen} size="xs" />
+						Edit Query
 					</span>
 					<span class="version">
 						<Fa icon={faHistory} size="xs" />

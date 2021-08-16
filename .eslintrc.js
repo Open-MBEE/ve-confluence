@@ -1,3 +1,4 @@
+
 const H_PRIMITIVES = {
 	boolean: [
 		'b',
@@ -503,7 +504,7 @@ module.exports = {
 		'switch-colon-spacing': ['warn'],
 		'template-tag-spacing': ['warn'],
 		'yoda': ['warn', 'always', {
-			exceptRange: true,
+			onlyEquality: true,
 		}],
 
 		// es6

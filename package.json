@@ -1,6 +1,6 @@
 {
   "name": "ve4",
-  "version": "0.0.6",
+  "version": "0.0.8",
   "private": true,
   "scripts": {
     "start": "echo Started",
@@ -53,6 +53,7 @@
     "@fortawesome/free-solid-svg-icons": "^5.15.3",
     "gretchen": "^1.4.0",
     "svelte-select": "4.3.0",
+    "svelte-simple-modal": "^1.0.0",
     "svelte-tabs": "^1.1.0",
     "xmldom": "^0.6.0",
     "xpath": "0.0.32"

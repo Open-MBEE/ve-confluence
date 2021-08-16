@@ -14,9 +14,11 @@ import type {ObjectStore} from '#/model/ObjectStore';
 import type {
 	ConfluenceDocument,
 	ConfluencePage,
+	ConfluenceXhtmlDocument,
 } from '#/vendor/confluence/module/confluence';
 
 import type XHTMLDocument from '#/vendor/confluence/module/xhtml-document';
+import type { SvelteComponent } from 'svelte';
 
 import type {
 	TypedKeyedLabeledObject,
@@ -34,7 +36,8 @@ export type Primitive = TypedPrimitive;
 
 export interface Context {
 	store: ObjectStore;
-	source: XHTMLDocument;
+	source: ConfluenceXhtmlDocument;
+	source_original: ConfluenceXhtmlDocument;
 	page: ConfluencePage;
 	document: ConfluenceDocument;
 }
@@ -193,8 +196,8 @@ export type VeOdmConstructor<
 export class VeOdm<Serialized extends Serializable | Primitive> {
 	static async createFromSerialized<
 		Serialized extends Serializable | Primitive,
-		InstanceType extends VeOdm<Serialized>,
-	>(dc_model: VeOdmConstructor<Serialized, InstanceType>, sp_path: VeoPath.Full, gc_serialized: Serialized, g_context: Context): Promise<InstanceType> {
+		Instance extends VeOdm<Serialized>,
+	>(dc_model: VeOdmConstructor<Serialized, Instance>, sp_path: VeoPath.Full, gc_serialized: Serialized, g_context: Context): Promise<Instance> {
 		return await (new dc_model(sp_path, gc_serialized, g_context)).ready();
 	}
 
@@ -243,6 +246,17 @@ export class VeOdm<Serialized extends Serializable | Primitive> {
 	protected _assign(gc_assign: Partial<Serializable>): this {
 		Object.assign(this._gc_serialized, gc_assign);
 		return this;
+	}
+
+	/**
+	 * Create a clone of the instance's serialized object and modify some of its properties, then return that new instance
+	 */
+	async clone(gc_modify: Partial<Serializable>={}): Promise<VeOdm<Serializable>> {
+		const dc_model = this.constructor as VeOdmConstructor<Serializable, VeOdm<Serializable>>;
+		return await VeOdm.createFromSerialized(dc_model, this.path, {
+			...this.toSerialized(),
+			...gc_modify,
+		} as Serializable, this._g_context);
 	}
 
 	get path(): VeoPath.Full {
