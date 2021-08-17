@@ -1,8 +1,8 @@
 import xpath, {SelectedValue} from 'xpath';
 
 import {
-	DOMParser,
-	XMLSerializer,
+	DOMParser as XmlDom_DOMParser,
+	XMLSerializer as XmlDom_XMLSerializer,
 } from 'xmldom';
 
 type Hash = Record<string, string>;
@@ -63,7 +63,7 @@ export class XHTMLDocument {
 	constructor(sx_doc='') {
 		this._sx_doc = sx_doc.replace(/&nbsp;/g, '&#160;');
 
-		this._y_doc = (new DOMParser()).parseFromString(`<xml ${SX_NAMESPACES}>${this._sx_doc}</xml>`);
+		this._y_doc = (new XmlDom_DOMParser()).parseFromString(`<xml ${SX_NAMESPACES}>${this._sx_doc}</xml>`, 'application/xml');
 	}
 
 	get root(): Node {
@@ -96,8 +96,32 @@ export class XHTMLDocument {
 		return this._y_doc.createCDATASection(s_cdata);
 	}
 
-	toString(): string {
+	prettyPrint(): string {
+		const y_xslt = new DOMParser().parseFromString(`
+			<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+				<xsl:strip-space elements="*"/>
+				<xsl:template match="para[content-style][not(text())]">
+					<xsl:value-of select="normalize-space(.)"/>
+				</xsl:template>
+				<xsl:template match="node()|@*">
+					<xsl:copy><xsl:apply-templates select="node()|@*"/></xsl:copy>
+				</xsl:template>
+				<xsl:output indent="yes"/>
+			</xsl:stylesheet>
+		`.replace(/\s*\n\s*/g, ''), 'application/xml');
+
+		const y_processor = new XSLTProcessor();
+		y_processor.importStylesheet(y_xslt);
+
+		const y_doc = new DOMParser().parseFromString(`<xml ${SX_NAMESPACES}>${this.toString()}</xml>`, 'application/xml');
+		const y_result = y_processor.transformToDocument(y_doc);
 		return new XMLSerializer()
+			.serializeToString(y_result.childNodes[0])
+			.replace(/^\s*<xml[^>]*>\s*|\s*<\/xml>\s*$/g, '');
+	}
+
+	toString(): string {
+		return new XmlDom_XMLSerializer()
 			.serializeToString(this.root)
 			.replace(/^\s*<xml[^>]*>\s*|\s*<\/xml>\s*$/g, '');
 	}

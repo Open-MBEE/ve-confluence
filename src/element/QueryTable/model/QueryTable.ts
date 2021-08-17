@@ -386,7 +386,16 @@ export abstract class QueryTable<
 			params: {
 				id: this.path,
 			},
-			body: yn_table,
+			body: [
+				ConfluencePage.annotatedSpan({
+					params: {
+						style: 'display:none',
+						class: 've-cql-search-tag',
+					},
+					body: f_builder('p', {}, [this.path]),
+				}, k_contents),
+				yn_table,
+			],
 		}, k_contents);
 
 		// use anchor
@@ -413,7 +422,7 @@ export abstract class QueryTable<
 		else {
 			throw new Error(`No directive node was given`);
 		}
-
+debugger;
 		return {
 			rows: a_rows,
 			contents: k_contents,

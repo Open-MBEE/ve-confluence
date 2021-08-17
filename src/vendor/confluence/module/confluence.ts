@@ -370,7 +370,7 @@ export abstract class ConfluenceEntity<MetadataType extends PageOrDocumentMetada
 export interface MacroConfig {
 	uuid?: string;
 	params?: Hash;
-	body: Node;
+	body: Node | Node[] | string;
 }
 
 export function autoCursorMutate(yn_node: Node, k_contents: XhtmlDocument): void {
@@ -400,6 +400,12 @@ export function autoCursorMutate(yn_node: Node, k_contents: XhtmlDocument): void
 	}
 }
 
+export function autoCursorNode(f_builder: ReturnType<XhtmlDocument["builder"]>) {
+	return f_builder('p', {
+		class: 'auto-cursor-target',
+	}, [f_builder('br')])
+}
+
 export function autoCursor(yn_node: Node, k_contents: XhtmlDocument): Node[] {
 	const f_builder = k_contents.builder();
 
@@ -407,18 +413,14 @@ export function autoCursor(yn_node: Node, k_contents: XhtmlDocument): Node[] {
 
 	const yn_sibling_prev = yn_node.previousSibling;
 	if(!yn_sibling_prev || 'p' !== yn_sibling_prev.nodeName) {
-		a_nodes.push(f_builder('p', {
-			class: 'auto-cursor-target',
-		}, [f_builder('br')]));
+		a_nodes.push(autoCursorNode(f_builder));
 	}
 
 	a_nodes.push(yn_node);
 
 	const yn_sibling_next = yn_node.nextSibling;
 	if(!yn_sibling_next || 'p' !== yn_sibling_next?.nodeName) {
-		a_nodes.push(f_builder('p', {
-			class: 'auto-cursor-target',
-		}, [f_builder('br')]));
+		a_nodes.push(autoCursorNode(f_builder));
 	}
 
 	return a_nodes;
@@ -463,6 +465,23 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 	static annotatedSpan(gc_macro: MacroConfig, k_contents: XhtmlDocument): Node {
 		const f_builder = k_contents.builder();
 
+		let yn_body;
+		{
+			const z_body = gc_macro.body;
+			if(Array.isArray(z_body)) {
+				yn_body = f_builder('ac:rich-text-body', {}, [
+					...z_body.flatMap(yn => [autoCursorNode(f_builder), yn]),
+					autoCursorNode(f_builder),
+				]);
+			}
+			else if('string' === typeof z_body) {
+				yn_body = f_builder('ac:rich-text-body', {}, [z_body]);
+			}
+			else {
+				yn_body = f_builder('ac:rich-text-body', {}, autoCursor(z_body, k_contents));
+			}
+		}
+
 		return f_builder('ac:structured-macro', {
 			'ac:name': 'span',
 			'ac:schema-version': '1',
@@ -474,9 +493,7 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 			f_builder('ac:parameter', {
 				'ac:name': 'atlassian-macro-output-type',
 			}, ['INLINE']),
-			f_builder('ac:rich-text-body', {}, [
-				...autoCursor(gc_macro.body, k_contents),
-			]),
+			yn_body,
 		]);
 	}
 
@@ -850,10 +867,10 @@ export class ConfluenceDocument extends ConfluenceEntity<DocumentMetadata> {
 				cql: [
 					'type=page',
 					`space.key=${G_META.space_key}`,
-					[
+					'('+[
 						`id=${this._si_cover_page}`,
 						`ancestor=${this._si_cover_page}`,
-					].join(' or '),
+					].join(' or ')+')',
 					`text~"${sr_path}"`,
 				].join(' and '),
 				expand: 'body.storage',
