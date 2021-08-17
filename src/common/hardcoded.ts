@@ -151,6 +151,15 @@ const A_QUERY_FIELD_PATHS_BASIC = [
 	'hardcoded#queryField.sparql.dng.maturity',
 ];
 
+const A_QUERY_FIELD_PATHS_HELIX= [
+	'hardcoded#queryField.sparql.helix.id',
+	'hardcoded#queryField.sparql.helix.stemName',
+	'hardcoded#queryField.sparql.helix.description',
+	'hardcoded#queryField.sparql.helix.opsCategory',
+	'hardcoded#queryField.sparql.helix.fswModule',
+	'hardcoded#queryField.sparql.helix.va',
+];
+
 /* eslint-disable object-curly-newline */
 export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 	queryParameter: auto_key<QueryParam.Serialized>({
@@ -168,6 +177,9 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					value: 'Maturity',
 					sortPath: null,
 				},
+			},
+			helix: {
+
 			},
 		},
 	}),
@@ -194,6 +206,9 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.basicParamsL3ChildrenAndL4s',
 				},
 			},
+			helix: {
+
+			},
 		},
 	}),
 
@@ -207,6 +222,17 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					queryFieldsPaths: [
 						...A_QUERY_FIELD_PATHS_BASIC,
 						'hardcoded#queryField.sparql.dng.children',
+					],
+				},
+			},
+			helix: {
+				basic: {
+					queryFieldsPaths: A_QUERY_FIELD_PATHS_HELIX,
+				},
+				basicWithChildren: {
+					queryFieldsPaths: [
+						...A_QUERY_FIELD_PATHS_HELIX,
+						'hardcoded#queryField.sparql.helix.children',
 					],
 				},
 			},
@@ -271,6 +297,36 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					}</ul>`,
 				},
 			},
+			helix: {
+				id: {
+					value: 'tIri',
+					label: 'ID', // inherit from value
+					source: 'native',
+					hasMany: false,
+					cell: (g: QueryRow) => plain`${escape_html(g.tIri.value)}`,
+				},
+				stemName: {
+					value: 'cStem',
+					label: 'Stem Name', // inherit from value
+					source: 'native',
+					hasMany: false,
+					cell: (g: QueryRow) => xhtml`<a href="${g.artifact.value}">${escape_html(g.cStem.value)}</a>`,
+				},
+				description: {
+					value: 'cDesc',
+					label: 'Description', // inherit from value
+					source: 'native',
+					hasMany: false,
+					cell: (g: QueryRow) => html`${g.cDesc.value}`,
+				},
+				opsCategory: {
+					value: 'cOpsCat',
+					label: 'Ops Category',
+					source: 'native',
+					hasMany: true,
+					cell: (g: QueryRow) => html`${g.cOpsCat.value}`,
+				},
+			},
 		},
 	}),
 
@@ -315,6 +371,9 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					},
 				},
 			},
+			helix: {
+
+			},
 		},
 	},
 
@@ -324,6 +383,9 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 				common: {
 					prefixes: H_PREFIXES,
 				},
+			},
+			helix: {
+
 			},
 		},
 	},

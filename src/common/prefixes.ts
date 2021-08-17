@@ -78,6 +78,12 @@ export const H_PREFIXES: Record<string, string> = {
 	dng_jts: 'https://cae-jazz.jpl.nasa.gov/jts/',
 	dng_user: 'https://cae-jazz.jpl.nasa.gov/jts/users/',
 
+	// Helix
+	helix_base: 'http://imce.jpl.nasa.gov/foundation/base/base#',
+	helix_fse: 'http://imce.jpl.nasa.gov/discipline/fse/fse#',
+	helix_mission: 'http://imce.jpl.nasa.gov/foundation/mission/mission#',
+	helix_analysis: 'http://imce.jpl.nasa.gov/foundation/analysis/analysis#',
+
 	// MMS RDF
 	mms: 'https://opencae.jpl.nasa.gov/mms/rdf/ontology/',
 	'mms-ontology': 'https://opencae.jpl.nasa.gov/mms/rdf/ontology/',

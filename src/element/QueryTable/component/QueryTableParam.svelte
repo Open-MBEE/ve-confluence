@@ -4,29 +4,30 @@
 	import {lang} from '#/common/static';
 
 	import Select from 'svelte-select';
-	
+
 	import type {
 		QueryParam,
 		QueryTable,
 	} from '#/element/QueryTable/model/QueryTable';
-	
+
 	import type {MmsSparqlConnection} from '#/model/Connection';
-	
+
 	import {Sparql} from '#/util/sparql-endpoint';
 
 	import type {ValuedLabeledObject} from '#/common/types';
-	
+	import {PlainSparqlConnection} from "#/model/Connection";
+
 	interface Option {
 		count: number;
 		state: number;
 		data: ValuedLabeledObject;
 	}
-	
+
 	const f_dispatch = createEventDispatcher();
 
 	export let k_param: QueryParam;
 	export let k_query_table: QueryTable;
-	
+
 	let k_values = k_query_table.parameterValuesList(k_param.key);
 	$: k_values = k_query_table.parameterValuesList(k_param.key);
 
@@ -53,6 +54,32 @@
 	async function load_param(k_param_load: QueryParam) {
 		if(k_query_table.type.startsWith('MmsSparql')) {
 			const k_connection = (await k_query_table.fetchConnection()) as MmsSparqlConnection;
+
+			const a_rows = await k_connection.execute(/* syntax: sparql */ `
+				select ?value (count(?req) as ?count) from <${k_connection.modelGraph}> {
+					?_attr a rdf:Property ;
+						rdfs:label ${Sparql.literal(k_param_load.value)} .
+
+					?req a oslc_rm:Requirement ;
+						?_attr [rdfs:label ?value] .
+				}
+				group by ?value order by desc(?count)
+			`);
+
+			a_options = a_rows.map(({value:g_value, count:g_count}) => ({
+				count: +g_count.value,
+				state: XC_STATE_VISIBLE,
+				data: {
+					label: g_value.value,
+					value: g_value.value,
+				},
+			}));
+
+			if(k_param.sort) {
+				a_options = a_options.map(g_opt => g_opt.data).sort(k_param.sort).map(g_data => a_options.find(g_opt => g_opt.data.value === g_data.value)) as Option[];
+			}
+		} else if (k_query_table.type.startsWith('PlainSparql')) {
+			const k_connection = (await k_query_table.fetchConnection()) as PlainSparqlConnection;
 
 			const a_rows = await k_connection.execute(/* syntax: sparql */ `
 				select ?value (count(?req) as ?count) from <${k_connection.modelGraph}> {
