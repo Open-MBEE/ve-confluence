@@ -27,6 +27,7 @@ import {
 	Connection,
 	SparqlConnection,
 	MmsSparqlConnection,
+	PlainSparqlConnection,
 } from '#/model/Connection';
 
 import type {TypedString} from '#/util/strings';
@@ -241,7 +242,7 @@ export class QueryType<ConnectionType extends DotFragment=DotFragment> extends V
 }
 
 export namespace QueryTable {
-	type DefaultType = `${`${'Mms'}Sparql` | `${'Plain'}Vql`}QueryTable`;
+	type DefaultType = `${`${'Mms' | 'Plain'}Sparql` | `${'Plain'}Vql`}QueryTable`;
 
 	export interface Serialized<
 		ConnectionType extends string=string,
@@ -334,7 +335,7 @@ export abstract class QueryTable<
 	}
 
 
-	async exportResultsToCxhtml(this: QueryTable, k_connection: Connection, yn_anchor: Node, k_contents=this.getContext().source.clone()): Promise<{rows: QueryRow[]; contents: XHTMLDocument}> {
+	async exportResultsToCxhtml(this: QueryTable, k_connection: Connection, yn_anchor: Node, k_contents=this.getContext().source): Promise<{rows: QueryRow[]; contents: XHTMLDocument}> {
 		// fetch query builder
 		const k_query = await this.fetchQueryBuilder();
 
@@ -385,7 +386,17 @@ export abstract class QueryTable<
 			params: {
 				id: this.path,
 			},
-			body: yn_table,
+			body: [
+				ConfluencePage.annotatedSpan({
+					params: {
+						style: 'display:none',
+						class: 've-cql-search-tag',
+					},
+					body: f_builder('p', {}, [this.path]),
+				}, k_contents),
+				yn_table,
+			],
+			autoCursor: true,
 		}, k_contents);
 
 		// use anchor
@@ -412,7 +423,7 @@ export abstract class QueryTable<
 		else {
 			throw new Error(`No directive node was given`);
 		}
-
+debugger;
 		return {
 			rows: a_rows,
 			contents: k_contents,
@@ -429,7 +440,7 @@ export interface ConnectionQuery {
 }
 
 export namespace SparqlQueryTable {
-	type DefaultType = `${'Mms'}SparqlQueryTable`;
+	type DefaultType = `${'Mms' | 'Plain'}SparqlQueryTable`;
 
 	export interface Serialized<
 		Group extends DotFragment=DotFragment,
@@ -480,6 +491,23 @@ export abstract class SparqlQueryTable<
 
 	get queryTypeOptions(): Record<VeoPath.SparqlQueryType, LocalQueryType> {
 		return this._h_options;
+	}
+}
+
+
+export namespace PlainSparqlQueryTable {
+	export interface Serialized<Group extends DotFragment=DotFragment> extends SparqlQueryTable.Serialized<Group, 'PlainSparqlQueryTable'> {
+		group: 'plain';
+	}
+}
+
+export class PlainSparqlQueryTable<
+	Group extends DotFragment=DotFragment,
+> extends SparqlQueryTable<PlainSparqlQueryTable.Serialized<Group>> {
+	async fetchConnection(): Promise<PlainSparqlConnection> {
+		const sp_connection = this._gc_serialized.connectionPath;
+		const gc_serialized = await this._k_store.resolve<PlainSparqlConnection.Serialized>(sp_connection);
+		return new PlainSparqlConnection(sp_connection, gc_serialized, this._g_context);
 	}
 }
 

@@ -39,9 +39,9 @@ export abstract class Connection<
 		return this._gc_serialized.endpoint;
 	}
 
-	abstract fetchCurrentVersion(): Promise<ModelVersionDescriptor>;
+	// abstract fetchCurrentVersion(): Promise<ModelVersionDescriptor>;
 
-	abstract fetchVersions(): Promise<ModelVersionDescriptor[]>;
+	// abstract fetchVersions(): Promise<ModelVersionDescriptor[]>;
 
 	abstract execute(sq_query: string): Promise<QueryRow[]>;
 }
@@ -80,6 +80,14 @@ export abstract class SparqlConnection<
 
 	get prefixes(): Hash {
 		return this._h_prefixes || (this._h_prefixes = this.context.prefixes);
+	}
+}
+
+export namespace PlainSparqlConnection {
+	export interface Serialized extends SparqlConnection.Serialized<'PlainSparqlConnection'> {
+		endpoint: UrlString;
+		graph: UrlString;
+		contextPath: VeoPath.SparqlQueryContext;
 	}
 }
 
@@ -149,6 +157,16 @@ function commit_result_to_model_version(g_result: CommitResult): ModelVersionDes
 			modelGraph: p_model,
 		},
 	};
+}
+
+export class PlainSparqlConnection extends SparqlConnection<PlainSparqlConnection.Serialized> {
+	get graph(): UrlString {
+		return this._gc_serialized.graph;
+	}
+
+	async execute(sq_query: SparqlString): Promise<QueryRow[]> {
+		return await this._k_endpoint.select(sq_query);
+	}
 }
 
 export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Serialized> {

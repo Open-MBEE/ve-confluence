@@ -39,6 +39,7 @@ import type {VeoPath} from '#/common/veo';
 
 import type {QueryTable} from '#/element/QueryTable/model/QueryTable';
 import { uuid_v4 } from '#/util/dom';
+import { oderac } from '#/util/belt';
 
 const P_API_DEFAULT = '/rest/api';
 
@@ -157,6 +158,34 @@ export namespace ConfluenceApi {
 			_expandable: Hash;
 		};
 	};
+
+	interface Group extends JsonObject {
+		type: 'group';
+		name: string;
+	}
+
+	interface User extends JsonObject {
+		type: string;
+		displayName: string;
+		userKey: string;
+		username: string;
+	}
+
+	interface SimpleResponseSubject<Subject extends JsonObject> extends JsonObject {
+		limit: number;
+		results: Subject[];
+		size: number;
+		start: number;
+	}
+
+	export interface RestrictionsResponse extends JsonObject {
+		restrictions: {
+			group: SimpleResponseSubject<Group>;
+			user: SimpleResponseSubject<User>;
+		};
+	}
+
+	export type MemberOfResponse = SimpleResponseSubject<Group>;
 }
 
 type PageMetadataBundle = JsonMetadataBundle<PageMetadata>;
@@ -341,7 +370,8 @@ export abstract class ConfluenceEntity<MetadataType extends PageOrDocumentMetada
 export interface MacroConfig {
 	uuid?: string;
 	params?: Hash;
-	body: Node;
+	body: Node | Node[] | string;
+	autoCursor?: boolean;
 }
 
 export function autoCursorMutate(yn_node: Node, k_contents: XhtmlDocument): void {
@@ -371,6 +401,12 @@ export function autoCursorMutate(yn_node: Node, k_contents: XhtmlDocument): void
 	}
 }
 
+export function autoCursorNode(f_builder: ReturnType<XhtmlDocument["builder"]>) {
+	return f_builder('p', {
+		class: 'auto-cursor-target',
+	}, [f_builder('br')]);
+}
+
 export function autoCursor(yn_node: Node, k_contents: XhtmlDocument): Node[] {
 	const f_builder = k_contents.builder();
 
@@ -378,18 +414,14 @@ export function autoCursor(yn_node: Node, k_contents: XhtmlDocument): Node[] {
 
 	const yn_sibling_prev = yn_node.previousSibling;
 	if(!yn_sibling_prev || 'p' !== yn_sibling_prev.nodeName) {
-		a_nodes.push(f_builder('p', {
-			class: 'auto-cursor-target',
-		}, [f_builder('br')]));
+		a_nodes.push(autoCursorNode(f_builder));
 	}
 
 	a_nodes.push(yn_node);
 
 	const yn_sibling_next = yn_node.nextSibling;
 	if(!yn_sibling_next || 'p' !== yn_sibling_next?.nodeName) {
-		a_nodes.push(f_builder('p', {
-			class: 'auto-cursor-target',
-		}, [f_builder('br')]));
+		a_nodes.push(autoCursorNode(f_builder));
 	}
 
 	return a_nodes;
@@ -413,28 +445,62 @@ export function wrapCellInHtmlMacro(s_html: string, k_contents: XhtmlDocument): 
 	]);
 }
 
+// page elements
+const SX_PARAMETER_ID_PAGE_ELEMENT = `ac:parameter[@ac:name="id"][starts-with(text(),"page#elements.")]`;
+
+// for excluding elements that are within active directives
+const SX_EXCLUDE_ACTIVE_ELEMENTS = /* syntax: xpath */ `[not(ancestor::ac:structured-macro[@ac:name="span"][child::${SX_PARAMETER_ID_PAGE_ELEMENT}])]`;
+
+
+export class ConfluenceXhtmlDocument extends XhtmlDocument {
+	selectPageElements(): Node[] {
+		return this.select<Node>(`//ac:structured-macro[@ac:name="span"][child::${SX_PARAMETER_ID_PAGE_ELEMENT}]`);
+	}
+
+	clone(): ConfluenceXhtmlDocument {
+		return new ConfluenceXhtmlDocument(this.toString());
+	}
+}
 
 export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 	static annotatedSpan(gc_macro: MacroConfig, k_contents: XhtmlDocument): Node {
 		const f_builder = k_contents.builder();
+
+		let yn_body;
+		{
+			const z_body = gc_macro.body;
+			let a_nodes = [];
+
+			if(Array.isArray(z_body)) {
+				a_nodes = gc_macro.autoCursor
+					? [
+						...z_body.flatMap(yn => [autoCursorNode(f_builder), yn]),
+						autoCursorNode(f_builder),
+					]
+					: z_body;
+			}
+			else if('string' === typeof z_body) {
+				a_nodes = gc_macro.autoCursor? [autoCursorNode(f_builder), z_body, autoCursorNode(f_builder)]: [z_body];
+			}
+			else {
+				a_nodes = gc_macro.autoCursor? autoCursor(z_body, k_contents): [z_body];
+			}
+
+			yn_body = f_builder('ac:rich-text-body', {}, a_nodes);
+		}
 
 		return f_builder('ac:structured-macro', {
 			'ac:name': 'span',
 			'ac:schema-version': '1',
 			'ac:macro-id': `${gc_macro.uuid || uuid_v4().replace(/_/g, '-')}`,
 		}, [
-			...Object.entries(gc_macro.params || {}).reduce((a_out: Node[], [si_param, s_value]) => [
-				...a_out,
-				f_builder('ac:parameter', {
-					'ac:name': si_param,
-				}, [s_value]),
-			], []),
+			...oderac(gc_macro.params || {}, (si_param, s_value) => f_builder('ac:parameter', {
+				'ac:name': si_param,
+			}, [s_value])),
 			f_builder('ac:parameter', {
 				'ac:name': 'atlassian-macro-output-type',
 			}, ['INLINE']),
-			f_builder('ac:rich-text-body', {}, [
-				...autoCursor(gc_macro.body, k_contents),
-			]),
+			yn_body,
 		]);
 	}
 
@@ -568,7 +634,7 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 		};
 	}
 
-	async fetchContentAsXhtmlDocument(): Promise<{versionNumber: ConfluenceApi.PageVersionNumber; document: XhtmlDocument}> {
+	async fetchContentAsXhtmlDocument(): Promise<{versionNumber: ConfluenceApi.PageVersionNumber; document: ConfluenceXhtmlDocument}> {
 		const {
 			versionNumber: n_version,
 			value: sx_value,
@@ -576,7 +642,7 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 
 		return {
 			versionNumber: n_version,
-			document: new XhtmlDocument(sx_value),
+			document: new ConfluenceXhtmlDocument(sx_value),
 		};
 	}
 
@@ -808,10 +874,10 @@ export class ConfluenceDocument extends ConfluenceEntity<DocumentMetadata> {
 				cql: [
 					'type=page',
 					`space.key=${G_META.space_key}`,
-					[
+					'('+[
 						`id=${this._si_cover_page}`,
 						`ancestor=${this._si_cover_page}`,
-					].join(' or '),
+					].join(' or ')+')',
 					`text~"${sr_path}"`,
 				].join(' and '),
 				expand: 'body.storage',
@@ -847,6 +913,59 @@ export class ConfluenceDocument extends ConfluenceEntity<DocumentMetadata> {
 		}
 
 		return h_hits;
+	}
+
+	async fetchUserHasUpdatePermissions(): Promise<boolean> {
+		// fetch document cover page restrictions
+		const g_response_cover = await confluence_get_json<ConfluenceApi.RestrictionsResponse>(`/content/${this.coverPageId}/restriction/byOperation/update`, {
+			search: {
+				expand: ['restrictions.user', 'restrictions.group'].join(','),
+			},
+		});
+
+		// destructure response data
+		const {
+			group: {
+				results: a_groups_cover,
+			},
+			user: {
+				results: a_users_cover,
+			},
+		} = g_response_cover.data?.restrictions!;
+
+		// no restriction(s) exists
+		if(!a_groups_cover.length && !a_users_cover.length) {
+			return true;
+		}
+
+		// user key
+		const si_user_current = G_META.remote_user_key;
+
+		// each user
+		for(const g_user of a_users_cover) {
+			// found current user
+			if(g_user.userKey === si_user_current) return true;
+		}
+
+		// fetch user groups
+		const g_response_user = await confluence_get_json<ConfluenceApi.MemberOfResponse>('/user/memberof', {
+			search: {
+				key: G_META.remote_user_key,
+			},
+		});
+
+		// convert user groups into set
+		const as_groups_user = new Set((g_response_user.data?.results || []).map(g_group => g_group.name));
+
+		// each group
+		for(const g_group of a_groups_cover) {
+			// user belongs to authorized group
+			if(as_groups_user.has(g_group.name)) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	// async getDataSource<SourceType extends Source>(si_key: SourceKey, b_force=false): Promise<SourceType | null> {

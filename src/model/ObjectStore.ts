@@ -22,6 +22,7 @@ import type {
 	VeOdm,
 	WritableAsynchronousSerializationLocation,
 } from '#/model/Serializable';
+import { oderom } from '#/util/belt';
 
 
 
@@ -96,10 +97,9 @@ export function access<Type extends PrimitiveValue>(h_map: PrimitiveObject, a_fr
 		if('*' === s_frag) {
 			const sp_parent = a_frags.slice(0, i_frag).join('.');
 
-			return Object.entries(z_node).reduce((h_out, [si_key, w_value]) => ({
-				...h_out,
+			return oderom(z_node, (si_key, w_value) => ({
 				[`${sp_parent}.${si_key}`]: w_value,
-			}), {}) as Type;
+			})) as Type;
 		}
 		// recursive wildcard
 		else if('**' === s_frag) {
@@ -113,10 +113,9 @@ export function access<Type extends PrimitiveValue>(h_map: PrimitiveObject, a_fr
 				}
 			}
 
-			return Object.entries(z_node).reduce((h_out, [si_key, w_value]) => ({
-				...h_out,
+			return oderom(z_node, (si_key, w_value) => ({
 				[`${sp_parent}.${si_key}`]: w_value,
-			}), {}) as Type;
+			})) as Type;
 		}
 
 		// access thing
@@ -197,7 +196,6 @@ export class ObjectStore {
 		return h_out;
 	}
 
-
 	// eslint-disable-next-line class-methods-use-this
 	idPartSync(sp_path: string): string {
 		const a_parts = sp_path.split('#');
@@ -262,10 +260,9 @@ export class ObjectStore {
 	>(sp_path: VeoPath.HardcodedObject, g_context: Context, dc_class: Instantiable<ValueType, ClassType>): Record<VeoPath.Full, ClassType> {
 		const sp_parent = sp_path.replace(/\.[^.]+$/, '');
 		const h_options = this.resolveSync<Record<string, ValueType>>(sp_parent as VeoPath.Locatable);
-		return Object.entries(h_options).reduce((h_out, [si_key, w_value]) => ({
-			...h_out,
+		return oderom(h_options, (si_key, w_value) => ({
 			[`${sp_parent}.${si_key}`]: new dc_class(`${sp_parent}.${si_key}` as VeoPath.Full, w_value, g_context),
-		}), {});
+		}));
 	}
 
 	resolveSync<

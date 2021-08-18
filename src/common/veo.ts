@@ -2,7 +2,7 @@ import type {
 	DotFragment,
 } from '#/common/types';
 
-import type { Connection, MmsSparqlConnection, SparqlConnection } from '#/model/Connection';
+import type { Connection, MmsSparqlConnection, PlainSparqlConnection, SparqlConnection } from '#/model/Connection';
 
 export const NL_PATH_FRAGMENTS = 5;
 
@@ -116,6 +116,9 @@ export namespace ReVeoPath {
 				sparql: {
 					mms: {
 						[si: string]: MmsSparqlConnection.Serialized;
+					};
+					plain: {
+						[si: string]: PlainSparqlConnection.Serialized;
 					};
 				};
 			};

@@ -6,10 +6,12 @@
 	import {
 		ConfluencePage,
 		ConfluenceDocument,
+ConfluenceXhtmlDocument,
 	} from '#/vendor/confluence/module/confluence';
 
 	import type {
 		DocumentMetadata,
+		PageMetadata,
 	} from '#/vendor/confluence/module/confluence';
 
 	import {
@@ -30,8 +32,8 @@
 	import {
 		dm_main,
 		dm_main_header,
-		dm_sidebar,
-qs,
+		// dm_sidebar,
+		qs,
 	} from '#/util/dom';
 
 	import {slide} from 'svelte/transition';
@@ -44,6 +46,9 @@ qs,
 	} from 'svelte-tabs';
 
 	import type {JsonObject} from '#/common/types';
+import { oderac, oderaf } from '#/util/belt';
+import XHTMLDocument, { xpathSelect1 } from '#/vendor/confluence/module/xhtml-document';
+import type { XhtmlString } from '#/util/strings';
 
 	export let g_context: Context;
 
@@ -53,6 +58,8 @@ qs,
 
 	let b_ready = false;
 	let b_read_only = false;
+	let b_read_only_page = false;
+
 	let dm_bar: HTMLDivElement;
 	let b_collapsed = true;
 	let dm_icon_dropdown: HTMLDivElement;
@@ -64,8 +71,23 @@ qs,
 	$: b_document_json_valid = g_document_metadata_editted && !(g_document_metadata_editted instanceof Error);
 	$: b_document_json_writable = b_document_json_valid && JSON.stringify(g_document_metadata_editted) !== sx_document_metadata_remote;
 	
-	let dm_sidebar_scrollable = (qs(dm_sidebar, '.ia-scrollable-section') as HTMLDivElement);
-	let n_pre_scrolltop = dm_sidebar.scrollTop || 0;
+	let sx_page_metadata_remote: string;
+	$: sx_page_metadata_local = '';
+	let g_page_metadata_editted: PageMetadata | Error;
+	$: b_page_json_valid = g_page_metadata_editted && !(g_page_metadata_editted instanceof Error);
+	$: b_page_json_writable = b_page_json_valid && JSON.stringify(g_page_metadata_editted) !== sx_page_metadata_remote;
+
+	let sx_page_content_remote: string;
+	$: sx_page_content_local = '';
+	let sx_page_content_editted: string | Error;
+	$: b_page_content_valid = sx_page_content_editted && !(sx_page_content_editted instanceof Error);
+	$: b_page_content_writable = b_page_json_valid && (new ConfluenceXhtmlDocument(sx_page_content_editted as string)).toString() !== sx_page_content_remote;
+	
+	const dm_sidebar = qs(document.body, '.ia-fixed-sidebar') as HTMLDivElement;
+	// if(dm_sidebar) {
+	// 	let dm_sidebar_scrollable = (qs(dm_sidebar, '.ia-scrollable-section') as HTMLDivElement);
+	// 	let n_pre_scrolltop = dm_sidebar.scrollTop || 0;
+	// }
 	
 	$: {
 		try {
@@ -73,6 +95,20 @@ qs,
 		}
 		catch(e_parse) {
 			g_document_metadata_editted = e_parse as Error;
+		}
+
+		try {
+			g_page_metadata_editted = JSON.parse(sx_page_metadata_local) as PageMetadata;
+		}
+		catch(e_parse) {
+			g_page_metadata_editted = e_parse as Error;
+		}
+
+		try {
+			sx_page_content_editted = (new XHTMLDocument(sx_page_content_local)).toString().replace(/>\s*\n\s*</g, '><');
+		}
+		catch(e_parse) {
+			sx_page_content_editted = e_parse as Error;
 		}
 	}
 
@@ -115,7 +151,7 @@ qs,
 		// go async to allow svelte components to bind to local variables
 		await Promise.resolve();
 
-		// user does not have write permisisons
+		// user does not have write permisisons to this page
 		if('READ_WRITE' !== G_META.access_mode) {
 			b_read_only = true;
 		}
@@ -145,13 +181,39 @@ qs,
 
 		k_page = await ConfluencePage.fromCurrentPage();
 
+		LOAD_DOCUMENT_METADATA:
 		if(await k_page.isDocumentMember()) {
-			k_document = await k_page.fetchDocument();
+			k_document = await k_page.fetchDocument()!;
 
-			const g_bundle = await k_document?.fetchMetadataBundle();
+			if(!k_document) break LOAD_DOCUMENT_METADATA;
+
+			const g_bundle = await k_document.fetchMetadataBundle();
 
 			sx_document_metadata_local = JSON.stringify(g_bundle?.data, null, '  ');
 			sx_document_metadata_remote = JSON.stringify(g_bundle?.data);
+
+			// user does not have edit permissions to document
+			b_read_only ||= !(await k_document.fetchUserHasUpdatePermissions());  // eslint-disable-line @typescript-eslint/no-unsafe-call
+		}
+
+		LOAD_PAGE_METADATA:
+		{
+			if(!k_page) break LOAD_PAGE_METADATA;
+
+			const g_bundle = await k_page.fetchMetadataBundle();
+
+			sx_page_metadata_local = JSON.stringify(g_bundle?.data, null, '  ');
+			sx_page_metadata_remote = JSON.stringify(g_bundle?.data);
+		}
+
+		LOAD_PAGE_CONTENT:
+		{
+			if(!k_page) break LOAD_PAGE_CONTENT;
+
+			const g_bundle = await k_page.fetchContentAsXhtmlDocument();
+
+			sx_page_content_local = g_bundle.document.prettyPrint();
+			sx_page_content_remote = g_bundle.document.toString();
 		}
 	});
 
@@ -185,6 +247,10 @@ qs,
 		}
 	}
 
+	/**
+	 * {a: {b: {c: 'yellow', d:'orange'}}} => ['a.b.c', 'a.b.d']
+	 */
+
 	async function reset_page(b_force=false): Promise<void> {
 		if(k_page) {
 			if(b_force) {
@@ -196,7 +262,74 @@ qs,
 				location.reload();
 			}
 			else {
-				// TODO: implement unused element garbage collection
+				const g_bundle = await k_page.fetchMetadataBundle();
+				const h_elements = g_bundle?.data.paths.elements;
+				if(g_bundle && h_elements) {
+					// disable button while it overwrites
+					b_page_json_writable = false;
+
+					// allow to update dom
+					await Promise.resolve();
+
+					const as_elements = new Set((function flatten_obj(h_in: Record<string, any>, c_levels: number, a_path: string[]=[]): string[] {
+						return oderaf(h_in, (si_key, z_value) => {
+							if(c_levels) {
+								if('object' === typeof z_value) {
+									return flatten_obj(z_value, c_levels-1, [...a_path, si_key]);
+								}
+								// cannot go deeper
+								else {
+									throw new Error(`Cannot go deeper inside nested object to flatten`);
+								}
+							}
+							else {
+								return [[...a_path, si_key].join('.')];
+							}
+						});
+					})(h_elements, 2));
+
+					const as_nodes = new Set(g_context.source_original.selectPageElements()
+						.map(yn => xpathSelect1<Node>('ac:parameter[@ac:name="id"]', yn).firstChild!.nodeValue?.replace(/^page#elements\./, '')));
+
+					// each element
+					for(const sp_element of as_elements) {
+						// element is not on page
+						if(!as_nodes.has(sp_element)) {
+							// delete from elements
+							const a_dots = sp_element.split(/\./g);
+
+							let z_node: Record<string, any> = h_elements;
+							const nl_dots = a_dots.length;
+							for(let i_dot=0; i_dot<nl_dots-1; i_dot++) {
+								z_node = z_node[a_dots[i_dot]];
+							}
+
+							delete z_node[a_dots[nl_dots-1]];
+
+							// no more keys
+							for(let i_up=nl_dots-2; i_up>=0; i_up--) {
+								if(!Object.keys(z_node).length) {
+									let z_trav = h_elements;
+									for(let i_dot=0; i_dot<i_up; i_dot++) {
+										z_trav = z_trav[a_dots[i_dot]];
+									}
+									z_node = z_trav;
+									continue;
+								}
+								else {
+									break;
+								}
+							}
+						}
+					}
+
+					await k_page.writeMetadataObject(g_bundle?.data, {
+						number: (g_bundle?.version.number || 0)+1,
+						message: 'Clear unused objects',
+					});
+
+					location.reload();
+				}
 			}
 		}
 	}
@@ -279,6 +412,39 @@ qs,
 
 		location.reload();
 	}
+
+	async function overwrite_page_json() {
+		if(!b_page_json_writable || !k_page) return;
+
+		// disable button while it overwrites
+		b_page_json_writable = false;
+
+		const g_bundle = await k_page.fetchMetadataBundle();
+		const n_version = g_bundle?.version.number || 0;
+
+		await k_page.writeMetadataObject(g_page_metadata_editted as PageMetadata, {
+			number: n_version+1,
+			message: 'Manual admin overwrite',
+		});
+
+		location.reload();
+	}
+
+	async function overwrite_page_content() {
+		if(!b_page_content_writable || !k_page) return;
+
+		// disable button while it overwrites
+		b_page_content_writable = false;
+
+		const g_bundle = await k_page.fetchContentAsXhtmlDocument();
+		const n_version = g_bundle.versionNumber;
+
+		let k_contents = new XHTMLDocument(sx_page_content_editted as string);
+
+		await k_page.postContent(k_contents, 'Manual admin overwrite');
+
+		location.reload();
+	}
 </script>
 
 <style lang="less">
@@ -355,6 +521,16 @@ qs,
 				.icon-dropdown {
 					position: absolute;
 					right: 1em;
+				}
+
+				.icon-readonly {
+					background-color: var(--ve-color-light-text);
+					color: var(--ve-color-dark-text);
+					padding: 2px 8px;
+					border-radius: 17px;
+					font-size: 12px;
+					line-height: 14px;
+					margin-left: 8pt;
 				}
 			}
 		}
@@ -504,7 +680,7 @@ qs,
 											<p>
 												<textarea bind:value={sx_document_metadata_local} class="code-edit" spellcheck="false" />
 											</p>
-											<button class="ve-button-primary" disabled={!b_document_json_writable} on:click={overwrite_document_json}>
+											<button class="ve-button-primary" disabled={b_read_only || !b_document_json_writable} on:click={overwrite_document_json}>
 												{#if b_document_json_writable}
 													Overwrite JSON
 												{:else if b_document_json_valid}
@@ -530,11 +706,49 @@ qs,
 								<section>
 									<h3>Page</h3>
 									<div>
+										<h4>
+											Edit page metadata:
+										</h4>
+
+										<p>
+											<textarea bind:value={sx_page_metadata_local} class="code-edit" spellcheck="false" />
+										</p>
+										<button class="ve-button-primary" disabled={b_read_only_page || !b_page_json_writable} on:click={overwrite_page_json}>
+											{#if b_page_json_writable}
+												Overwrite JSON
+											{:else if b_page_json_valid}
+												JSON is unchanged
+											{:else}
+												Invalid JSON
+											{/if}
+										</button>
+									</div>
+
+									<div>
 										<h4>Reset page metadata:</h4>
 										<span>
-											<button class="ve-button-primary" on:click={() => reset_page()}>Clear all unused objects</button>
-											<button class="ve-button-primary" on:click={() => reset_page(true)}>Force reset metadata</button>
+											<button class="ve-button-primary" disabled={b_read_only_page} on:click={() => reset_page()}>Clear all unused objects</button>
+											<button class="ve-button-primary" disabled={b_read_only_page} on:click={() => reset_page(true)}>Force reset metadata</button>
 										</span>
+									</div>
+
+									<div>
+										<h4>
+											Edit page content:
+										</h4>
+
+										<p>
+											<textarea bind:value={sx_page_content_local} class="code-edit" spellcheck="false" />
+										</p>
+										<button class="ve-button-primary" disabled={b_read_only_page || !b_page_content_writable} on:click={overwrite_page_content}>
+											{#if b_page_content_writable}
+												Overwrite Content
+											{:else if b_page_content_valid}
+												Content is unchanged
+											{:else}
+												Invalid Content
+											{/if}
+										</button>
 									</div>
 								</section>
 							</div>
