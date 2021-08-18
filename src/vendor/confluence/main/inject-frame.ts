@@ -1,65 +1,16 @@
-import { dd, qs } from "#/util/dom";
+import {
+	dd,
+	qs,
+} from "#/util/dom";
+
+import {
+	confluence_editor_injections,
+} from '#/common/static';
 
 export const SR_HASH_VE_PAGE_EDIT_MODE = '#editor';
 
 // export const P_SRC_WYSIWYG_EDITOR = 'https://ced-cdn-test.s3-us-gov-west-1.amazonaws.com/confluence-ui/injected-editor.js';
-export const P_SRC_WYSIWYG_EDITOR = 'http://localhost:3001/public/build/wysiwyg-editor.js';
-
-// const A_NATIVE_WINDOW_KEYS = Object.entries(Object.getOwnPropertyDescriptors(window))
-// 	.filter(([si_key, g_desc]) => !g_desc.enumerable || !g_desc.configurable)
-// 	.map(([si_key]) => si_key);
-
-const AS_WINDOW_EXLPICIT_PROTECT: Set<string> = new Set([
-	// 'fetch', '', 
-]);
-
-// const A_NATIVE = [
-// 	'0', 'window', 'self', 'document', 'name', 'location', 'customElements', 'history', 'locationbar',
-// 	'menubar', 'personalbar', 'scrollbars', 'statusbar', 'toolbar', 'status', 'closed', 'frames',
-// 	'length', 'top', 'opener', 'parent', 'frameElement', 'navigator', 'origin', 'external', 'screen',
-// 	'innerWidth', 'innerHeight', 'scrollX', 'pageXOffset', 'scrollY', 'pageYOffset', 'visualViewport',
-// 	'screenX', 'screenY', 'outerWidth', 'outerHeight', 'devicePixelRatio', 'clientInformation',
-// 	'screenLeft', 'screenTop', 'defaultStatus', 'defaultstatus', 'styleMedia', 'onsearch',
-// 	'isSecureContext', 'performance', 'onappinstalled', 'onbeforeinstallprompt', 'crypto', 'indexedDB',
-// 	'webkitStorageInfo', 'sessionStorage', 'localStorage', 'onbeforexrselect', 'onabort', 'onblur',
-// 	'oncancel', 'oncanplay', 'oncanplaythrough', 'onchange', 'onclick', 'onclose', 'oncontextmenu',
-// 	'oncuechange', 'ondblclick', 'ondrag', 'ondragend', 'ondragenter', 'ondragleave', 'ondragover',
-// 	'ondragstart', 'ondrop', 'ondurationchange', 'onemptied', 'onended', 'onerror', 'onfocus',
-// 	'onformdata', 'oninput', 'oninvalid', 'onkeydown', 'onkeypress', 'onkeyup', 'onload',
-// 	'onloadeddata', 'onloadedmetadata', 'onloadstart', 'onmousedown', 'onmouseenter', 'onmouseleave',
-// 	'onmousemove', 'onmouseout', 'onmouseover', 'onmouseup', 'onmousewheel', 'onpause', 'onplay',
-// 	'onplaying', 'onprogress', 'onratechange', 'onreset', 'onresize', 'onscroll', 'onseeked',
-// 	'onseeking', 'onselect', 'onstalled', 'onsubmit', 'onsuspend', 'ontimeupdate', 'ontoggle',
-// 	'onvolumechange', 'onwaiting', 'onwebkitanimationend', 'onwebkitanimationiteration',
-// 	'onwebkitanimationstart', 'onwebkittransitionend', 'onwheel', 'onauxclick', 'ongotpointercapture',
-// 	'onlostpointercapture', 'onpointerdown', 'onpointermove', 'onpointerup', 'onpointercancel',
-// 	'onpointerover', 'onpointerout', 'onpointerenter', 'onpointerleave', 'onselectstart',
-// 	'onselectionchange', 'onanimationend', 'onanimationiteration', 'onanimationstart',
-// 	'ontransitionrun', 'ontransitionstart', 'ontransitionend', 'ontransitioncancel', 'onafterprint',
-// 	'onbeforeprint', 'onbeforeunload', 'onhashchange', 'onlanguagechange', 'onmessage', 'onmessageerror',
-// 	'onoffline', 'ononline', 'onpagehide', 'onpageshow', 'onpopstate', 'onrejectionhandled', 'onstorage',
-// 	'onunhandledrejection', 'onunload', 'alert', 'atob', 'blur', 'btoa', 'cancelAnimationFrame',
-// 	'cancelIdleCallback', 'captureEvents', 'clearInterval', 'clearTimeout', 'close', 'confirm',
-// 	'createImageBitmap', 'fetch', 'find', 'focus', 'getComputedStyle', 'getSelection', 'matchMedia',
-// 	'moveBy', 'moveTo', 'open', 'postMessage', 'print', 'prompt', 'queueMicrotask', 'releaseEvents',
-// 	'requestAnimationFrame', 'requestIdleCallback', 'resizeBy', 'resizeTo', 'scroll', 'scrollBy',
-// 	'scrollTo', 'setInterval', 'setTimeout', 'stop', 'webkitCancelAnimationFrame',
-// 	'webkitRequestAnimationFrame', 'chrome', 'caches', 'cookieStore', 'ondevicemotion',
-// 	'ondeviceorientation', 'ondeviceorientationabsolute', 'showDirectoryPicker', 'showOpenFilePicker',
-// 	'showSaveFilePicker', 'speechSynthesis', 'originAgentCluster', 'onpointerrawupdate', 'trustedTypes',
-// 	'crossOriginIsolated', 'openDatabase', 'webkitRequestFileSystem', 'webkitResolveLocalFileSystemURL',
-// 	'loadTimeData', 'JSCompiler_renameProperty', 'ShadyCSS', 'mojo', 'mojoBase', 'skia', 'url', 'search',
-// 	'realbox', 'newTabPage', 'cr', 'chromeCart', 'promoBrowserCommand', 'drive', 'taskModule',
-// ];
-
-
-// const A_KEEP = [
-// 	'AJS', '$', 'jQuery', 'jquery',
-// 	// 'define', 'require',
-// 	// 'WRM',
-// ];
-
-// const A_DEFS = [...A_NATIVE, ...A_KEEP];
+export const P_SRC_WYSIWYG_EDITOR = 'http://localhost:3001/public/build/confluence-editor.js';
 
 const B_AWAIT_PRELOAD = true;
 
@@ -233,6 +184,8 @@ export async function inject_frame(p_href: string): Promise<void> {
 		});
 	}
 
+	debugger;
+
 	// let all microtasks die
 	await microtasks_expire();
 
@@ -278,16 +231,19 @@ export async function inject_frame(p_href: string): Promise<void> {
 		}
 
 		// set iframe target
-		window.ve4_iframe_target = pr_target;
+		Object.assign(window, {ve4_iframe_target:pr_target});
 	}
+
+	debugger;
 
 	// open, write and close document
 	{
 		document.open();
-		// document.write(sx_injected);
 		document.write('<html><body><div id="ve4-loading">Loading...</div></body></html>');
 		document.close();
 	}
+
+	debugger;
 
 	// create iframe
 	{
@@ -356,27 +312,53 @@ export async function inject_frame(p_href: string): Promise<void> {
 			// });
 		}
 
-		d_document.open();
-		d_document.write(sx_injected);
-		d_document.close();
+		
+		// write injected HTML into iframe document
+		{
+			d_document.open();
+			d_document.write(sx_injected);
+			d_document.close();
+		}
+
+		debugger;
 
 		// monkey-patch editor styling
 		{
-			const d_observer = new MutationObserver((a_muts) => {
+			const try_styling = () => {
 				const dm_editor = d_document.getElementById('wysiwygTextarea_ifr') as HTMLIFrameElement;
 				if(!dm_editor) return;
 
 				const d_editor_doc = dm_editor.contentDocument!;
 				const dm_editor_head = d_editor_doc.head;
-				const dm_css = d_editor_doc.createElement('link');
-				dm_css.type = 'text/css';
-				dm_css.rel = 'stylesheet';
-				dm_css.media = 'all';
-				dm_css.href = 'https://wiki.jpl.nasa.gov/s/69afc5555c45d13b7cc6239935b399e5-CDN/-25huub/8505/f5e71ce5e7eab96b69c873705d53960b71f86fff/c5daead80556afbde9c4a23a2c202d7b/_/download/contextbatch/css/editor-content/batch.css?frontend.editor.v4=true';
-				dm_css.id = 've4-forced-style';
-				dm_editor_head.appendChild(dm_css);
+
+				debugger;
+				if(Array.isArray(confluence_editor_injections)) {
+					for(const gc_element of confluence_editor_injections as Record<string, string>[]) {
+						try {
+							const dm = d_editor_doc.createElement(gc_element.$);
+							delete gc_element.$;
+							Object.assign(dm, gc_element);
+							dm_editor_head.appendChild(dm);
+						}
+						catch(e_create) {
+							console.error(`Failed to created confluence editor injection element due to ${(e_create as Error).message}: ${JSON.stringify(gc_element)}`);
+						}
+					}
+				}
 
 				d_observer.disconnect();
+
+				// const dm_css = d_editor_doc.createElement('link');
+				// dm_css.type = 'text/css';
+				// dm_css.rel = 'stylesheet';
+				// dm_css.media = 'all';
+				// dm_css.href = 'https://wiki.jpl.nasa.gov/s/69afc5555c45d13b7cc6239935b399e5-CDN/-25huub/8505/f5e71ce5e7eab96b69c873705d53960b71f86fff/c5daead80556afbde9c4a23a2c202d7b/_/download/contextbatch/css/editor-content/batch.css?frontend.editor.v4=true';
+				// dm_css.id = 've4-forced-style';
+				// dm_editor_head.appendChild(dm_css);
+			};
+
+			const d_observer = new MutationObserver(() => {
+				try_styling();
 			});
 
 			d_document.addEventListener('DOMContentLoaded', () => {
@@ -386,6 +368,9 @@ export async function inject_frame(p_href: string): Promise<void> {
 					attributes: false,
 					characterData: false,
 				});
+
+				debugger;
+				try_styling();
 			});
 		}
 

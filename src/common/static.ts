@@ -8,6 +8,11 @@ export const process: Process = null as unknown as Process;
 
 export const lang: Lang = null as unknown as Lang;
 
+export const confluence_editor_injections = null as unknown as {
+	[attr: string]: string | undefined;
+	$: string;
+}[];
+
 export let static_css = '';
 
 static_css += /* syntax: css */ `

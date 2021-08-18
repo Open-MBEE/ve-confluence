@@ -62,14 +62,20 @@ const H_REPLACE_IN = {
 	static_js: [
 		'./node_modules/@fortawesome/fontawesome-free/js/all.min.js',
 	].map(pr => fs.readFileSync(pr, 'utf8')).join('\n'),
+	confluence_editor_injections: process.env.CONFLUENCE_EDITOR_INJECTIONS
+		? require(process.env.CONFLUENCE_EDITOR_INJECTIONS) || []
+		: [],
 };
+
+console.dir(H_REPLACE_IN.confluence_editor_injections);
 
 const H_VALUES_OUT = replace_values(H_REPLACE_IN);
 
-console.dir(replace_values({
-	process: H_REPLACE_IN.process,
-	lang: H_REPLACE_IN.lang,
-}));
+console.dir(replace_values([
+	'process',
+	'lang',
+	'confluence_editor_injections',
+].reduce((h, s) => ({...h, [s]: H_REPLACE_IN[s]}), {})));
 
 const k_resolver = resolve({
 	browser: true,
@@ -148,78 +154,6 @@ const svelte_plugins = ({terser:z_terser='auto'}={}) => [
 			: [false])),
 ];
 
-function patch(pr_src, gc_patch) {
-	const {
-		prepend: s_prepend='',
-		rules: a_rules=[],
-		append: s_append='',
-	} = gc_patch;
-
-	const s_last = '';
-
-	const ds_transform = new Transform({
-		transform(s_chunk, s_encoding, fk_transform) {
-			const a_lines = (s_last+s_chunk).split(/\n/g);
-			const a_safe = a_lines.slice(0, -1);
-			s_last = a_safe[a_safe.length-1];
-
-			const a_out = [];
-
-			// each line
-			LINES:
-			for(let s_line of a_safe) {
-				let i_rule = -1;
-
-				// each rule
-				RULES:
-				for(const g_rule of a_rules) {
-					i_rule += 1;
-					if(g_rule.match) {
-						switch(typeof g_rule.replace) {
-							case 'string':
-							case 'function': {
-								s_line = s_line.replace(g_rule.match, g_rule.replace);
-								if(g_rule.once) {
-									a_rules.splice(i_rule--, 1);
-								}
-								continue RULES;
-							}
-						}
-					}
-				}
-
-				// push line
-				a_out.push(s_line);
-			}
-
-			// push transformed chunk
-			this.push(a_out.join('\n'));
-			fk_transform();
-		},
-
-		flush(fk_flush) {
-			if(s_last || s_append) this.push(s_last+s_append);
-			fk_flush();
-		},
-	});
-
-	// prepend
-	if(s_prepend) {
-		ds_transform.push(s_prepend);
-	}
-
-	// pipeline
-	fs.createReadStream(pr_src, 'utf8')
-		.pipe(ds_transform);
-
-	return {
-		name: 'patch',
-		// buildStart() {},
-		renderChunk(s_code, s_chunk) {
-
-		},
-	};
-}
 
 export default [
 	// confluence entrypoint
@@ -237,55 +171,20 @@ export default [
 		},
 	},
 
-	// // confluence editor
-	// {
-	// 	input: 'src/vendor/confluence/main/editor.ts',
-	// 	output: {
-	// 		sourcemap: true,
-	// 		format: 'iife',
-	// 		name: 'editor',
-	// 		file: 'public/build/editor.js'
-	// 	},
-	// 	plugins: [
-	// 		patch('.js', {
-	// 			prepend: /* syntax: js */ `
-	// 				if(window.parent.ve4_iframe_target) {
-	// 					history.replaceState(null, '', window.parent.ve4_iframe_target);
-	// 				}
-	// 				else {
-	// 					throw new Error('IGNORE THIS ERROR. This error is being thrown in order to prevent the editor script from executing. VE4 is doing this in order to preload the editor script for a better UI experience :)');
-	// 				}
-					
-	// 				if('$_DEFINE_VE4_WYSIWYG_EDITOR' in window) throw new Error('The editor is already loaded')
-					
-	// 				window.$_DEFINE_VE4_WYSIWYG_EDITOR = 've4';
-					
-	// 				var F_NOOP = (...a_args) => {
-	// 					// return window.history.pushState(...a_args);
-	// 				};
-	// 			`,
-	// 			rules: [
-	// 				// prevent any method from changing state
-	// 				{
-	// 					match: /([a-zA-Z0-9$_]\.)*history\.(push|replace)State/g,
-	// 					replace: 'F_NOOP',
-	// 				},
-	// 				// apply META locale
-	// 				{
-	// 					once: true,
-	// 					match: /\s*(module\.exports\s*=\s*__(WEBPACK_EXTERNAL_MODULE_2__);?)\s*/,
-	// 					replace: `
-	// 						$2.set('user-locale', 'en-US');
-
-	// 						$1
-	// 					`,
-	// 				},
-	// 			],
-	// 		}),
-	// 		...svelte_plugins({terser:true}),
-	// 	],
-	// 	watch: {
-	// 		clearScreen: false,
-	// 	},
-	// },
+	// confluence editor
+	{
+		input: 'src/vendor/confluence/patch/editor.ts',
+		output: {
+			sourcemap: true,
+			format: 'iife',
+			name: 'editor',
+			file: 'public/build/editor.js'
+		},
+		plugins: [
+			...svelte_plugins({terser:true}),
+		],
+		watch: {
+			clearScreen: false,
+		},
+	},
 ];

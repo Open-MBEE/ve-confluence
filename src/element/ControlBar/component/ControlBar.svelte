@@ -6,6 +6,7 @@
 	import {
 		ConfluencePage,
 		ConfluenceDocument,
+ConfluenceXhtmlDocument,
 	} from '#/vendor/confluence/module/confluence';
 
 	import type {
@@ -46,7 +47,8 @@
 
 	import type {JsonObject} from '#/common/types';
 import { oderac, oderaf } from '#/util/belt';
-import { xpathSelect1 } from '#/vendor/confluence/module/xhtml-document';
+import XHTMLDocument, { xpathSelect1 } from '#/vendor/confluence/module/xhtml-document';
+import type { XhtmlString } from '#/util/strings';
 
 	export let g_context: Context;
 
@@ -74,6 +76,12 @@ import { xpathSelect1 } from '#/vendor/confluence/module/xhtml-document';
 	let g_page_metadata_editted: PageMetadata | Error;
 	$: b_page_json_valid = g_page_metadata_editted && !(g_page_metadata_editted instanceof Error);
 	$: b_page_json_writable = b_page_json_valid && JSON.stringify(g_page_metadata_editted) !== sx_page_metadata_remote;
+
+	let sx_page_content_remote: string;
+	$: sx_page_content_local = '';
+	let sx_page_content_editted: string | Error;
+	$: b_page_content_valid = sx_page_content_editted && !(sx_page_content_editted instanceof Error);
+	$: b_page_content_writable = b_page_json_valid && (new ConfluenceXhtmlDocument(sx_page_content_editted as string)).toString() !== sx_page_content_remote;
 	
 	const dm_sidebar = qs(document.body, '.ia-fixed-sidebar') as HTMLDivElement;
 	// if(dm_sidebar) {
@@ -94,6 +102,13 @@ import { xpathSelect1 } from '#/vendor/confluence/module/xhtml-document';
 		}
 		catch(e_parse) {
 			g_page_metadata_editted = e_parse as Error;
+		}
+
+		try {
+			sx_page_content_editted = (new XHTMLDocument(sx_page_content_local)).toString().replace(/>\s*\n\s*</g, '><');
+		}
+		catch(e_parse) {
+			sx_page_content_editted = e_parse as Error;
 		}
 	}
 
@@ -189,6 +204,16 @@ import { xpathSelect1 } from '#/vendor/confluence/module/xhtml-document';
 
 			sx_page_metadata_local = JSON.stringify(g_bundle?.data, null, '  ');
 			sx_page_metadata_remote = JSON.stringify(g_bundle?.data);
+		}
+
+		LOAD_PAGE_CONTENT:
+		{
+			if(!k_page) break LOAD_PAGE_CONTENT;
+
+			const g_bundle = await k_page.fetchContentAsXhtmlDocument();
+
+			sx_page_content_local = g_bundle.document.prettyPrint();
+			sx_page_content_remote = g_bundle.document.toString();
 		}
 	});
 
@@ -401,6 +426,22 @@ import { xpathSelect1 } from '#/vendor/confluence/module/xhtml-document';
 			number: n_version+1,
 			message: 'Manual admin overwrite',
 		});
+
+		location.reload();
+	}
+
+	async function overwrite_page_content() {
+		if(!b_page_content_writable || !k_page) return;
+
+		// disable button while it overwrites
+		b_page_content_writable = false;
+
+		const g_bundle = await k_page.fetchContentAsXhtmlDocument();
+		const n_version = g_bundle.versionNumber;
+
+		let k_contents = new XHTMLDocument(sx_page_content_editted as string);
+
+		await k_page.postContent(k_contents, 'Manual admin overwrite');
 
 		location.reload();
 	}
@@ -689,6 +730,25 @@ import { xpathSelect1 } from '#/vendor/confluence/module/xhtml-document';
 											<button class="ve-button-primary" disabled={b_read_only_page} on:click={() => reset_page()}>Clear all unused objects</button>
 											<button class="ve-button-primary" disabled={b_read_only_page} on:click={() => reset_page(true)}>Force reset metadata</button>
 										</span>
+									</div>
+
+									<div>
+										<h4>
+											Edit page content:
+										</h4>
+
+										<p>
+											<textarea bind:value={sx_page_content_local} class="code-edit" spellcheck="false" />
+										</p>
+										<button class="ve-button-primary" disabled={b_read_only_page || !b_page_content_writable} on:click={overwrite_page_content}>
+											{#if b_page_content_writable}
+												Overwrite Content
+											{:else if b_page_content_valid}
+												Content is unchanged
+											{:else}
+												Invalid Content
+											{/if}
+										</button>
 									</div>
 								</section>
 							</div>
