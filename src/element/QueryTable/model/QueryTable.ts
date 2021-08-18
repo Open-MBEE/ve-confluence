@@ -396,6 +396,7 @@ export abstract class QueryTable<
 				}, k_contents),
 				yn_table,
 			],
+			autoCursor: true,
 		}, k_contents);
 
 		// use anchor

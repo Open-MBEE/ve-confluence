@@ -371,6 +371,7 @@ export interface MacroConfig {
 	uuid?: string;
 	params?: Hash;
 	body: Node | Node[] | string;
+	autoCursor?: boolean;
 }
 
 export function autoCursorMutate(yn_node: Node, k_contents: XhtmlDocument): void {
@@ -403,7 +404,7 @@ export function autoCursorMutate(yn_node: Node, k_contents: XhtmlDocument): void
 export function autoCursorNode(f_builder: ReturnType<XhtmlDocument["builder"]>) {
 	return f_builder('p', {
 		class: 'auto-cursor-target',
-	}, [f_builder('br')])
+	}, [f_builder('br')]);
 }
 
 export function autoCursor(yn_node: Node, k_contents: XhtmlDocument): Node[] {
@@ -468,18 +469,24 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 		let yn_body;
 		{
 			const z_body = gc_macro.body;
+			let a_nodes = [];
+
 			if(Array.isArray(z_body)) {
-				yn_body = f_builder('ac:rich-text-body', {}, [
-					...z_body.flatMap(yn => [autoCursorNode(f_builder), yn]),
-					autoCursorNode(f_builder),
-				]);
+				a_nodes = gc_macro.autoCursor
+					? [
+						...z_body.flatMap(yn => [autoCursorNode(f_builder), yn]),
+						autoCursorNode(f_builder),
+					]
+					: z_body;
 			}
 			else if('string' === typeof z_body) {
-				yn_body = f_builder('ac:rich-text-body', {}, [z_body]);
+				a_nodes = gc_macro.autoCursor? [autoCursorNode(f_builder), z_body, autoCursorNode(f_builder)]: [z_body];
 			}
 			else {
-				yn_body = f_builder('ac:rich-text-body', {}, autoCursor(z_body, k_contents));
+				a_nodes = gc_macro.autoCursor? autoCursor(z_body, k_contents): [z_body];
 			}
+
+			yn_body = f_builder('ac:rich-text-body', {}, a_nodes);
 		}
 
 		return f_builder('ac:structured-macro', {
