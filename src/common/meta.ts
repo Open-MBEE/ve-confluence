@@ -1,3 +1,4 @@
+import { oderom } from '#/util/belt';
 import type jQuery from 'jquery';
 
 interface MetaMap {
@@ -115,13 +116,9 @@ declare global {
 /**
  * Confluence-provided 'Meta' object
  */
-export const G_META: MetaMap = Object.entries(AJS.Meta.getAllAsMap()).reduce(
-	(h_out, [si_key, s_value]) => ({
-		...h_out,
-		[si_key]: s_value,
-		[si_key.replace(/-/g, '_')]: s_value,
-	}),
-	{},
-) as MetaMap;
+export const G_META: MetaMap = oderom(AJS.Meta.getAllAsMap(), (si_key, s_value) => ({
+	[si_key]: s_value,
+	[si_key.replace(/-/g, '_')]: s_value,
+})) as unknown as MetaMap;
 
 export default G_META;

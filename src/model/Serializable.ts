@@ -14,6 +14,7 @@ import type {ObjectStore} from '#/model/ObjectStore';
 import type {
 	ConfluenceDocument,
 	ConfluencePage,
+	ConfluenceXhtmlDocument,
 } from '#/vendor/confluence/module/confluence';
 
 import type XHTMLDocument from '#/vendor/confluence/module/xhtml-document';
@@ -35,7 +36,8 @@ export type Primitive = TypedPrimitive;
 
 export interface Context {
 	store: ObjectStore;
-	source: XHTMLDocument;
+	source: ConfluenceXhtmlDocument;
+	source_original: ConfluenceXhtmlDocument;
 	page: ConfluencePage;
 	document: ConfluenceDocument;
 }

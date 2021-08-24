@@ -3,6 +3,10 @@ import {
 	ConfluenceDocument,
 } from '#/vendor/confluence/module/confluence';
 
+import type {
+	ConfluenceXhtmlDocument,
+} from '#/vendor/confluence/module/confluence';
+
 import G_META from '#/common/meta';
 
 import {
@@ -18,10 +22,10 @@ import {
 	qs,
 	qsa,
 	dm_content,
-	dm_sidebar,
 	dm_main_header,
 	uuid_v4,
 	dm_main,
+	dd,
 } from '#/util/dom';
 
 import type {SvelteComponent} from 'svelte';
@@ -45,7 +49,7 @@ import {ObjectStore} from '#/model/ObjectStore';
 import { xpathEvaluate, xpathSelect, xpathSelect1 } from '#/vendor/confluence/module/xhtml-document';
 import type { VeoPath } from '#/common/veo';
 import type { TypedKeyedUuidedObject, TypedObject, TypedPrimitive } from '#/common/types';
-import { inject_frame, SR_HASH_VE_PAGE_EDIT_MODE } from './inject-frame';
+import { inject_frame, P_SRC_WYSIWYG_EDITOR, SR_HASH_VE_PAGE_EDIT_MODE } from './inject-frame';
 
 
 // write static css
@@ -185,7 +189,7 @@ const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 const xpath_attrs = (a_attrs: string[]) => a_attrs.map(sx => `[${sx}]`).join('');
 
 let k_document: ConfluenceDocument | null;
-let k_source: XhtmlDocument;
+let k_source: ConfluenceXhtmlDocument;
 
 function control_bar(gc_bar: ControlBarConfig) {
 	const g_props = {...gc_bar.props};
@@ -321,6 +325,9 @@ export async function main(): Promise<void> {
 	// set page source
 	G_CONTEXT.source = k_source;
 
+	// set page original source
+	G_CONTEXT.source_original = k_source.clone();
+
 	// set page
 	G_CONTEXT.page = k_page;
 
@@ -435,7 +442,7 @@ export async function main(): Promise<void> {
 }
 
 const H_HASH_TRIGGERS: Record<string, (de_hash_change?: HashChangeEvent) => Promise<void>> = {
-	async [SR_HASH_VE_PAGE_EDIT_MODE.slice(1)]() {
+	async 'load-editor'(de_hash_change?: HashChangeEvent) {
 		return await inject_frame(p_original_edit_link);
 	},
 
@@ -468,6 +475,11 @@ const H_HASH_TRIGGERS: Record<string, (de_hash_change?: HashChangeEvent) => Prom
 
 		await Promise.resolve();
 	},
+
+	async 'noop'() {
+		const dm_edit = qs(dm_main, 'a#editPageLink')! as HTMLAnchorElement;
+		dm_edit.href = '#noop';
+	},
 };
 
 
@@ -476,11 +488,19 @@ let p_original_edit_link = '';
 function replace_edit_button() {
 	const dm_edit = qs(dm_main, 'a#editPageLink')! as HTMLAnchorElement;
 	p_original_edit_link = dm_edit.href;
-	dm_edit.href = SR_HASH_VE_PAGE_EDIT_MODE;
+	dm_edit.href = '#load-editor';
 
 	// remove all event listeners
 	const dm_clone = dm_edit.cloneNode(true);
 	dm_edit.parentNode?.replaceChild(dm_clone, dm_edit);
+
+	// prefetch wysiwyg editor script
+	const dm_prefetch = dd('link', {
+		rel: 'prefetch',
+		href: P_SRC_WYSIWYG_EDITOR,
+		as: 'script',
+	});
+	document.head.appendChild(dm_prefetch);
 }
 
 function hash_updated(de_hash_change?: HashChangeEvent): void {
@@ -492,6 +512,12 @@ function hash_updated(de_hash_change?: HashChangeEvent): void {
 		}
 	}
 }
+
+const H_PATH_SUFFIX_TO_HASH: Record<string, string> = {
+	'+': 'beta',
+	'++': 'admin',
+	'+++': 'load-editor',
+};
 
 function dom_ready() {
 	// listen for hash change
@@ -510,26 +536,41 @@ function dom_ready() {
 			// replace URL with page title version
 			history.replaceState(null, '', `/display/${y_params.get('spaceKey')!}/${si_page_title}`);
 		}
+		// doeditpage.action
+		else if(location.pathname.endsWith('doeditpage.action')) {
+			// normalize viewpage URL
+			si_page_title = encodeURIComponent(G_META.page_title).replace(/%20/g, '+');
+
+			// redirect to view page
+			location.href = `/display/${G_META.space_key}/${si_page_title}`;
+		}
 
 		// special url indication
 		const m_special = /(\++)$/.exec(si_page_title);
 		if(m_special) {
-			switch(m_special[1]) {
-				// beta mode
-				case '+': {
-					location.hash = '#beta';
-					break INTERPRET_LOCATION;
+			const s_suffix = m_special[1];
+
+			// suffix is mapped
+			if(s_suffix in H_PATH_SUFFIX_TO_HASH) {
+				// lookup corresponding hash
+				const s_set_hash = H_PATH_SUFFIX_TO_HASH[s_suffix];
+
+				// resolve hash parts
+				const as_parts = new Set(location.hash.slice(1).split(/:/g).filter(s => s));
+
+				// hash already set
+				if(as_parts.has(s_set_hash)) {
+					// manually trigger hash update
+					hash_updated();
+				}
+				// hash not set
+				else {
+					// prepend new hash part and update hash, allowing listener to trigger handler
+					location.hash = '#'+[s_set_hash, ...as_parts].join(':');
 				}
 
-				// edit mode
-				case '+++': {
-					void H_HASH_TRIGGERS[SR_HASH_VE_PAGE_EDIT_MODE]();
-					break INTERPRET_LOCATION;
-				}
-
-				default: {
-					break;
-				}
+				// exit location interpretter block
+				break INTERPRET_LOCATION;
 			}
 		}
 
