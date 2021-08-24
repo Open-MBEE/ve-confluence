@@ -771,22 +771,21 @@
 			<span class="label">
 				Connected Data Table {g_source ? `with ${g_source.label}` : ''}
 			</span>
-			<span class="info">
 				{#if b_display_preview || !b_published}
-					{#if G_INFO_MODES.PREVIEW === xc_info_mode}
-						{SX_STATUS_INFO_INIT}
-					{:else if G_INFO_MODES.LOADING === xc_info_mode}
-						<Fa icon={faCircleNotch} class="fa-spin" /> LOADING PREVIEW
-					{/if}
-				{/if}
-			</span>
-			<span class="buttons">
-				{#if b_published}
+					<span class="info">
+						{#if G_INFO_MODES.PREVIEW === xc_info_mode}
+							{SX_STATUS_INFO_INIT}
+						{:else if G_INFO_MODES.LOADING === xc_info_mode}
+							<Fa icon={faCircleNotch} class="fa-spin" /> LOADING PREVIEW
+						{/if}
+					</span>
+				{:else if b_published}
 					<span class="ve-pill">
 						<Fa icon={faCheckCircle} size="sm" />
 						Published
 					</span>
 				{/if}
+			<span class="buttons">
 				{#if b_display_parameters}
 					<button class="ve-button-primary" on:click={publish_table} disabled={!b_changed || !b_filtered}>{b_published? 'Update': 'Publish'}</button>
 					<button class="ve-button-secondary" on:click={reset_table}>Cancel Changes</button>
