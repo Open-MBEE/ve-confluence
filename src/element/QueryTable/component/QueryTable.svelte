@@ -663,9 +663,22 @@
 		opacity: 0.5;
 	}
 
-	.datasource-select {
+	.datasource {
+		.datasource-label {
+			display: inline-flex;
+		}
 
+		.datasource-select {
+			display: inline-flex;
+			.selectContainer {
+				.selection {
+					text-decoration: underline !important;
+				}
+			}
+			--border: none;
+		}
 	}
+
 </style>
 
 {#await k_query_table.ready()}
@@ -673,18 +686,14 @@
 {:then}
 	<div class="ve-query-table">
 		<div class="controls">
-			<span class="label">
-				<span class="label-text">
+			<span class="datasource">
+				<span class="datasource-label label">
 					Connected Data Table
 				</span>
 				<span class="datasource-select">
-					<Select
-						items={g_sources}
-						value={current_source_label}
-						on:select={select_data_source}
-					/>
+					<Select items={g_sources} value={current_source_label} isClearable={false} on:select={select_data_source} />
 				</span>
-				<Fa icon={faQuestionCircle} />
+			<Fa icon={faQuestionCircle} />
 			</span>
 			<span class="buttons">
 				{#if b_published}
