@@ -31,7 +31,7 @@ import {
 	XhtmlString,
 } from '#/util/strings';
 
-import {build_dng_select_query_from_params} from './helper/sparql-code';
+import {build_dng_select_query_from_params, build_helix_select_query_from_params} from './helper/sparql-code';
 
 import H_PREFIXES from './prefixes';
 
@@ -152,12 +152,11 @@ const A_QUERY_FIELD_PATHS_BASIC = [
 ];
 
 const A_QUERY_FIELD_PATHS_HELIX= [
-	'hardcoded#queryField.sparql.helix.id',
-	'hardcoded#queryField.sparql.helix.stemName',
-	'hardcoded#queryField.sparql.helix.description',
-	'hardcoded#queryField.sparql.helix.opsCategory',
-	'hardcoded#queryField.sparql.helix.fswModule',
-	'hardcoded#queryField.sparql.helix.va',
+	'hardcoded#queryField.sparql.helix.cOpCode',
+	'hardcoded#queryField.sparql.helix.cStem',
+	'hardcoded#queryField.sparql.helix.cType',
+	'hardcoded#queryField.sparql.helix.cDesc',
+	'hardcoded#queryField.sparql.helix.cOpsCat',
 ];
 
 /* eslint-disable object-curly-newline */
@@ -179,7 +178,18 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 				},
 			},
 			helix: {
-
+				cOpCode: {
+					value: 'helix_fse:hasFlightSoftwareCommandOpCode',
+					label: 'Ops Code',
+				},
+				cType: {
+					value: 'helix_fse:hasFlightSoftwareCommandType',
+					label: 'Command Type',
+				},
+				cOpsCat: {
+					value: 'helix_fse:hasFlightSoftwareCommandOpsCategory',
+					label: 'Ops Category',
+				},
 			},
 		},
 	}),
@@ -207,7 +217,26 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 				},
 			},
 			helix: {
-
+				faht: {
+					label: 'Functional Area Helix Tables',
+					queryParametersPaths: [
+						'hardcoded#queryParameter.sparql.helix.cType',
+						'hardcoded#queryParameter.sparql.helix.cOpsCat',
+						'hardcoded#queryParameter.sparql.helix.cOpCode',
+					],
+					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.helix.basic',
+					queryBuilderPath: 'hardcoded#queryBuilder.sparql.helix.basicParams',
+				},
+				htbi: {
+					label: 'Helix Table By ID',
+					queryParametersPaths: [
+						'hardcoded#queryParameter.sparql.helix.cType',
+						'hardcoded#queryParameter.sparql.helix.cOpsCat',
+						'hardcoded#queryParameter.sparql.helix.cOpCode',
+					],
+					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.helix.basic',
+					queryBuilderPath: 'hardcoded#queryBuilder.sparql.helix.basicParams',
+				},
 			},
 		},
 	}),
@@ -228,12 +257,6 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 			helix: {
 				basic: {
 					queryFieldsPaths: A_QUERY_FIELD_PATHS_HELIX,
-				},
-				basicWithChildren: {
-					queryFieldsPaths: [
-						...A_QUERY_FIELD_PATHS_HELIX,
-						'hardcoded#queryField.sparql.helix.children',
-					],
 				},
 			},
 		},
@@ -298,33 +321,40 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 				},
 			},
 			helix: {
-				id: {
-					value: 'tIri',
-					label: 'ID', // inherit from value
+				cOpCode: {
+					value: 'helix_fse:hasFlightSoftwareCommandOpCode',
+					label: 'OpCode', // inherit from value
 					source: 'native',
 					hasMany: false,
-					cell: (g: QueryRow) => plain`${escape_html(g.tIri.value)}`,
+					cell: (g: QueryRow) => plain`${escape_html(g.cOpCodeValue.value)}`,
 				},
-				stemName: {
-					value: 'cStem',
+				cStem: {
+					value: 'helix_fse:hasFlightSoftwareCommandStem',
 					label: 'Stem Name', // inherit from value
 					source: 'native',
 					hasMany: false,
-					cell: (g: QueryRow) => xhtml`<a href="${g.artifact.value}">${escape_html(g.cStem.value)}</a>`,
+					cell: (g: QueryRow) => html`${g.cStemValue.value}`,
 				},
-				description: {
-					value: 'cDesc',
+				cType: {
+					value: 'helix_fse:hasFlightSoftwareCommandType',
+					label: 'Type', // inherit from value
+					source: 'native',
+					hasMany: false,
+					cell: (g: QueryRow) => html`${g.cTypeValue.value}`,
+				},
+				cDesc: {
+					value: 'helix_fse:hasFlightSoftwareCommandDescription',
 					label: 'Description', // inherit from value
 					source: 'native',
 					hasMany: false,
-					cell: (g: QueryRow) => html`${g.cDesc.value}`,
+					cell: (g: QueryRow) => html`${g.cDescValue.value}`,
 				},
-				opsCategory: {
-					value: 'cOpsCat',
+				cOpsCat: {
+					value: 'helix_fse:hasFlightSoftwareCommandOpsCategory',
 					label: 'Ops Category',
 					source: 'native',
-					hasMany: true,
-					cell: (g: QueryRow) => html`${g.cOpsCat.value}`,
+					hasMany: false,
+					cell: (g: QueryRow) => html`${g.cOpsCatValue.value}`,
 				},
 			},
 		},
@@ -372,7 +402,9 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 				},
 			},
 			helix: {
-
+				basicParams: {
+					function: build_helix_select_query_from_params,
+				},
 			},
 		},
 	},
@@ -385,7 +417,9 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 				},
 			},
 			helix: {
-
+				common: {
+					prefixes: H_PREFIXES,
+				},
 			},
 		},
 	},

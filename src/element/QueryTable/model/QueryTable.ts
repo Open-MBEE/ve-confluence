@@ -236,6 +236,8 @@ export class QueryType<ConnectionType extends DotFragment=DotFragment> extends V
 
 	get fields(): QueryField[] {
 		const sp_group = this._gc_serialized.queryFieldGroupPath;
+		console.log('FIELDS:');
+		console.log(sp_group);
 		const gc_field_group = this._k_store.resolveSync<QueryFieldGroup.Serialized>(sp_group);
 		return new QueryFieldGroup(sp_group, gc_field_group, this._g_context).fields;
 	}
@@ -315,6 +317,7 @@ export abstract class QueryTable<
 	parameterValuesList(si_param: string): ParamValuesList {
 		const h_param_values = this._h_param_values_lists;
 
+		console.log(h_param_values);
 		// no such param
 		if(!this.queryType.queryParametersPaths.map(sp => this._k_store.idPartSync(sp)).includes(si_param)) {
 			throw new Error(`No such parameter has the id '${si_param}'`);
@@ -506,7 +509,9 @@ export class PlainSparqlQueryTable<
 > extends SparqlQueryTable<PlainSparqlQueryTable.Serialized<Group>> {
 	async fetchConnection(): Promise<PlainSparqlConnection> {
 		const sp_connection = this._gc_serialized.connectionPath;
+		console.log(sp_connection);
 		const gc_serialized = await this._k_store.resolve<PlainSparqlConnection.Serialized>(sp_connection);
+		console.log(gc_serialized);
 		return new PlainSparqlConnection(sp_connection, gc_serialized, this._g_context);
 	}
 }
@@ -530,3 +535,4 @@ export class MmsSparqlQueryTable<
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const MmsSparqlQueryTable_Assertion: VeOrmClass<MmsSparqlQueryTable.Serialized> = MmsSparqlQueryTable;
+const PlainSparqlQueryTable_Assertion: VeOrmClass<PlainSparqlQueryTable.Serialized> = PlainSparqlQueryTable;

@@ -52,10 +52,11 @@
 	let xc_load = XC_LOAD_NOT;
 
 	async function load_param(k_param_load: QueryParam) {
+		let a_rows = [];
 		if(k_query_table.type.startsWith('MmsSparql')) {
 			const k_connection = (await k_query_table.fetchConnection()) as MmsSparqlConnection;
 
-			const a_rows = await k_connection.execute(/* syntax: sparql */ `
+			a_rows = await k_connection.execute(/* syntax: sparql */ `
 				select ?value (count(?req) as ?count) from <${k_connection.modelGraph}> {
 					?_attr a rdf:Property ;
 						rdfs:label ${Sparql.literal(k_param_load.value)} .
@@ -66,44 +67,31 @@
 				group by ?value order by desc(?count)
 			`);
 
-			a_options = a_rows.map(({value:g_value, count:g_count}) => ({
-				count: +g_count.value,
-				state: XC_STATE_VISIBLE,
-				data: {
-					label: g_value.value,
-					value: g_value.value,
-				},
-			}));
 
-			if(k_param.sort) {
-				a_options = a_options.map(g_opt => g_opt.data).sort(k_param.sort).map(g_data => a_options.find(g_opt => g_opt.data.value === g_data.value)) as Option[];
-			}
 		} else if (k_query_table.type.startsWith('PlainSparql')) {
 			const k_connection = (await k_query_table.fetchConnection()) as PlainSparqlConnection;
 
-			const a_rows = await k_connection.execute(/* syntax: sparql */ `
-				select ?value (count(?req) as ?count) from <${k_connection.modelGraph}> {
-					?_attr a rdf:Property ;
-						rdfs:label ${Sparql.literal(k_param_load.value)} .
+			a_rows = await k_connection.execute(/* syntax: sparql */ `
+                select ?value (count(?cat) as ?count) from <${k_connection.graph}> {
+                    ?node a helix_fse:FlightSoftwareCommand;
+                        ${Sparql.iri(k_param_load.value)} ?value .
+                }
+                group by ?value order by desc(?count)
+            `);
 
-					?req a oslc_rm:Requirement ;
-						?_attr [rdfs:label ?value] .
-				}
-				group by ?value order by desc(?count)
-			`);
+		}
 
-			a_options = a_rows.map(({value:g_value, count:g_count}) => ({
-				count: +g_count.value,
-				state: XC_STATE_VISIBLE,
-				data: {
-					label: g_value.value,
-					value: g_value.value,
-				},
-			}));
+		a_options = a_rows.map(({value:g_value, count:g_count}) => ({
+			count: +g_count.value,
+			state: XC_STATE_VISIBLE,
+			data: {
+				label: g_value.value,
+				value: g_value.value,
+			},
+		}));
 
-			if(k_param.sort) {
-				a_options = a_options.map(g_opt => g_opt.data).sort(k_param.sort).map(g_data => a_options.find(g_opt => g_opt.data.value === g_data.value)) as Option[];
-			}
+		if(k_param.sort) {
+			a_options = a_options.map(g_opt => g_opt.data).sort(k_param.sort).map(g_data => a_options.find(g_opt => g_opt.data.value === g_data.value)) as Option[];
 		}
 	}
 

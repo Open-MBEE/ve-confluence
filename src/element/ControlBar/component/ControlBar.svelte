@@ -70,7 +70,7 @@ import type { XhtmlString } from '#/util/strings';
 	let g_document_metadata_editted: DocumentMetadata | Error;
 	$: b_document_json_valid = g_document_metadata_editted && !(g_document_metadata_editted instanceof Error);
 	$: b_document_json_writable = b_document_json_valid && JSON.stringify(g_document_metadata_editted) !== sx_document_metadata_remote;
-	
+
 	let sx_page_metadata_remote: string;
 	$: sx_page_metadata_local = '';
 	let g_page_metadata_editted: PageMetadata | Error;
@@ -82,13 +82,13 @@ import type { XhtmlString } from '#/util/strings';
 	let sx_page_content_editted: string | Error;
 	$: b_page_content_valid = sx_page_content_editted && !(sx_page_content_editted instanceof Error);
 	$: b_page_content_writable = b_page_json_valid && (new ConfluenceXhtmlDocument(sx_page_content_editted as string)).toString() !== sx_page_content_remote;
-	
+
 	const dm_sidebar = qs(document.body, '.ia-fixed-sidebar') as HTMLDivElement;
 	// if(dm_sidebar) {
 	// 	let dm_sidebar_scrollable = (qs(dm_sidebar, '.ia-scrollable-section') as HTMLDivElement);
 	// 	let n_pre_scrolltop = dm_sidebar.scrollTop || 0;
 	// }
-	
+
 	$: {
 		try {
 			g_document_metadata_editted = JSON.parse(sx_document_metadata_local) as DocumentMetadata;
@@ -374,6 +374,15 @@ import type { XhtmlString } from '#/util/strings';
 						contextPath: 'hardcoded#queryContext.sparql.dng.common',
 					},
 				},
+				helix: {
+					project: {
+						type: 'PlainSparqlConnection',
+						label: 'Helix Europa',
+						endpoint: 'https://ced-uat.jpl.nasa.gov/helix/sparql',
+						graph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/data.europa-clipper',
+						contextPath: 'hardcoded#queryContext.sparql.helix.common',
+					},
+				},
 			},
 		},
 	};
@@ -389,6 +398,15 @@ import type { XhtmlString } from '#/util/strings';
 						modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/data.msr',
 						metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/metadata.msr',
 						contextPath: 'hardcoded#queryContext.sparql.dng.common',
+					},
+				},
+				helix: {
+					project: {
+						type: 'PlainSparqlConnection',
+						label: 'Helix MSR',
+						endpoint: 'https://ced-uat.jpl.nasa.gov/helix/sparql',
+						graph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/data.msr',
+						contextPath: 'hardcoded#queryContext.sparql.helix.common',
 					},
 				},
 			},
@@ -496,7 +514,7 @@ import type { XhtmlString } from '#/util/strings';
 		margin-right: -40px;
 		margin-top: -20px;
 		margin-bottom: 20px;
-		
+
 		.heading {
 			position: relative;
 			cursor: pointer;
@@ -507,7 +525,7 @@ import type { XhtmlString } from '#/util/strings';
 				align-items: center;
 				min-height: 38px;
 				margin-left: 20px;
-				
+
 				.title {
 					font-weight: 500;
 					font-size: 12pt;
@@ -641,7 +659,7 @@ import type { XhtmlString } from '#/util/strings';
 					<!-- drop-down -->
 					<svg width="24" height="25" viewBox="0 0 24 25" fill="none" xmlns="http://www.w3.org/2000/svg">
 						<path d="M7.41 9.09L12 13.67L16.59 9.09L18 10.5L12 16.5L6 10.5L7.41 9.09Z" fill="white"/>
-					</svg>                        
+					</svg>
 				</span>
 			</div>
 		</div>
@@ -694,7 +712,7 @@ import type { XhtmlString } from '#/util/strings';
 									<div>
 										<h4>
 											{#if k_document}
-												Reset document metadata to a preset: 
+												Reset document metadata to a preset:
 											{:else}
 												Convert this page to become the document cover page of a new document:
 											{/if}

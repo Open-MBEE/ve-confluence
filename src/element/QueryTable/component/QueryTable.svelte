@@ -58,7 +58,8 @@
 	/**
 	 * The QueryTable model
 	 */
-	export let k_query_table: QueryTable;
+	export let k_query_tables: {dng: QueryTable, helix: QueryTable};
+
 	/**
 	 * The HTML element to which this view element is anchored
 	 */
@@ -75,7 +76,7 @@
 	 * Whether or not this table is already published
 	 */
 	export let b_published = false;
-	
+
 
 	// shows/hides the table results
 	let b_display_preview = !b_published;
@@ -101,7 +102,13 @@
 	// whether or not there are any filters applied
 	let b_filtered = false;
 
-	// 
+	let datasources = [{id: 'dng'}, {id: 'helix'}];
+
+	let current_source: string;
+
+	let k_query_table: QueryTable = getQueryTable();
+
+	//
 	// $: b_changed = '' !== si_query_hash_previous && (!b_published || b_changed_published_parameters);
 	$: b_changed = b_published? si_query_hash_previous !== si_query_hash_published: '' !== si_query_hash_previous;
 	// let b_not_changed = '' === si_query_hash_previous || (b_published && !b_changed_published_parameters)
@@ -149,9 +156,15 @@
 
 	let b_busy_loading = false;
 
-	let g_source: {label: string} | null = null;
+	let g_sources: [
+			{
+				value: string,
+				label: string
+			}
+	] = [];
 
-	g_source = {label:'DNG Requirements'};
+	g_sources.push({value: 'dng', label:'DNG Requirements'});
+	g_sources.push({value: 'helix', label:'Helix Requirements'});
 
 	$: dm_anchor.style.display = b_published && b_display_preview? 'none' :'block';
 
@@ -171,6 +184,10 @@
 	let xc_info_mode = G_INFO_MODES.PREVIEW;
 	const SX_STATUS_INFO_INIT = 'PREVIEW (0 results)';
 	let s_status_info = SX_STATUS_INFO_INIT;
+
+	function getQueryTable() {
+		return k_query_tables[current_source || 'helix'];
+	}
 
 	function clear_preview(): void {
 		b_busy_loading = false;
@@ -384,6 +401,14 @@
 
 		// trigger svelte update for query type change
 		k_query_table = k_query_table;
+	}
+
+	function select_data_source(dv_select: CustomEvent<ValuedLabeledObject>) {
+		current_source = dv_select.detail.value;
+		clear_preview();
+		b_filtered = false;
+		k_query_table = getQueryTable();
+		reset_table();
 	}
 </script>
 
@@ -634,7 +659,15 @@
 	<div class="ve-query-table">
 		<div class="controls">
 			<span class="label">
-				Connected Data Table {g_source ? `with ${g_source.label}` : ''}
+				<span class="label-text">
+					Connected Data Table
+				</span>
+				<span class="select">
+					<Select
+						items={g_sources}
+						on:select={select_data_source}
+					/>
+				</span>
 				<Fa icon={faQuestionCircle} />
 			</span>
 			<span class="buttons">

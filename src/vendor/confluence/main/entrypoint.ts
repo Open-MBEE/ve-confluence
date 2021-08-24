@@ -38,7 +38,7 @@ import QueryTable from '#/element/QueryTable/component/QueryTable.svelte';
 
 import type XhtmlDocument from '#/vendor/confluence/module/xhtml-document';
 
-import {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
+import {MmsSparqlQueryTable, PlainSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
 
 
 import {H_HARDCODED_OBJECTS, K_HARDCODED} from '#/common/hardcoded';
@@ -169,18 +169,34 @@ const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 		return {
 			component: QueryTable,
 			props: {
-				k_query_table: new MmsSparqlQueryTable(si_key,
-					{
-						type: 'MmsSparqlQueryTable',
-						key: si_key,
-						uuid: si_uuid,
-						group: 'dng',
-						queryTypePath: 'hardcoded#queryType.sparql.dng.afsr',
-						connectionPath: 'document#connection.sparql.mms.dng',
-						parameterValues: {},
-					},
-					G_CONTEXT
-				),
+				k_query_tables: {
+					dng: new MmsSparqlQueryTable(si_key,
+						{
+							type: 'MmsSparqlQueryTable',
+							key: si_key,
+							uuid: si_uuid,
+							group: 'dng',
+							queryTypePath: 'hardcoded#queryType.sparql.dng.afsr',
+							connectionPath: 'document#connection.sparql.mms.dng',
+							parameterValues: {},
+						},
+						G_CONTEXT
+					),
+					helix: new PlainSparqlQueryTable(
+						"document#connection.sparql.helix.project",
+						{
+							type: 'PlainSparqlQueryTable',
+							key: si_key,
+							uuid: si_uuid,
+							group: 'plain',
+							queryTypePath: 'hardcoded#queryType.sparql.helix.faht',
+							connectionPath: 'document#connection.sparql.helix.project',
+							contextPath: 'hardcoded#queryContext.sparql.helix.common',
+							parameterValues: {},
+						},
+						G_CONTEXT
+					),
+				}
 			},
 		};
 	},
@@ -417,14 +433,17 @@ export async function main(): Promise<void> {
 			switch(gc_element.type) {
 				case 'MmsSparqlQueryTable': {
 					// construct table model
-					const k_query_table = await VeOdm.createFromSerialized(MmsSparqlQueryTable, sp_element, gc_element as MmsSparqlQueryTable.Serialized, G_CONTEXT);
+					const k_query_tables = {
+						dng: await VeOdm.createFromSerialized(MmsSparqlQueryTable, sp_element, gc_element as MmsSparqlQueryTable.Serialized, G_CONTEXT),
+						helix: await VeOdm.createFromSerialized(PlainSparqlQueryTable, sp_element, gc_element as PlainSparqlQueryTable.Serialized, G_CONTEXT),
+					};
 
 					// inject component
 					new QueryTable({
 						target: dm_render.parentElement!,
 						anchor: dm_render,
 						props: {
-							k_query_table,
+							k_query_tables,
 							yn_directive,
 							dm_anchor: dm_render,
 							b_published: true,

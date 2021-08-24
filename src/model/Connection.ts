@@ -39,7 +39,7 @@ export abstract class Connection<
 		return this._gc_serialized.endpoint;
 	}
 
-	// abstract fetchCurrentVersion(): Promise<ModelVersionDescriptor>;
+	abstract fetchCurrentVersion(): Promise<ModelVersionDescriptor>;
 
 	// abstract fetchVersions(): Promise<ModelVersionDescriptor[]>;
 
@@ -166,6 +166,14 @@ export class PlainSparqlConnection extends SparqlConnection<PlainSparqlConnectio
 
 	async execute(sq_query: SparqlString): Promise<QueryRow[]> {
 		return await this._k_endpoint.select(sq_query);
+	}
+
+	fetchCurrentVersion(): Promise<ModelVersionDescriptor> {
+		return Promise.resolve({
+			id: 'null',
+			label: 'Unknown date/time',
+			dateTime: 'Unknown date/time',
+		});
 	}
 }
 
