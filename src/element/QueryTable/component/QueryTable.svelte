@@ -9,6 +9,8 @@
 
 	import Select from 'svelte-select';
 
+	import VirtualScroll from 'svelte-virtual-scroll-list';
+	
 	import Fa from 'svelte-fa';
 
 	import {
@@ -168,8 +170,15 @@
 	}
 
 	let xc_info_mode = G_INFO_MODES.PREVIEW;
-	const SX_STATUS_INFO_INIT = 'PREVIEW (0 results)';
+	const SX_STATUS_INFO_INIT = 'PREVIEW';
 	let s_status_info = SX_STATUS_INFO_INIT;
+	// offset for pagination
+	let n_offset = 1;
+
+	let nl_rows_total = 0;
+
+	// virtual list component
+	let virtual_scroll: VirtualScroll;
 
 	function clear_preview(): void {
 		b_busy_loading = false;
@@ -177,7 +186,9 @@
 		// redo query hash
 		si_query_hash_previous = k_query_table.hash();
 
-		s_status_info = 'PREVIEW (0 results)';
+		s_status_info = '0 results';
+		n_offset = 0;
+		nl_rows_total = 0;
 		xc_info_mode = G_INFO_MODES.PREVIEW;
 		g_preview.rows = [];
 	}
@@ -226,8 +237,8 @@
 				// start counting all rows
 				k_connection.execute(k_query.count())
 					.then((a_counts) => {
-						const nl_rows_total = +a_counts[0].count.value;
-						s_status_info = `PREVIEW (${N_PREVIEW_ROWS < nl_rows_total? N_PREVIEW_ROWS: nl_rows_total} / ${nl_rows_total} result${1 === nl_rows_total ? '' : 's'})`;
+						nl_rows_total = +a_counts[0].count.value;
+						s_status_info = `${n_offset + 1}-${N_PREVIEW_ROWS + n_offset} of ${nl_rows_total}`;
 					})
 					.catch(() => {
 						console.error('Failed to count rows for query');
@@ -239,7 +250,7 @@
 			// no longer busy loading
 			b_busy_loading = false;
 
-			s_status_info = `PREVIEW (${N_PREVIEW_ROWS < a_rows.length ? '>'+N_PREVIEW_ROWS : a_rows.length} result${1 === a_rows.length ? '' : 's'})`;
+			s_status_info = `${N_PREVIEW_ROWS < a_rows.length ? '>'+N_PREVIEW_ROWS : a_rows.length} result${1 === a_rows.length ? '' : 's'}`;
 		}
 
 		xc_info_mode = G_INFO_MODES.PREVIEW;
@@ -383,6 +394,53 @@
 		// trigger svelte update for query type change
 		k_query_table = k_query_table;
 	}
+
+	function update_page_offset(right=true) {
+		if(b_filtered) {
+			if(right) {
+				if(nl_rows_total < n_offset + (2 * N_PREVIEW_ROWS)) {
+					if(n_offset + N_PREVIEW_ROWS < nl_rows_total) {
+						n_offset += N_PREVIEW_ROWS;
+					}
+					s_status_info = `${n_offset}-${nl_rows_total} of ${nl_rows_total}`;
+				}
+				else {
+					n_offset += N_PREVIEW_ROWS;
+					s_status_info = `${n_offset}-${n_offset+N_PREVIEW_ROWS} of ${nl_rows_total}`;
+				}
+			}
+			else {
+				if(0 >= n_offset - N_PREVIEW_ROWS) {
+					n_offset = 1;
+				}
+				else {
+					n_offset -= N_PREVIEW_ROWS;
+				}
+				s_status_info = `${n_offset}-${n_offset+N_PREVIEW_ROWS} of ${nl_rows_total}`;
+			}
+			virtual_scroll.scrollToIndex(n_offset);
+		}
+	}
+
+	async function paginate_preview() {
+		// if filters are selected and there's more results to show
+		if(b_filtered && g_preview.rows.length < nl_rows_total) {
+			// set busy loading state
+			b_busy_loading = true;
+			// update page offset info
+			update_page_offset();
+
+			const k_query = await k_query_table.fetchQueryBuilder();
+			const a_rows = await k_connection.execute(k_query.paginate(N_PREVIEW_ROWS+1, n_offset));
+
+			// add next set of results to preview
+			g_preview.rows = g_preview.rows.concat(a_rows.map(QueryTable.cellRenderer(k_query_table)));
+
+			// set busy loading state
+			b_busy_loading = false;
+		}
+	}
+
 </script>
 
 <style lang="less">
@@ -625,8 +683,16 @@
 				}
 
 				.page-controls {
+					cursor: default;
+					user-select: none;
 					padding-left: 7px;
 					padding-right: 7px;
+					color: gray;
+
+					&.nav-arrow {
+						cursor: pointer;
+						color: black;
+					}
 				}
 			}
 		}
@@ -655,8 +721,23 @@
 
 				thead tr th {
 					position: sticky;
-					top: 72px;
+					top: 0px;
 					z-index: 1;
+				}
+
+				tbody {
+					display: block;
+					max-height: 500px;
+					overflow: auto;
+				}
+
+				thead, tbody tr {
+					display: table;
+					width: 100%;
+					table-layout: fixed;
+				}
+				thead {
+					width: 100%
 				}
 			}
 		}
@@ -687,7 +768,7 @@
 			<span class="info">
 				{#if b_display_preview || !b_published}
 					{#if G_INFO_MODES.PREVIEW === xc_info_mode}
-						{s_status_info}
+						{SX_STATUS_INFO_INIT}
 					{:else if G_INFO_MODES.LOADING === xc_info_mode}
 						<Fa icon={faCircleNotch} class="fa-spin" /> LOADING PREVIEW
 					{/if}
@@ -751,17 +832,19 @@
 					{/await}
 				</div>
 			</div>
+			{#if !b_published}
 			<div class="table-browse">
 				<div class="control">
-					<span class="info">1-{N_PREVIEW_ROWS} of 325</span>
-					<span class="page-controls">
-						<Fa icon={faAngleLeft} size="xs" />
-					</span>
-					<span>
-						<Fa icon={faAngleRight} size="xs" />
+					<span class="info">{s_status_info}</span>
+						<span class="page-controls" class:nav-arrow={1 < n_offset} on:click={() => update_page_offset(false)}>
+							<Fa icon={faAngleLeft} size="xs" />
+						</span>
+						<span class="page-controls" class:nav-arrow={n_offset + N_PREVIEW_ROWS < nl_rows_total} on:click={() => update_page_offset()}>
+							<Fa icon={faAngleRight} size="xs" />
 					</span>
 				</div>
 			</div>
+			{/if}
 			{#if b_display_preview}
 				<div class="table-wrap" class:busy={b_busy_loading}>
 					<!-- svelte-ignore a11y-resolved -->
@@ -793,7 +876,7 @@
 								{/each}
 							</tr>
 						</thead>
-						<tbody aria-live="polite" aria-relevant="all">
+						<tbody aria-live="polite" aria-relevant="all" class="list">
 							{#if !g_preview.rows.length}
 								{#each A_DUMMY_TABLE_ROWS as g_row}
 									<tr role="row">
@@ -805,13 +888,20 @@
 									</tr>
 								{/each}
 							{:else}
-								{#each g_preview.rows as h_row}
-									<tr role="row">
-										{#each Object.values(h_row) as ksx_cell}
-											<td class="confluenceTd">{@html ksx_cell.toString()}</td>
-										{/each}
-									</tr>
-								{/each}
+								<div class="vs" style={'height: 500px'}>
+									<VirtualScroll 
+										bind:this={virtual_scroll}
+										data={g_preview.rows} 
+										let:data
+										keeps={N_PREVIEW_ROWS}
+										on:bottom={paginate_preview}>
+										<tr role="row">
+											{#each Object.values(data) as ksx_cell}
+												<td class="confluenceTd">{@html ksx_cell.toString()}</td>
+											{/each}
+										</tr>
+									</VirtualScroll>
+								</div>
 							{/if}
 						</tbody>
 					</table>

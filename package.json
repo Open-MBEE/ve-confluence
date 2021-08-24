@@ -42,6 +42,7 @@
     "svelte-check": "2.2.4",
     "svelte-fa": "^2.2.1",
     "svelte-preprocess": "4.7.4",
+    "svelte-virtual-scroll-list": "^1.0.8",
     "svelte2tsx": "0.4.4",
     "ts-node": "10.1.0",
     "tslib": "^2.3.0",

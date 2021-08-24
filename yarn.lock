@@ -2444,6 +2444,11 @@ svelte-tabs@^1.1.0:
   resolved "https://registry.yarnpkg.com/svelte-tabs/-/svelte-tabs-1.1.0.tgz#093c5fdac57cbb0e6ba81e717d68fb9da7239208"
   integrity sha512-bCynxgET2uvqpB6xf/dVyqHjzmumRURQyh2QqXlrki8NxzO7h2WghF8qgpb5qeB5NTX1bMU+9Q5Hf5ey2WLaMg==
 
+svelte-virtual-scroll-list@^1.0.8:
+  version "1.0.8"
+  resolved "https://registry.yarnpkg.com/svelte-virtual-scroll-list/-/svelte-virtual-scroll-list-1.0.8.tgz#187c5aee9c23b98d5b5f0916d74c96aa35923444"
+  integrity sha512-4DundEQCJzRPGPOMdx48BJvq70gRHH4qn/IxggmGKhWGY9U/11pxd9u0n/iY8iLq26XjBtQSAy4xZM9r3Tlq9Q==
+
 svelte2tsx@0.4.4:
   version "0.4.4"
   resolved "https://registry.yarnpkg.com/svelte2tsx/-/svelte2tsx-0.4.4.tgz#0ce40cad7fbc5121e4de18152e05ca45e0a7dbf7"
