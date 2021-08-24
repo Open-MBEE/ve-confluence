@@ -175,10 +175,11 @@
 	// offset for pagination
 	let n_offset = 1;
 
+	// length of results array
 	let nl_rows_total = 0;
 
 	// virtual list component
-	let virtual_scroll: VirtualScroll;
+	let yc_virtual_scroll: VirtualScroll;
 
 	function clear_preview(): void {
 		b_busy_loading = false;
@@ -244,6 +245,11 @@
 						console.error('Failed to count rows for query');
 					});
 			}
+			else {
+				nl_rows_total = a_rows.length;
+			}
+			// reset offsets and scroll to top of results
+			n_offset = 0;
 
 			g_preview.rows = a_rows.map(QueryTable.cellRenderer(k_query_table));
 
@@ -396,7 +402,7 @@
 	}
 
 	function update_page_offset(right=true) {
-		if(b_filtered) {
+		if(b_filtered && nl_rows_total > N_PREVIEW_ROWS) {
 			if(right) {
 				if(nl_rows_total < n_offset + (2 * N_PREVIEW_ROWS)) {
 					if(n_offset + N_PREVIEW_ROWS < nl_rows_total) {
@@ -418,7 +424,7 @@
 				}
 				s_status_info = `${n_offset}-${n_offset+N_PREVIEW_ROWS} of ${nl_rows_total}`;
 			}
-			virtual_scroll.scrollToIndex(n_offset);
+			yc_virtual_scroll.scrollToIndex(n_offset);
 		}
 	}
 
@@ -890,7 +896,7 @@
 							{:else}
 								<div class="vs" style={'height: 500px'}>
 									<VirtualScroll 
-										bind:this={virtual_scroll}
+										bind:this={yc_virtual_scroll}
 										data={g_preview.rows} 
 										let:data
 										keeps={N_PREVIEW_ROWS}
