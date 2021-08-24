@@ -102,9 +102,18 @@
 	// whether or not there are any filters applied
 	let b_filtered = false;
 
-	let datasources = [{id: 'dng'}, {id: 'helix'}];
+	let g_sources: [
+		{
+			value: string,
+			label: string
+		}
+	] = [];
 
-	let current_source: string;
+	g_sources.push({value: 'dng', label:'DNG Requirements'});
+	g_sources.push({value: 'helix', label:'Helix Requirements'});
+
+	let current_source: string = 'dng';
+	let current_source_label: string = get_current_datasource_label().label;
 
 	let k_query_table: QueryTable = getQueryTable();
 
@@ -156,16 +165,6 @@
 
 	let b_busy_loading = false;
 
-	let g_sources: [
-			{
-				value: string,
-				label: string
-			}
-	] = [];
-
-	g_sources.push({value: 'dng', label:'DNG Requirements'});
-	g_sources.push({value: 'helix', label:'Helix Requirements'});
-
 	$: dm_anchor.style.display = b_published && b_display_preview? 'none' :'block';
 
 	// anchor provided
@@ -186,7 +185,7 @@
 	let s_status_info = SX_STATUS_INFO_INIT;
 
 	function getQueryTable() {
-		return k_query_tables[current_source || 'helix'];
+		return k_query_tables[current_source];
 	}
 
 	function clear_preview(): void {
@@ -403,12 +402,24 @@
 		k_query_table = k_query_table;
 	}
 
-	function select_data_source(dv_select: CustomEvent<ValuedLabeledObject>) {
+	async function select_data_source(dv_select: CustomEvent<ValuedLabeledObject>) {
 		current_source = dv_select.detail.value;
+		current_source_label = get_current_datasource_label().label;
 		clear_preview();
 		b_filtered = false;
 		k_query_table = getQueryTable();
-		reset_table();
+		const k_connection_new = await k_query_table.fetchConnection();
+		if(k_connection !== k_connection_new) {
+			k_connection = k_connection_new;
+		}
+		await k_query_table.restore();
+		await reset_table();
+	}
+
+	function get_current_datasource_label() {
+		return g_sources.filter(obj => {
+			return obj.value == current_source;
+		}).pop();
 	}
 </script>
 
@@ -651,6 +662,10 @@
 	.busy {
 		opacity: 0.5;
 	}
+
+	.datasource-select {
+
+	}
 </style>
 
 {#await k_query_table.ready()}
@@ -662,9 +677,10 @@
 				<span class="label-text">
 					Connected Data Table
 				</span>
-				<span class="select">
+				<span class="datasource-select">
 					<Select
 						items={g_sources}
+						value={current_source_label}
 						on:select={select_data_source}
 					/>
 				</span>
