@@ -18,12 +18,10 @@ function attr(h_props: Hash, si_attr: string, s_attr_key: string, b_many=false) 
 	`;
 }
 
-function simple_attr(h_props: Hash, si_attr: string, s_attr_key: string, b_many=false) {
-	const sx_prop = h_props[si_attr] = `?_${si_attr}`;
-
-	if(!s_attr_key) debugger;
+function simple_attr(h_props: Hash, si_attr: string, s_attr_value: string, b_many=false) {
+	if(!s_attr_value) debugger;
 	return /* syntax: sparql */ `
-		?artifact helix_fse:hasFlightSoftwareCommandType ?${si_attr}Value .
+		?artifact ${s_attr_value} ?${si_attr}Value .
 	`;
 }
 
@@ -210,7 +208,7 @@ export async function build_helix_select_query_from_params(this: PlainSparqlQuer
 
 	// each param
 	for(const {
-		key: si_param, label: s_label,
+		key: si_param, label: s_label, value: s_value,
 	} of await this.queryType.fetchParameters()) {
 		// fetch values list
 		const k_list = this.parameterValuesList(si_param);
@@ -220,7 +218,7 @@ export async function build_helix_select_query_from_params(this: PlainSparqlQuer
 
 		// insert value filter
 		a_bgp.push(/* syntax: sparql */ `
-			${simple_attr(h_props, si_param, s_label)}
+			${simple_attr(h_props, si_param, s_value)}
 
 			values ?${si_param}Value {
 				${[...this.parameterValuesList(si_param)].map(k => terse_lit(k.value)).join(' ')}
@@ -258,7 +256,7 @@ export async function build_helix_select_query_from_params(this: PlainSparqlQuer
 			// insert binding pattern fragment
 			a_bgp.push(/* syntax: sparql */ `
 				optional {
-					${attr(h_props, si_param, s_value, b_many)}
+					${simple_attr(h_props, si_param, s_value, b_many)}
 				}
 			`);
 		}
@@ -283,8 +281,6 @@ export async function build_helix_select_query_from_params(this: PlainSparqlQuer
 		select: [...a_selects, ...a_aggregates],
 		from: `<${k_connection.graph}>`,
 		bgp: /* syntax: sparql */ `
-			?artifact a owl:NamedIndividual .
-
 			${a_bgp.join('\n')}
 
 			${sq_bgp || ''}
