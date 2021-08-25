@@ -187,7 +187,7 @@
 		// redo query hash
 		si_query_hash_previous = k_query_table.hash();
 
-		s_status_info = '0 results';
+		s_status_info = '0 rows';
 		n_offset = 0;
 		nl_rows_total = 0;
 		xc_info_mode = G_INFO_MODES.PREVIEW;
@@ -256,7 +256,7 @@
 			// no longer busy loading
 			b_busy_loading = false;
 
-			s_status_info = `${N_PREVIEW_ROWS < a_rows.length ? '>'+N_PREVIEW_ROWS : a_rows.length} result${1 === a_rows.length ? '' : 's'}`;
+			s_status_info = `${N_PREVIEW_ROWS < a_rows.length ? '>'+N_PREVIEW_ROWS : a_rows.length} row${1 === a_rows.length ? '' : 's'}`;
 		}
 
 		xc_info_mode = G_INFO_MODES.PREVIEW;
@@ -402,7 +402,7 @@
 	}
 
 	function update_page_offset(right=true) {
-		if(b_filtered && nl_rows_total > N_PREVIEW_ROWS) {
+		if(b_filtered && nl_rows_total > N_PREVIEW_ROWS && !b_busy_loading) {
 			if(right) {
 				if(nl_rows_total < n_offset + (2 * N_PREVIEW_ROWS)) {
 					if(n_offset + N_PREVIEW_ROWS < nl_rows_total) {
@@ -837,19 +837,19 @@
 					{/await}
 				</div>
 			</div>
-			{#if !b_published}
 			<div class="table-browse">
 				<div class="control">
-					<span class="info">{s_status_info}</span>
+					<span class="info">{b_display_preview ? s_status_info : `${nl_rows_total} row${1 === nl_rows_total ? '' : 's'}`}</span>
+					{#if b_display_preview}
 						<span class="page-controls" class:nav-arrow={1 < n_offset} on:click={() => update_page_offset(false)}>
 							<Fa icon={faAngleLeft} size="xs" />
 						</span>
 						<span class="page-controls" class:nav-arrow={n_offset + N_PREVIEW_ROWS < nl_rows_total} on:click={() => update_page_offset()}>
 							<Fa icon={faAngleRight} size="xs" />
-					</span>
+						</span>
+					{/if}
 				</div>
 			</div>
-			{/if}
 			{#if b_display_preview}
 				<div class="table-wrap" class:busy={b_busy_loading}>
 					<!-- svelte-ignore a11y-resolved -->
