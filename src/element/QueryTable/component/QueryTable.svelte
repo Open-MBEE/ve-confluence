@@ -110,7 +110,7 @@
 	] = [];
 
 	g_sources.push({value: 'dng', label:'DNG Requirements'});
-	g_sources.push({value: 'helix', label:'Helix Requirements'});
+	g_sources.push({value: 'helix', label:'Helix Dictionary Items'});
 
 	let current_source: string = 'dng';
 	let current_source_label: string = get_current_datasource_label().label;
