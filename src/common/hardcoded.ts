@@ -152,7 +152,6 @@ const A_QUERY_FIELD_PATHS_BASIC = [
 ];
 
 const A_QUERY_FIELD_PATHS_HELIX= [
-	'hardcoded#queryField.sparql.helix.cOpCode',
 	'hardcoded#queryField.sparql.helix.cStem',
 	'hardcoded#queryField.sparql.helix.cType',
 	'hardcoded#queryField.sparql.helix.cDesc',
@@ -178,10 +177,6 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 				},
 			},
 			helix: {
-				cOpCode: {
-					value: 'helix_fse:hasFlightSoftwareCommandOpCode',
-					label: 'Ops Code',
-				},
 				cType: {
 					value: 'helix_fse:hasFlightSoftwareCommandType',
 					label: 'Command Type',
@@ -222,7 +217,6 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					queryParametersPaths: [
 						'hardcoded#queryParameter.sparql.helix.cType',
 						'hardcoded#queryParameter.sparql.helix.cOpsCat',
-						'hardcoded#queryParameter.sparql.helix.cOpCode',
 					],
 					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.helix.basic',
 					queryBuilderPath: 'hardcoded#queryBuilder.sparql.helix.basicParams',
@@ -232,7 +226,6 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					queryParametersPaths: [
 						'hardcoded#queryParameter.sparql.helix.cType',
 						'hardcoded#queryParameter.sparql.helix.cOpsCat',
-						'hardcoded#queryParameter.sparql.helix.cOpCode',
 					],
 					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.helix.basic',
 					queryBuilderPath: 'hardcoded#queryBuilder.sparql.helix.basicParams',
