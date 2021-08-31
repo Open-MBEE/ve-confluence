@@ -277,9 +277,10 @@ export async function main(): Promise<void> {
 	}
 
 	const dm_header = qs(document.body, '#header');
+
 	kv_control_bar = new ControlBar({
-		target: dm_main_header as HTMLElement,
-		anchor: qs(dm_main_header, 'div#navigation'),
+		target: dm_header as HTMLElement,
+		anchor: qs(dm_header, 'header#aui-header'),
 		// target: dm_header.parentElement as HTMLElement,
 		// anchor: dm_header.nextSibling as HTMLElement,
 		props: {

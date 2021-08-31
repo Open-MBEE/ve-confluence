@@ -26,11 +26,9 @@
 
 	import Fa from 'svelte-fa';
 
-	import {faQuestionCircle} from '@fortawesome/free-solid-svg-icons';
+	import {faQuestionCircle, faCog} from '@fortawesome/free-solid-svg-icons';
 
 	import {
-		dm_main,
-		dm_main_header,
 		// dm_sidebar,
 		qs,
 	} from '#/util/dom';
@@ -45,8 +43,15 @@
 	} from 'svelte-tabs';
 
 	import type {JsonObject} from '#/common/types';
-import { oderac, oderaf } from '#/util/belt';
-import { xpathSelect1 } from '#/vendor/confluence/module/xhtml-document';
+
+	import {
+		oderac,
+		oderaf,
+	} from '#/util/belt';
+
+	import {
+		xpathSelect1,
+	} from '#/vendor/confluence/module/xhtml-document';
 
 	export let g_context: Context;
 
@@ -60,7 +65,6 @@ import { xpathSelect1 } from '#/vendor/confluence/module/xhtml-document';
 
 	let dm_bar: HTMLDivElement;
 	let b_collapsed = true;
-	let dm_icon_dropdown: HTMLDivElement;
 	let b_document = false;
 
 	let sx_document_metadata_remote: string;
@@ -76,11 +80,7 @@ import { xpathSelect1 } from '#/vendor/confluence/module/xhtml-document';
 	$: b_page_json_writable = b_page_json_valid && JSON.stringify(g_page_metadata_editted) !== sx_page_metadata_remote;
 	
 	const dm_sidebar = qs(document.body, '.ia-fixed-sidebar') as HTMLDivElement;
-	// if(dm_sidebar) {
-	// 	let dm_sidebar_scrollable = (qs(dm_sidebar, '.ia-scrollable-section') as HTMLDivElement);
-	// 	let n_pre_scrolltop = dm_sidebar.scrollTop || 0;
-	// }
-	
+
 	$: {
 		try {
 			g_document_metadata_editted = JSON.parse(sx_document_metadata_local) as DocumentMetadata;
@@ -103,33 +103,6 @@ import { xpathSelect1 } from '#/vendor/confluence/module/xhtml-document';
 	let k_page: ConfluencePage | null = null;
 	let k_document: ConfluenceDocument | null = null;
 
-	function realign_control_bar() {
-		if('' !== dm_main_header.style.position) {
-			dm_bar.style.marginTop = '0px';
-			// when the 'overlay-header' class is applied for the nav bar, adjust margins
-			if(dm_main_header.className.split(/\s+/g).includes('overlay-header')) {
-				dm_bar.style.marginTop = '-10px';
-			}
-		}
-		else {
-			dm_bar.style.marginTop = '-20px';
-		}
-
-
-		// // when scrolling down the wiki header style changes, so update the control bar margin
-		// if('' !== dm_sidebar.style.width) {
-		// 	dm_sidebar.style.marginTop = `${dm_bar.getBoundingClientRect().height || 38}px`;
-
-		// 	dm_sidebar_scrollable.scrollTop = n_pre_scrolltop;
-
-		// 	debugger;
-
-		// 	if(dm_expanded) {
-		// 		dm_expanded.style.paddingLeft = `calc(${dm_sidebar.style.width} + 20px)`;
-		// 	}
-		// }
-	}
-
 	onMount(async() => {
 		b_ready = true;
 
@@ -141,28 +114,7 @@ import { xpathSelect1 } from '#/vendor/confluence/module/xhtml-document';
 			b_read_only = true;
 		}
 
-		// initial control bar alignment
-		queueMicrotask(realign_control_bar);
-
-		// // wait for transition to complete and then realign again
-		// setTimeout(realign_control_bar, 1500);
-
-		// create new observer
-		const d_observer = new MutationObserver((a_mutations) => {
-			// each mutation in list
-			for(const d_mutation of a_mutations) {
-				// style attribute change; realign control bar
-				if('attributes' === d_mutation.type && 'style' === d_mutation.attributeName) {
-					realign_control_bar();
-				}
-			}
-		});
-
-		// // start observing 'sidebar' attribute changes
-		// d_observer.observe(dm_sidebar, {attributes:true});
-
-		d_observer.observe(dm_main, {attributes:true});
-		d_observer.observe(dm_main_header, {attributes:true});
+		dm_sidebar.style.top = '120px';
 
 		k_page = await ConfluencePage.fromCurrentPage();
 
@@ -195,12 +147,12 @@ import { xpathSelect1 } from '#/vendor/confluence/module/xhtml-document';
 	function toggle_collapse() {
 		b_collapsed = !b_collapsed;
 		if(b_collapsed) {
-			dm_icon_dropdown.classList.add('rotate-expand');
-			dm_icon_dropdown.classList.remove('rotate-collapse');
+			dm_sidebar.style.transitionDuration = '400ms';
+			dm_sidebar.style.top = '120px';
 		}
 		else {
-			dm_icon_dropdown.classList.add('rotate-collapse');
-			dm_icon_dropdown.classList.remove('rotate-expand');
+			dm_sidebar.style.transitionDuration = '0ms';
+			dm_sidebar.style.top = '305px';
 		}
 	}
 
@@ -449,15 +401,9 @@ import { xpathSelect1 } from '#/vendor/confluence/module/xhtml-document';
 	.ve-control-bar {
 		background-color: var(--ve-color-dark-background);
 		color: var(--ve-color-light-text);
-
-		// margins to offset wiki 'main' content padding
-		margin-left: -40px;
-		margin-right: -40px;
-		margin-top: -20px;
-		margin-bottom: 20px;
+		margin-top: 0px;
 		
 		.heading {
-			position: relative;
 			cursor: pointer;
 
 			.heading-center {
@@ -466,10 +412,16 @@ import { xpathSelect1 } from '#/vendor/confluence/module/xhtml-document';
 				align-items: center;
 				min-height: 38px;
 				margin-left: 20px;
+				column-gap: 10px;
 				
 				.title {
 					font-weight: 500;
 					font-size: 12pt;
+				}
+
+				.app-title {
+					font-style: italic;	
+					font-size: 10pt;
 				}
 
 				.icon-help {
@@ -582,7 +534,10 @@ import { xpathSelect1 } from '#/vendor/confluence/module/xhtml-document';
 					</span>
 				{/if}
 				<span class="title">
-					{lang.basic.app_title}
+					{k_page ? k_page.pageTitle : ''}
+				</span>
+				<span class="app-title">
+					{lang.basic.app_title} v{s_app_version}
 				</span>
 				{#if b_read_only}
 					<span class="icon-readonly">
@@ -593,14 +548,12 @@ import { xpathSelect1 } from '#/vendor/confluence/module/xhtml-document';
 					<!-- help icon -->
 					<Fa icon={faQuestionCircle} size="2x"></Fa>
 				</span>
-				<span class="version">
-					v{s_app_version}
-				</span>
-				<span class="icon-dropdown animated rotate-expand" bind:this={dm_icon_dropdown}>
+				<span class="icon-dropdown">
 					<!-- drop-down -->
-					<svg width="24" height="25" viewBox="0 0 24 25" fill="none" xmlns="http://www.w3.org/2000/svg">
-						<path d="M7.41 9.09L12 13.67L16.59 9.09L18 10.5L12 16.5L6 10.5L7.41 9.09Z" fill="white"/>
-					</svg>                        
+				<Fa icon={faCog} style={'margin-right: 10px'} size="sm"></Fa> 
+					<span>
+						Edit Document Settings
+					</span>                   
 				</span>
 			</div>
 		</div>

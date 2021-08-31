@@ -511,6 +511,12 @@
 				}
 			}
 
+			.table-browse {
+				border-right: 1px solid #C1C7D0;
+				border-left: 1px solid #C1C7D0;
+				border-top: 1px solid #C1C7D0;
+			}
+
 			.table-wrap {
 				border: 0;
 			}
