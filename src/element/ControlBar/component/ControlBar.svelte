@@ -29,7 +29,6 @@
 	import {faQuestionCircle, faCog} from '@fortawesome/free-solid-svg-icons';
 
 	import {
-		// dm_sidebar,
 		qs,
 	} from '#/util/dom';
 
@@ -80,7 +79,6 @@
 	$: b_page_json_writable = b_page_json_valid && JSON.stringify(g_page_metadata_editted) !== sx_page_metadata_remote;
 	
 	const dm_sidebar = qs(document.body, '.ia-fixed-sidebar') as HTMLDivElement;
-
 	$: {
 		try {
 			g_document_metadata_editted = JSON.parse(sx_document_metadata_local) as DocumentMetadata;
@@ -103,6 +101,11 @@
 	let k_page: ConfluencePage | null = null;
 	let k_document: ConfluenceDocument | null = null;
 
+	function realign_sidebar() {
+		// realign sidebar with main content everytime the ve header height changes
+		dm_sidebar.style.top = String(dm_bar.getBoundingClientRect().bottom) + 'px';
+	}
+
 	onMount(async() => {
 		b_ready = true;
 
@@ -114,7 +117,15 @@
 			b_read_only = true;
 		}
 
-		dm_sidebar.style.top = '120px';
+		// initial sidebar alignment
+		queueMicrotask(realign_sidebar);
+
+		// create new observer
+		const d_observer = new ResizeObserver(() => {
+			realign_sidebar();
+		});
+
+		d_observer.observe(dm_bar, {attributes:true});
 
 		k_page = await ConfluencePage.fromCurrentPage();
 
@@ -148,11 +159,11 @@
 		b_collapsed = !b_collapsed;
 		if(b_collapsed) {
 			dm_sidebar.style.transitionDuration = '400ms';
-			dm_sidebar.style.top = '120px';
+			// remove transition time once it's complete
+			setTimeout(() => dm_sidebar.style.transitionDuration = '0ms', 400);
 		}
 		else {
 			dm_sidebar.style.transitionDuration = '0ms';
-			dm_sidebar.style.top = '305px';
 		}
 	}
 
@@ -432,6 +443,10 @@
 				.icon-dropdown {
 					position: absolute;
 					right: 1em;
+
+					span {
+						font-size: 13px;
+					}
 				}
 
 				.icon-readonly {
@@ -544,13 +559,9 @@
 						Read-Only
 					</span>
 				{/if}
-				<span class="icon-help">
-					<!-- help icon -->
-					<Fa icon={faQuestionCircle} size="2x"></Fa>
-				</span>
 				<span class="icon-dropdown">
 					<!-- drop-down -->
-				<Fa icon={faCog} style={'margin-right: 10px'} size="sm"></Fa> 
+					<Fa icon={faCog} size="sm"></Fa> 
 					<span>
 						Edit Document Settings
 					</span>                   
@@ -558,97 +569,97 @@
 			</div>
 		</div>
 		{#if !b_collapsed}
-			<div class="expanded" transition:slide={{}} bind:this={dm_expanded}>
-				<Tabs>
-					<TabList>
-						{#if k_document}
-							<Tab>Document Data Status</Tab>
-						{/if}
-						{#if b_admin}
-							<Tab>Admin</Tab>
-						{/if}
-					</TabList>
-
+		<div class="expanded" transition:slide={{}} bind:this={dm_expanded}>
+			<Tabs>
+				<TabList>
 					{#if k_document}
-						<TabPanel>
-							<div class="tab-body">
-								<p>New updates are available every Friday at 10:00 PM</p>
-								<DatasetsTable {g_context}></DatasetsTable>
-							</div>
-						</TabPanel>
+						<Tab>Document Data Status</Tab>
 					{/if}
-
 					{#if b_admin}
-						<TabPanel>
-							<div class="tab-body">
-								<section>
-									<h3>Document</h3>
-									{#if k_document}
-										<div>
-											<h4>
-												Edit document metadata:
-											</h4>
+						<Tab>Admin</Tab>
+					{/if}
+				</TabList>
 
-											<p>
-												<textarea bind:value={sx_document_metadata_local} class="code-edit" spellcheck="false" />
-											</p>
-											<button class="ve-button-primary" disabled={b_read_only || !b_document_json_writable} on:click={overwrite_document_json}>
-												{#if b_document_json_writable}
-													Overwrite JSON
-												{:else if b_document_json_valid}
-													JSON is unchanged
-												{:else}
-													Invalid JSON
-												{/if}
-											</button>
-										</div>
-									{/if}
+				{#if k_document}
+					<TabPanel>
+						<div class="tab-body">
+							<p>New updates are available every Friday at 10:00 PM</p>
+							<DatasetsTable {g_context}></DatasetsTable>
+						</div>
+					</TabPanel>
+				{/if}
+
+				{#if b_admin}
+					<TabPanel>
+						<div class="tab-body">
+							<section>
+								<h3>Document</h3>
+								{#if k_document}
 									<div>
 										<h4>
-											{#if k_document}
-												Reset document metadata to a preset: 
-											{:else}
-												Convert this page to become the document cover page of a new document:
-											{/if}
-										</h4>
-										<button class="ve-button-primary" on:click={() => k_document? create_document(H_PATHS_CLIPPER): reset_document(H_PATHS_CLIPPER)}>Clipper preset</button>
-										<button class="ve-button-primary" on:click={() => k_document? create_document(H_PATHS_MSR): reset_document(H_PATHS_MSR)}>MSR preset</button>
-									</div>
-								</section>
-								<section>
-									<h3>Page</h3>
-									<div>
-										<h4>
-											Edit page metadata:
+											Edit document metadata:
 										</h4>
 
 										<p>
-											<textarea bind:value={sx_page_metadata_local} class="code-edit" spellcheck="false" />
+											<textarea bind:value={sx_document_metadata_local} class="code-edit" spellcheck="false" />
 										</p>
-										<button class="ve-button-primary" disabled={b_read_only_page || !b_page_json_writable} on:click={overwrite_page_json}>
-											{#if b_page_json_writable}
+										<button class="ve-button-primary" disabled={b_read_only || !b_document_json_writable} on:click={overwrite_document_json}>
+											{#if b_document_json_writable}
 												Overwrite JSON
-											{:else if b_page_json_valid}
+											{:else if b_document_json_valid}
 												JSON is unchanged
 											{:else}
 												Invalid JSON
 											{/if}
 										</button>
 									</div>
+								{/if}
+								<div>
+									<h4>
+										{#if k_document}
+											Reset document metadata to a preset: 
+										{:else}
+											Convert this page to become the document cover page of a new document:
+										{/if}
+									</h4>
+									<button class="ve-button-primary" on:click={() => k_document? create_document(H_PATHS_CLIPPER): reset_document(H_PATHS_CLIPPER)}>Clipper preset</button>
+									<button class="ve-button-primary" on:click={() => k_document? create_document(H_PATHS_MSR): reset_document(H_PATHS_MSR)}>MSR preset</button>
+								</div>
+							</section>
+							<section>
+								<h3>Page</h3>
+								<div>
+									<h4>
+										Edit page metadata:
+									</h4>
 
-									<div>
-										<h4>Reset page metadata:</h4>
-										<span>
-											<button class="ve-button-primary" disabled={b_read_only_page} on:click={() => reset_page()}>Clear all unused objects</button>
-											<button class="ve-button-primary" disabled={b_read_only_page} on:click={() => reset_page(true)}>Force reset metadata</button>
-										</span>
-									</div>
-								</section>
-							</div>
-						</TabPanel>
-					{/if}
-				</Tabs>
-			</div>
+									<p>
+										<textarea bind:value={sx_page_metadata_local} class="code-edit" spellcheck="false" />
+									</p>
+									<button class="ve-button-primary" disabled={b_read_only_page || !b_page_json_writable} on:click={overwrite_page_json}>
+										{#if b_page_json_writable}
+											Overwrite JSON
+										{:else if b_page_json_valid}
+											JSON is unchanged
+										{:else}
+											Invalid JSON
+										{/if}
+									</button>
+								</div>
+
+								<div>
+									<h4>Reset page metadata:</h4>
+									<span>
+										<button class="ve-button-primary" disabled={b_read_only_page} on:click={() => reset_page()}>Clear all unused objects</button>
+										<button class="ve-button-primary" disabled={b_read_only_page} on:click={() => reset_page(true)}>Force reset metadata</button>
+									</span>
+								</div>
+							</section>
+						</div>
+					</TabPanel>
+				{/if}
+			</Tabs>
+		</div>
 		{/if}
 	</header>
 {/if}

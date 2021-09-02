@@ -167,6 +167,7 @@
 	enum G_INFO_MODES {
 		PREVIEW = 1,
 		LOADING = 2,
+		PUBLISHING = 3,
 	}
 
 	let xc_info_mode = G_INFO_MODES.PREVIEW;
@@ -238,8 +239,11 @@
 				// start counting all rows
 				k_connection.execute(k_query.count())
 					.then((a_counts) => {
-						nl_rows_total = +a_counts[0].count.value;
-						s_status_info = `${n_offset + 1}-${N_PREVIEW_ROWS + n_offset} of ${nl_rows_total}`;
+						// only update the count for the currently selected filters
+						if(si_query_hash_current === si_query_hash_previous) {
+							nl_rows_total = +a_counts[0].count.value;
+							s_status_info = `${n_offset + 1}-${N_PREVIEW_ROWS + n_offset} of ${nl_rows_total}`;
+						}
 					})
 					.catch(() => {
 						console.error('Failed to count rows for query');
@@ -305,7 +309,7 @@
 	}
 
 	async function publish_table() {
-		xc_info_mode = G_INFO_MODES.LOADING;
+		xc_info_mode = G_INFO_MODES.PUBLISHING;
 
 		// get page content as xhtml document
 		const {
@@ -402,17 +406,18 @@
 	}
 
 	function update_page_offset(right=true) {
+		let n_upper = 0;
 		if(b_filtered && nl_rows_total > N_PREVIEW_ROWS && !b_busy_loading) {
 			if(right) {
 				if(nl_rows_total < n_offset + (2 * N_PREVIEW_ROWS)) {
 					if(n_offset + N_PREVIEW_ROWS < nl_rows_total) {
 						n_offset += N_PREVIEW_ROWS;
 					}
-					s_status_info = `${n_offset}-${nl_rows_total} of ${nl_rows_total}`;
+					n_upper = nl_rows_total;
 				}
 				else {
 					n_offset += N_PREVIEW_ROWS;
-					s_status_info = `${n_offset}-${n_offset+N_PREVIEW_ROWS} of ${nl_rows_total}`;
+					n_upper = n_offset + N_PREVIEW_ROWS;
 				}
 			}
 			else {
@@ -422,8 +427,9 @@
 				else {
 					n_offset -= N_PREVIEW_ROWS;
 				}
-				s_status_info = `${n_offset}-${n_offset+N_PREVIEW_ROWS} of ${nl_rows_total}`;
+				n_upper = n_offset + N_PREVIEW_ROWS;
 			}
+			s_status_info = `${n_offset}-${n_upper} of ${nl_rows_total}`;
 			yc_virtual_scroll.scrollToIndex(n_offset);
 		}
 	}
@@ -783,6 +789,8 @@
 							{SX_STATUS_INFO_INIT}
 						{:else if G_INFO_MODES.LOADING === xc_info_mode}
 							<Fa icon={faCircleNotch} class="fa-spin" /> LOADING PREVIEW
+						{:else if G_INFO_MODES.PUBLISHING === xc_info_mode}
+							<Fa icon={faCircleNotch} class="fa-spin" /> PUBLISHING
 						{/if}
 					</span>
 				{:else if b_published}

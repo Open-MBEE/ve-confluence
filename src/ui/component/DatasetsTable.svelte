@@ -590,7 +590,7 @@
 									</svg>
 								`}
 								Item={SelectItem}
-								containerStyles={'padding: 0px 40px 0px 6px;'}
+								containerStyles={'padding: 0px 40px 0px 6px; z-index: 11;'}
 								listOffset={7}
 								on:select={select_version_for(k_connection)}
 							></Select>
@@ -634,7 +634,7 @@
 										<span class="status">
 											<Fa icon={faCheckCircle} />
 											<span class="text">
-												{g_data?.tables_touched_count}/{g_data?.tables.size} Tables Updated
+												{g_data?.tables_touched_count}/{g_data?.tables.size} Tables Updated. Refresh page to see changes.
 											</span>
 										</span>
 									{/if}
