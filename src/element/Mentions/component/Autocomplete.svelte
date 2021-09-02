@@ -147,7 +147,7 @@
 	};
 
 	function bolden_keyword(s_display: string) {
-		return escape_html(s_display).replace(s_search, `<b>${s_search}</b`);
+		return escape_html(s_display).replace(s_search, `<b>${s_search}</b>`);
 	}
 
 </script>

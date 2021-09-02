@@ -221,7 +221,9 @@ export function dng_searcher_query(this: MmsSparqlConnection, s_input: string): 
 
 			${H_NATIVE_DNG_PATTERNS.requirementName}
 
-			bind(${ode(h_criteria).reduce((s_out, [si_priority, a_conditions]) => `
+			filter(?requirementNameValue != "")
+
+			bind(${ode(h_criteria).filter(([si, a]) => a.length).reduce((s_out, [si_priority, a_conditions]) => `
 				if(${a_conditions.join(' || ')}, ${si_priority}, ${s_out})
 			`.trim(), '0')} as ?rank)
 
