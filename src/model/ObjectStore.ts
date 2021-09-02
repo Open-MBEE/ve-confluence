@@ -6,11 +6,14 @@ import type {
 	DotFragment,
 	PrimitiveObject,
 	JsonObject,
+	TypedLabeledPrimitive,
 } from '#/common/types';
 
 import {
 	NL_PATH_FRAGMENTS,
+	ResolvePath,
 	VeoPath,
+	VeoPathTarget,
 } from '#/common/veo';
 
 import type {
@@ -30,7 +33,7 @@ class UnhandledLocationError extends Error {
 	_si_storage: VeoPath.Location;
 	_a_frags: DotFragment[];
 
-	constructor(sp_path: VeoPath.Locatable, si_storage: VeoPath.Location, a_frags: DotFragment[]) {
+	constructor(sp_path: VeoPathTarget, si_storage: VeoPath.Location, a_frags: DotFragment[]) {
 		super(`VE Path ${si_storage} location not handled: '${sp_path}'`);
 		this._si_storage = si_storage;
 		this._a_frags = a_frags;
@@ -46,7 +49,7 @@ class UnhandledLocationError extends Error {
 }
 
 
-function parse_path(sp_path: VeoPath.Locatable): [VeoPath.Location, DotFragment[]] {
+function parse_path(sp_path: VeoPathTarget): [VeoPath.Location, DotFragment[]] {
 	const a_parts = sp_path.split('#');
 
 	if(2 !== a_parts.length) {
@@ -171,7 +174,7 @@ export class ObjectStore {
 		ValueType extends Serializable | Primitive,
 		ClassType extends VeOdm<ValueType>,
 	>(sp_target: VeoPath.Locatable, g_context: Context, c_frags: number, dc_class: Instantiable<ValueType, ClassType>): Promise<PathOptions<ValueType, ClassType>> {
-		const h_options = await this.resolve<Record<string, ValueType>>(sp_target);
+		const h_options: Record<string, ValueType> = await this.resolve(sp_target);
 
 		let h_out: PathOptions<ValueType, ClassType> = {};
 
@@ -210,7 +213,7 @@ export class ObjectStore {
 		return a_frags[3];
 	}
 
-	_parse_path(sp_path: VeoPath.Locatable): [VeoPath.Location, DotFragment[], SerializationLocation] {
+	_parse_path(sp_path: VeoPathTarget): [VeoPath.Location, DotFragment[], SerializationLocation] {
 		const [si_storage, a_frags] = parse_path(sp_path);
 
 		if(!(si_storage in this._h_locations)) {
@@ -220,7 +223,7 @@ export class ObjectStore {
 		return [si_storage, a_frags, this._h_locations[si_storage]];
 	}
 
-	_parse_path_sync(sp_path: VeoPath.Locatable): [VeoPath.Location, DotFragment[], SynchronousSerializationLocation] {
+	_parse_path_sync(sp_path: VeoPathTarget): [VeoPath.Location, DotFragment[], SynchronousSerializationLocation] {
 		const [si_storage, a_frags, k_location] = this._parse_path(sp_path);
 
 		if(!k_location.isSynchronous) {
@@ -255,20 +258,21 @@ export class ObjectStore {
 	}
 
 	optionsSync<
-		ValueType extends Serializable | Primitive,
+		PathString extends `hardcoded#${string}`,
+		ValueType extends ResolvePath<PathString, TypedLabeledPrimitive>,
 		ClassType extends VeOdm<ValueType>,
-	>(sp_path: VeoPath.HardcodedObject, g_context: Context, dc_class: Instantiable<ValueType, ClassType>): Record<VeoPath.Full, ClassType> {
+	>(sp_path: PathString, g_context: Context, dc_class: Instantiable<ValueType, ClassType>): Record<string, ClassType> {
 		const sp_parent = sp_path.replace(/\.[^.]+$/, '');
-		const h_options = this.resolveSync<Record<string, ValueType>>(sp_parent as VeoPath.Locatable);
+		const h_options = this.resolveSync(sp_parent);
 		return oderom(h_options, (si_key, w_value) => ({
-			[`${sp_parent}.${si_key}`]: new dc_class(`${sp_parent}.${si_key}` as VeoPath.Full, w_value, g_context),
+			[`${sp_parent}.${si_key}`]: new dc_class(`${sp_parent}.${si_key}` as VeoPath.Full, w_value as ValueType, g_context),
 		}));
 	}
 
 	resolveSync<
-		ValueType extends PrimitiveValue,
-		VeoPathType extends VeoPath.HardcodedObject = VeoPath.HardcodedObject,
-	>(sp_path: VeoPath.Locatable): ValueType {
+		PathString extends VeoPathTarget,
+		ValueType extends ResolvePath<PathString, TypedLabeledPrimitive>,
+	>(sp_path: PathString): ValueType {
 		const [si_storage, a_frags, k_location] = this._parse_path_sync(sp_path);
 
 		// fetch ve4 data
@@ -310,9 +314,9 @@ export class ObjectStore {
 	}
 
 	async resolve<
-		ValueType extends PrimitiveValue,
-		VeoPathType extends VeoPath.Full = VeoPath.Full,
-	>(sp_path: VeoPath.Locatable): Promise<ValueType> {
+		PathString extends VeoPathTarget,
+		ValueType extends ResolvePath<PathString>,
+	>(sp_path: PathString): Promise<ValueType> {
 		const [si_storage, a_frags, k_location] = this._parse_path(sp_path);
 
 		// fetch ve4 data

@@ -1,18 +1,28 @@
 import {
 	dd,
 	qs,
+	qsa,
 } from "#/util/dom";
 
 import {
 	confluence_editor_injections,
 } from '#/common/static';
 
+import {
+	static_css,
+	static_js,
+} from '#/common/static';
+
 export const SR_HASH_VE_PAGE_EDIT_MODE = '#editor';
 
 // export const P_SRC_WYSIWYG_EDITOR = 'https://ced-cdn-test.s3-us-gov-west-1.amazonaws.com/confluence-ui/injected-editor.js';
-export const P_SRC_WYSIWYG_EDITOR = 'http://localhost:3001/public/build/confluence-editor.js';
+export const P_SRC_WYSIWYG_EDITOR = 'http://localhost:3001/public/build/confluence-editor.dev.js';
+export const P_SRC_EDITOR_SUPPLEMENT = 'http://localhost:3001/public/build/editor.dev.js';
 
-const B_AWAIT_PRELOAD = true;
+// export const P_SRC_WYSIWYG_EDITOR = 'https://ced-cdn-test.s3-us-gov-west-1.amazonaws.com/confluence-ui/confluence-editor.dev.js';
+// export const P_SRC_EDITOR_SUPPLEMENT = 'https://ced-cdn-test.s3-us-gov-west-1.amazonaws.com/confluence-ui/editor.dev.js';
+
+const B_AWAIT_PRELOAD = false;
 
 const RT_STRINGIFIED_FUNCTION_NATIVE = /^\s*function\s+([a-zA-Z0-9_$]+)\([^)]*\)\s*\{\s*\[\s*native\s+code\s*\]\s*\}\s*$/;
 
@@ -82,7 +92,7 @@ function reset_window() {
 export async function inject_frame(p_href: string): Promise<void> {
 	// mimic loading UI
 	{
-		const dm_edit = qs(document.body, 'a#editPageLink') as HTMLAnchorElement
+		const dm_edit = qs(document.body, 'a#editPageLink') as HTMLAnchorElement;
 		(qs(dm_edit, '.aui-iconfont-edit') as HTMLSpanElement).style.visibility = 'hidden';
 
 		// use same jQuery call as confluence
@@ -156,8 +166,52 @@ export async function inject_frame(p_href: string): Promise<void> {
 
 	// replace editor script src
 	{
-		const d_script = qs(d_doc, 'script[data-wrm-key^="editor-v4"]') as HTMLScriptElement;
-		d_script.src = P_SRC_WYSIWYG_EDITOR;
+		const dm_script = qs(d_doc, 'script[data-wrm-key^="editor-v4"]') as HTMLScriptElement;
+		if(!dm_script) {
+			debugger;
+			console.dir(d_doc);
+		}
+		dm_script.src = P_SRC_WYSIWYG_EDITOR;
+	}
+
+	// manually ensure user-locale is set
+	{
+		const dm_script = qs(d_doc, 'script[data-wrm-key="_super"]') as HTMLScriptElement;
+		if(!dm_script) {
+			debugger;
+			console.dir(d_doc);
+		}
+
+		const dm_test = dd('script', {
+			type: 'text/javascript',
+		}, [`
+			AJS.Meta.set('user-locale', 'en-US');
+		`], d_doc);
+
+		dm_test.insertAdjacentElement('afterend', dm_script);
+	}
+
+	// let i_script = 0;
+	// for(const dm_script of qsa(d_doc, 'script')) {
+	// 	const dm_test = d_doc.createElement('script');
+	// 	dm_test.type = 'text/javascript';
+	// 	dm_test.textContent = `
+	// 		try {
+	// 			console.dir(AJS.Meta);
+	// 			console.log('child #${i_script++}: '+AJS.Meta.get('user-locale'));
+	// 		}
+	// 		catch(e_access) {}
+	// 	`;
+	// 	dm_script.parentElement?.insertBefore(dm_test, dm_script);
+	// }
+
+	// append custom editor script
+	{
+		d_doc.head.appendChild(dd('script', {
+			type: 'text/javascript',
+			charset: 'utf-8',
+			src: P_SRC_EDITOR_SUPPLEMENT,
+		}, [], d_doc));
 	}
 
 	// remove things that mess up view
@@ -173,6 +227,23 @@ export async function inject_frame(p_href: string): Promise<void> {
 		}
 	}
 
+	// write static css
+	{
+		const dm_style = d_doc.createElement('style');
+		dm_style.innerHTML = static_css;
+		dm_style.id = 'findme';
+		d_doc.head.appendChild(dm_style);
+	}
+
+	// write global js
+	{
+		const dm_script = d_doc.createElement('script');
+		dm_script.type = 'text/javascript';
+		dm_script.innerHTML = static_js;
+		d_doc.head.appendChild(dm_script);
+	}
+
+
 	// reserialize the document
 	const d_serializer = new XMLSerializer();
 	const sx_injected = d_serializer.serializeToString(d_doc);
@@ -183,8 +254,6 @@ export async function inject_frame(p_href: string): Promise<void> {
 			fk_script_loaded = () => fk_resolve(void 0);
 		});
 	}
-
-	debugger;
 
 	// let all microtasks die
 	await microtasks_expire();
@@ -221,7 +290,6 @@ export async function inject_frame(p_href: string): Promise<void> {
 
 	// use special URL to indicate edit mode
 	{
-		// debugger;
 		const pr_target = location.pathname.replace(/\+*$/, `+++${SR_HASH_VE_PAGE_EDIT_MODE}`);
 
 		// current href does not match target, push to history
@@ -234,16 +302,12 @@ export async function inject_frame(p_href: string): Promise<void> {
 		Object.assign(window, {ve4_iframe_target:pr_target});
 	}
 
-	debugger;
-
 	// open, write and close document
 	{
 		document.open();
 		document.write('<html><body><div id="ve4-loading">Loading...</div></body></html>');
 		document.close();
 	}
-
-	debugger;
 
 	// create iframe
 	{
@@ -320,8 +384,6 @@ export async function inject_frame(p_href: string): Promise<void> {
 			d_document.close();
 		}
 
-		debugger;
-
 		// monkey-patch editor styling
 		{
 			const try_styling = () => {
@@ -331,7 +393,6 @@ export async function inject_frame(p_href: string): Promise<void> {
 				const d_editor_doc = dm_editor.contentDocument!;
 				const dm_editor_head = d_editor_doc.head;
 
-				debugger;
 				if(Array.isArray(confluence_editor_injections)) {
 					for(const gc_element of confluence_editor_injections as Record<string, string>[]) {
 						try {
@@ -369,10 +430,8 @@ export async function inject_frame(p_href: string): Promise<void> {
 					characterData: false,
 				});
 
-				debugger;
 				try_styling();
 			});
 		}
-
 	}
 }

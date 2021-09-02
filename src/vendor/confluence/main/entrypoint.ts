@@ -443,6 +443,12 @@ export async function main(): Promise<void> {
 
 const H_HASH_TRIGGERS: Record<string, (de_hash_change?: HashChangeEvent) => Promise<void>> = {
 	async 'load-editor'(de_hash_change?: HashChangeEvent) {
+		// apply beta changes
+		replace_edit_button();
+
+		if(!p_original_edit_link) {
+			throw new Error(`Original page edit button link was never captured`);
+		}
 		return await inject_frame(p_original_edit_link);
 	},
 
@@ -470,8 +476,8 @@ const H_HASH_TRIGGERS: Record<string, (de_hash_change?: HashChangeEvent) => Prom
 		// update version info
 		kv_control_bar.$set({s_app_version:`${process.env.VERSION}-beta`});
 
-		// apply beta changes
-		replace_edit_button();
+		// // apply beta changes
+		// replace_edit_button();
 
 		await Promise.resolve();
 	},
@@ -486,6 +492,9 @@ const H_HASH_TRIGGERS: Record<string, (de_hash_change?: HashChangeEvent) => Prom
 let p_original_edit_link = '';
 
 function replace_edit_button() {
+	// already replaced
+	if(p_original_edit_link) return;
+
 	const dm_edit = qs(dm_main, 'a#editPageLink')! as HTMLAnchorElement;
 	p_original_edit_link = dm_edit.href;
 	dm_edit.href = '#load-editor';
@@ -520,6 +529,9 @@ const H_PATH_SUFFIX_TO_HASH: Record<string, string> = {
 };
 
 function dom_ready() {
+	// apply beta changes
+	replace_edit_button();
+
 	// listen for hash change
 	window.addEventListener('hashchange', hash_updated);
 

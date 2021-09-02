@@ -15,6 +15,11 @@ import type {
 	QueryType,
 } from '#/element/QueryTable/model/QueryTable';
 
+import type {
+	MmsSparqlConnection,
+	SparqlConnection,
+} from '#/model/Connection';
+
 import {
 	MetadataBundle,
 	MetadataShape,
@@ -31,7 +36,10 @@ import {
 	XhtmlString,
 } from '#/util/strings';
 
-import {build_dng_select_query_from_params} from './helper/sparql-code';
+import {
+	build_dng_select_query_from_params,
+	dng_searcher_query,
+} from './helper/sparql-code';
 
 import H_PREFIXES from './prefixes';
 
@@ -323,6 +331,16 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 			dng: {
 				common: {
 					prefixes: H_PREFIXES,
+				},
+			},
+		},
+	},
+
+	searcher: {
+		sparql: {
+			dng: {
+				basic: {
+					function: dng_searcher_query,
 				},
 			},
 		},

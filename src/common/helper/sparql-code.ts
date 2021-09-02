@@ -1,4 +1,6 @@
 import type {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
+import type { MmsSparqlConnection } from '#/model/Connection';
+import { ode, oderac, oderom } from '#/util/belt';
 
 import {SparqlSelectQuery} from '../../util/sparql-endpoint';
 
@@ -163,6 +165,72 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 		sort: [
 			...a_selects.includes('?idValue')? ['asc(?idValue)']: [],
 			'asc(?artifact)',
+		],
+	});
+}
+
+export function dng_searcher_query(this: MmsSparqlConnection, s_input: string): SparqlSelectQuery {
+	// criteria for searching
+	const h_criteria = {
+		1: [],
+		2: [],
+		3: [],
+	} as Record<string, string[]>;
+
+	// sanitize input string
+	const s_sanitized = s_input.trim()
+		.replace(/[\r\n]/g, '')
+		.replace(/\\/g, '\\\\')
+		.replace(/"/g, '\\"');
+
+	// id candidate
+	if(/^\d+$/.test(s_sanitized)) {
+		h_criteria[1].push(`str(?idValue) = "${s_sanitized}"`);
+		h_criteria[2].push(`strStarts(?idValue, "${s_sanitized}")`);
+	}
+
+	// requirement name
+	h_criteria[1].push(`strStarts(?requirementNameValue, "${s_sanitized}")`);
+	h_criteria[3].push(`contains(?requirementNameValue, "${s_sanitized}")`);
+
+	// build query
+	return new SparqlSelectQuery({
+		count: '?artifact',
+		select: [
+			'?rank',
+			'?artifact',
+			'?idValue',
+			'?requirementNameValue',
+		],
+		from: `<${this.modelGraph}>`,
+		bgp: /* syntax: sparql */ `
+			?artifact a oslc_rm:Requirement ;
+				oslc:instanceShape [
+					dct:title "Requirement"^^rdf:XMLLiteral ;
+				] ;
+				.
+
+			# exclude requirements that are part of a requirement document
+			filter not exists {
+				?collection a oslc_rm:RequirementCollection ;
+					oslc_rm:uses ?artifact ;
+					.
+			}
+			
+			${H_NATIVE_DNG_PATTERNS.id}
+
+			${H_NATIVE_DNG_PATTERNS.requirementName}
+
+			bind(${ode(h_criteria).reduce((s_out, [si_priority, a_conditions]) => `
+				if(${a_conditions.join(' || ')}, ${si_priority}, ${s_out})
+			`.trim(), '0')} as ?rank)
+
+			filter(?rank > 0)
+		`,
+
+		sort: [
+			'asc(?rank)',
+			'asc(?requirementNameValue)',
 		],
 	});
 }

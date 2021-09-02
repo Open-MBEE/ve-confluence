@@ -1,4 +1,4 @@
-import type {VeoPath} from '#/common/veo';
+import type {VeoPath, VeoPathTarget} from '#/common/veo';
 
 import type {
 	UrlString,
@@ -7,14 +7,18 @@ import type {
 	SparqlString,
 	QueryRow,
 	TypedLabeledObject,
+	TypedLabeledPrimitive,
+	TypedPrimitive,
 } from '#/common/types';
 
-import SparqlEndpoint from '../util/sparql-endpoint';
+import SparqlEndpoint, { SparqlQuery, SparqlSelectQuery } from '../util/sparql-endpoint';
 
 import {
+	Primitive,
 	VeOdmLabeled,
 	VeOrmClass,
 } from './Serializable';
+import type { ConnectionQuery } from '#/element/QueryTable/model/QueryTable';
 
 export interface ModelVersionDescriptor {
 	id: string;
@@ -44,6 +48,8 @@ export abstract class Connection<
 	// abstract fetchVersions(): Promise<ModelVersionDescriptor[]>;
 
 	abstract execute(sq_query: string): Promise<QueryRow[]>;
+
+	abstract search(s_input: string): ConnectionQuery;
 }
 
 
@@ -57,13 +63,19 @@ export namespace SparqlConnection {
 	export interface Serialized<TypeString extends DefaultType=DefaultType> extends Connection.Serialized<TypeString> {
 		endpoint: UrlString;
 		contextPath: VeoPath.SparqlQueryContext;
+		searcherPath: VeoPathTarget;
 	}
+}
+
+export interface SparqlSearcher extends TypedPrimitive<'SparqlSearcher'> {
+	function: (this: SparqlConnection, s_input: string) => SparqlSelectQuery;
 }
 
 export abstract class SparqlConnection<
 	Serialized extends SparqlConnection.Serialized=SparqlConnection.Serialized,
 > extends Connection<Serialized> {
 	protected _k_endpoint!: SparqlEndpoint;
+	protected _f_searcher!: SparqlSearcher['function'];
 
 	protected _h_prefixes?: Hash;
 
@@ -72,6 +84,9 @@ export abstract class SparqlConnection<
 			endpoint: this.endpoint,
 			prefixes: this.prefixes,
 		});
+
+		const gc_searcher = this._k_store.resolveSync(this._gc_serialized.searcherPath) as unknown as SparqlSearcher;
+		this._f_searcher = gc_searcher.function;
 	}
 
 	get context(): SparqlQueryContext {
@@ -80,6 +95,11 @@ export abstract class SparqlConnection<
 
 	get prefixes(): Hash {
 		return this._h_prefixes || (this._h_prefixes = this.context.prefixes);
+	}
+
+	search(s_input: string): SparqlSelectQuery {
+		// @ts-expect-error this is fine
+		return this._f_searcher(s_input);
 	}
 }
 
@@ -99,22 +119,6 @@ export namespace MmsSparqlConnection {
 		contextPath: VeoPath.SparqlQueryContext;
 	}
 }
-
-const dt_now = new Date();
-const dt_old = new Date(dt_now.getTime() - (48*60*60*1e3));
-const date_format = (dt: Date): string => dt.toDateString().replace(/^\w+\s+/, '').replace(/(\d+)\s+/, '$1, ');
-
-const G_DUMMY_VERSION_LATEST = {
-	id: 'dummy-latest-commit-id',
-	label: date_format(dt_now),
-	dateTime: dt_now.toISOString(),
-};
-
-const G_DUMMY_VERSION_CURRENT = {
-	id: 'dummy-current-commit-id',
-	label: date_format(dt_old),
-	dateTime: dt_old.toISOString(),
-};
 
 interface CommitResult {
 	modelGraph: {

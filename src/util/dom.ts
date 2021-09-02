@@ -1,3 +1,5 @@
+import type { JsonValue } from "#/common/types";
+
 type Hash = Record<string, string>;
 
 type Split<S extends string, D extends string> = S extends `${infer T}${D}${infer U}` ? [T, ...Split<U, D>] : [S];
@@ -71,10 +73,11 @@ export const qsa = <T extends string>(dm_node: ParentNode | HTMLElement, sq_sele
 
 export function dd<T extends HTMLElement = HTMLElement>(
 	s_tag: string,
-	h_attrs: Record<string, string | number | boolean> = {},
-	a_children: (Element | string)[] = [],
+	h_attrs: Record<string, string | number | boolean>={},
+	a_children: (Element | string)[]=[],
+	d_doc=document
 ): T {
-	const dm_node = document.createElement(s_tag);
+	const dm_node = d_doc.createElement(s_tag);
 
 	for(const si_attr in h_attrs) {
 		dm_node.setAttribute(si_attr, h_attrs[si_attr]+'');
@@ -100,6 +103,11 @@ export const uuid_v4 = (): string => {
 		return ('x' === s? x_r: ((x_r & 0x3) | 0x8)).toString(16);
 	});
 };
+
+export const encode_attr = (h: Record<string, unknown>) => btoa(JSON.stringify(h));
+
+export const decode_attr = (sx: string) => sx? JSON.parse(atob(sx)) as JsonValue: null;
+
 
 // main page
 export const dm_main = document.getElementById('main') as HTMLDivElement;

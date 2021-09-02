@@ -13,7 +13,10 @@ import {
 } from '#/common/static';
 
 import {
+	delete_json,
+	FetchConfig,
 	get_json,
+	post_json,
 	put_json,
 	Response,
 } from '#/util/fetch';
@@ -239,7 +242,7 @@ export type PageMap<
 > = Map<ConfluenceApi.BasicPage, OdmMap<Serialized, InstanceType>>;
 
 
-async function confluence_get_json<Data extends JsonObject>(pr_path: string, gc_get?: {search?: Hash}): Promise<Response<Data>> {
+export async function confluence_get_json<Data extends JsonObject>(pr_path: string, gc_get?: FetchConfig): Promise<Response<Data>> {
 	// complete path with API
 	pr_path = `${P_API_DEFAULT}${pr_path}`;
 
@@ -247,12 +250,28 @@ async function confluence_get_json<Data extends JsonObject>(pr_path: string, gc_
 	return await get_json<Data>(pr_path, gc_get);
 }
 
-async function confluence_put_json<Data extends JsonObject>(pr_path: string, gc_post?: {body?: string; json?: JsonValue}): Promise<Response<Data>> {
+export async function confluence_put_json<Data extends JsonObject>(pr_path: string, gc_put?: FetchConfig): Promise<Response<Data>> {
 	// complete path with API
 	pr_path = `${P_API_DEFAULT}${pr_path}`;
 
 	// forward to fetch method
-	return await put_json<Data>(pr_path, gc_post);
+	return await put_json<Data>(pr_path, gc_put);
+}
+
+export async function confluence_post_json<Data extends JsonObject>(pr_path: string, gc_post?: FetchConfig): Promise<Response<Data>> {
+	// complete path with API
+	pr_path = `${P_API_DEFAULT}${pr_path}`;
+
+	// forward to fetch method
+	return await post_json<Data>(pr_path, gc_post);
+}
+
+export async function confluence_delete_json<Data extends JsonObject>(pr_path: string, gc_delete?: FetchConfig): Promise<Response<Data>> {
+	// complete path with API
+	pr_path = `${P_API_DEFAULT}${pr_path}`;
+
+	// forward to fetch method
+	return await delete_json<Data>(pr_path, gc_delete);
 }
 
 async function fetch_page_properties<
@@ -507,18 +526,22 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 	static async fromCurrentPage(): Promise<ConfluencePage> {
 		const k_page = new ConfluencePage(G_META.page_id, G_META.page_title);
 		const dm_modified = document.querySelector('a.last-modified') as HTMLAnchorElement;
-		const s_search = new URL(dm_modified.href).search;
-		const a_versions = new URLSearchParams(s_search).getAll('selectedPageVersions');
 
-		// deduce page version
-		const n_local = a_versions?.length? +a_versions[a_versions.length - 1]: 1;
+		// check version against remote
+		if(dm_modified) {
+			const s_search = new URL(dm_modified.href).search;
+			const a_versions = new URLSearchParams(s_search).getAll('selectedPageVersions');
 
-		// compare versions
-		const n_remote = await k_page.fetchVersionNumber();
+			// deduce page version
+			const n_local = a_versions?.length? +a_versions[a_versions.length - 1]: 1;
 
-		// versions are out-of-sync
-		if(n_local !== n_remote) {
-			throw new Error(`Page is out of sync. Please reload`);
+			// compare versions
+			const n_remote = await k_page.fetchVersionNumber();
+
+			// versions are out-of-sync
+			if(n_local !== n_remote) {
+				throw new Error(`Page is out of sync. Please reload`);
+			}
 		}
 
 		return k_page;
@@ -603,6 +626,10 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 
 		// save to field and return
 		return (this._g_info = g_info);
+	}
+
+	getDisplayUrlString(): string {
+		return `/display/${G_META.space_key}/${this._s_page_title.replace(/ /g, '+')}`;
 	}
 
 	async fetchAncestry(b_force=false): Promise<ConfluenceApi.BasicPage[]> {

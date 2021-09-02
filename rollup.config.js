@@ -178,10 +178,10 @@ export default [
 			sourcemap: true,
 			format: 'iife',
 			name: 'editor',
-			file: 'public/build/editor.js'
+			file: `public/build/editor.${B_PROD? 'min': 'dev'}.js`,
 		},
 		plugins: [
-			...svelte_plugins({terser:true}),
+			...svelte_plugins(),
 		],
 		watch: {
 			clearScreen: false,

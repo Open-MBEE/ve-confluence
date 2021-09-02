@@ -455,7 +455,7 @@ export abstract class SparqlQueryTable<
 	Serialized extends SparqlQueryTable.Serialized=SparqlQueryTable.Serialized,
 	LocalQueryType extends QueryType<'sparql'>=QueryType<'sparql'>,
 > extends QueryTable<'sparql', Serialized, LocalQueryType> {
-	protected _h_options!: Record<VeoPath.SparqlQueryType, LocalQueryType>;
+	protected _h_options!: Record<string, LocalQueryType>;
 
 	// @ts-expect-error weired serialized unions
 	abstract fetchConnection(): Promise<SparqlConnection>;
@@ -475,7 +475,7 @@ export abstract class SparqlQueryTable<
 			label: s_label,
 		} = g_query_type;
 
-		const h_options = this._h_options as Record<string, LocalQueryType>;
+		const h_options = this._h_options;
 		for(const sp_test in h_options) {
 			const k_test = h_options[sp_test];
 			if(si_value === k_test.value && s_label === k_test.label) {
