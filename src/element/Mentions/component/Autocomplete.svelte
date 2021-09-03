@@ -3,6 +3,7 @@
 
 	import {
 		dd,
+		decode_attr,
 		encode_attr,
 		qs,
 		qsa,
@@ -12,83 +13,354 @@
 
 	import type {Context} from '#/model/Serializable';
 
-	import {AutocompleteSession} from '../model/AutocompleteSession';
+	import {
+		AutocompleteSession,
+	} from '../model/AutocompleteSession';
+
+	import type {
+		Channel,
+	} from '../model/AutocompleteSession';
 
 	import type {QueryRow} from '#/common/types';
 
 	import type {Connection} from '#/model/Connection';
 
-	import { escape_html } from '#/util/strings';
+	import {escape_html} from '#/util/strings';
+import AsyncLockPool from '#/util/async-lock-pool';
+import { escape_regex } from '#/util/belt';
 
 	export let y_editor: PatchedEditor;
 	export let g_context: Context;
 
-	interface CompleteRow {
+	enum GroupState {
+		FRESH,
+		DIRTY,
+	}
+
+	interface Row {
 		title: string;
 		subtitle: string;
 		source: Connection;
 		uri: string;
 	}
 
+	type RowGroup = {
+		state: GroupState;
+		rows: Row[];
+	};
+
+	const SI_CLASS_ITEM_SELECTED = 'item-selected';
+
 	let s_search = '';
 	let b_display = false;
 	let x_offset_x = 0;
 	let x_offset_y = 0;
-	let a_complete: CompleteRow[] = [];
-
+	let a_groups: RowGroup[] = [];
+	let i_select = 0;
+	let dm_container!: HTMLDivElement;
+	let dm_content!: HTMLDivElement;
 
 	let k_session = new AutocompleteSession({
 		g_context,
+		ready(a_channels) {
+			a_groups = a_channels.map(g_channel => ({
+				state: GroupState.DIRTY,
+				rows: [],
+			}) as RowGroup);
+		},
 	});
 
-	y_editor.on('input', (y_event: InputEvent) => {
+	const A_NON_CHANGING_KEY = [
+		'Alt',
+		'AltGraph',
+		'CapsLock',
+		'Control',
+		'Fn',
+		'FnLock',
+		'Hyper',
+		'Meta',
+		'NumLock',
+		'ScrollLock',
+		'Shift',
+		'Super',
+		'Symbol',
+		'SymbolLock',
+		'ArrowLeft',
+		'ArrowRight',
+		'Home',
+		'End',
+		'Copy',
+		'Insert',
+	];
+
+	const A_CANCEL_KEY = [
+		'Escape',
+		'PageDown',
+		'PageUp',
+		'Cancel',
+	];
+
+	const H_CACHE: Record<string, {
+		title: string;
+		id: string;
+	}> = {};
+
+	function* range(s_from: string, s_to: string) {
+		for(let i_char=s_from.codePointAt(0)!, i_to=s_to.codePointAt(0)!; i_char<i_to; i_char++) {
+			yield String.fromCodePoint(i_char);
+		}
+	}
+
+	interface Scenario {
+		input: string;
+		groups: RowGroup[];
+		ready: boolean;
+	}
+
+	const query_row_to_display_row = (h_row: QueryRow, k_connection: Connection): Row => ({
+		title: h_row.requirementNameValue.value,
+		subtitle: h_row.idValue.value,
+		uri: h_row.artifact.value,
+		source: k_connection,
+	});
+
+	const H_PRECACHE: Record<string, Scenario> = {};
+	{
+		const XC_FRESH = GroupState.FRESH;
+		const kl_precache = new AsyncLockPool(16);
+
+		const precache = async(s_input: string) => {
+			const f_release = await kl_precache.acquire();
+
+			const a_groups_local: RowGroup[] = [];
+
+			const g_scenario: Scenario = H_PRECACHE[s_input] = {
+				input: s_input,
+				ready: false,
+				groups: a_groups_local,
+			};
+
+			void k_session_precache.update(s_input, (g_channel, a_rows) => {
+				a_groups_local[g_channel.index] = {
+					state: XC_FRESH,
+					rows: a_rows.map(h => query_row_to_display_row(h, g_channel.connection)),
+				};
+			}).then(() => {
+				for(let i_check=0; i_check<a_groups_local.length; i_check++) {
+					if(!a_groups_local[i_check]) a_groups_local[i_check] = {state:XC_FRESH, rows:[] as Row[]};
+				}
+
+				g_scenario.ready = true;
+				f_release();
+				console.log(`precached search: "${s_input}"`);
+			});
+		};
+
+		const k_session_precache = new AutocompleteSession({
+			g_context,
+			ready() {
+				for(const s_char of range('0', '9')) {
+					void precache(s_char);
+				}
+
+				for(const s_char of range('a', 'z')) {
+					void precache(s_char);
+				}
+
+				void precache('tr');
+				void precache('ch');
+				void precache('sh');
+				void precache('th');
+
+				for(const s_char of range('a', 'z')) {
+					void precache(s_char+'a');
+					void precache(s_char+'e');
+					void precache(s_char+'i');
+					void precache(s_char+'o');
+					void precache(s_char+'u');
+				}
+
+				for(const s_char of range('a', 'z')) {
+					if('bcfgps'.includes(s_char)) {
+						void precache(s_char+'r');
+						void precache(s_char+'l');
+					}
+				}
+			},
+		});
+	}
+
+
+	function get_mentions(): {anchor: HTMLElement|null; mentions: HTMLElement[]} {
+		// element struct
+		const g_elements = {
+			anchor: null,
+			mentions: [],
+		};
+
 		// get selection
 		let g_sel;
 		try {
 			g_sel = y_editor.selection.getSel();
 		}
 		catch(e_sel) {
-			return;
+			return g_elements;
 		}
 
 		// no selection; abort
-		if(!g_sel) return;
+		if(!g_sel) return g_elements;
 
 		// @ts-expect-error anchorNode not defined in typings
-		const dm_anchor = g_sel.anchorNode as HTMLElement;
+		const dm_anchor = g_elements.anchor = g_sel.anchorNode as HTMLElement;
 
 		// text node; traverse up
 		const dm_focus = ('#text' === dm_anchor.nodeName? dm_anchor.parentNode: dm_anchor) as HTMLElement;
 
 		// find mention data
-		const dm_mentions = dm_focus.hasAttribute('data-mention')? [dm_focus]: qsa(dm_focus, '[data-mention]');
+		return {anchor:dm_anchor, mentions:dm_focus.hasAttribute('data-mention')? [dm_focus]: qsa(dm_focus, '[data-mention]') as HTMLElement[]};
+	}
 
-		// mention data node not found; exit
-		if(!dm_mentions.length) return;
+	function select_item() {
+		const dm_selected = qs(dm_content, '.item-selected');
+
+		if(!dm_selected) {
+			throw new Error(`Cannot select item, nothing selected`);
+		}
+
+		const p_item = dm_selected.getAttribute('data-uri')!;
+
+		const {
+			title: s_title,
+			id: si_item,
+		} = H_CACHE[p_item];
+
+		// mention data nodes
+		const {anchor:dm_anchor, mentions:a_mentions} = get_mentions();
+
+		// replace content
+		for(const dm_mention of a_mentions) {
+			dm_mention.textContent = `@${si_item}`;
+
+			const dm_attribute = dd('');
+
+			// append attribute selector
+			dm_mention.appendChild(dm_attribute);
+		}
+
+		// hide autocomplete
+		b_display = false;
+	}
+	
+
+	function mouseenter_row(d_event: MouseEvent) {
+		for(const dm_selected of qsa(dm_content, SI_CLASS_ITEM_SELECTED) as HTMLElement[]) {
+			dm_selected.classList.remove(SI_CLASS_ITEM_SELECTED);
+		}
+
+		(d_event.target as HTMLElement).classList.add(SI_CLASS_ITEM_SELECTED);
+	}
+
+	function mouseleave_row(d_event: MouseEvent) {
+		(d_event.target as HTMLElement).classList.remove(SI_CLASS_ITEM_SELECTED);
+	}
+
+	function ensure_selected_visible() {
+		const dm_selected = qs(dm_content, '.'+SI_CLASS_ITEM_SELECTED) as HTMLDivElement | null;
+
+		if(!dm_selected) return;
+
+		dm_selected.scrollIntoView({
+			behavior: 'smooth',
+			block: 'nearest',
+		});
+	}
+
+	function bump_selection(xc_direction: -1 | 1) {
+		const dm_selected = qs(dm_content, '.'+SI_CLASS_ITEM_SELECTED);
+		if(!dm_selected) {
+			const dm_first = qs(dm_content, '.row');
+
+			if(dm_first) {
+				dm_first.classList.add(SI_CLASS_ITEM_SELECTED);
+			}
+		}
+		else if(xc_direction > 0) {
+			const dm_next = dm_selected.nextElementSibling;
+			if(dm_next) {
+				dm_selected.classList.remove(SI_CLASS_ITEM_SELECTED);
+				dm_next.classList.add(SI_CLASS_ITEM_SELECTED);
+
+				ensure_selected_visible();
+			}
+		}
+		else if(xc_direction < 0) {
+			const dm_prev = dm_selected.previousElementSibling;
+			if(dm_prev) {
+				dm_selected.classList.remove(SI_CLASS_ITEM_SELECTED);
+				dm_prev.classList.add(SI_CLASS_ITEM_SELECTED);
+
+				ensure_selected_visible();
+			}
+		}
+	}
+
+	y_editor.on('input', (y_event: InputEvent) => {
+		// mention data nodes
+		const {anchor:dm_anchor, mentions:a_mentions} = get_mentions();
+
+		// no nodes; exit
+		if(!dm_anchor || !a_mentions.length) return;
 
 		// single mention node
-		if(1 === dm_mentions.length) {
+		if(1 === a_mentions.length) {
 			// extract mention query
-			s_search = dm_anchor.textContent!.replace(/^@/, '');
+			s_search = dm_anchor.textContent!.replace(/^@/, '').trim().toLocaleLowerCase();
 
 			// prevent confluence from doing something
 			y_event.stopImmediatePropagation();
 
-			// apply query
-			void k_session.update(s_search, (k_connection: Connection, a_rows: QueryRow[]) => {
-				let a_mapped: CompleteRow[] = [];
+			// precache available
+			const g_scenario = H_PRECACHE[s_search];
+			if(g_scenario?.ready) {
+				// update
+				a_groups = g_scenario.groups;
 
-				if('DNG Requirements' === k_connection.label) {
-					// debugger;
-					a_mapped = a_rows.map(h_row => ({
-						title: h_row.requirementNameValue.value,
-						subtitle: h_row.idValue.value,
-						uri: h_row.artifact.value,
-						source: k_connection,
-					}));
+				// exit
+				return;
+			}
+
+			// apply query
+			void k_session.update(s_search, (g_channel: Channel, a_rows: QueryRow[]) => {
+				let a_mapped: Row[] = [];
+				const k_connection = g_channel.connection;
+
+				if('DNG Requirements' === g_channel.connection.label) {
+					a_mapped = a_rows.map((h_row) => {
+						H_CACHE[h_row.artifact.value] = {
+							title: h_row.requirementNameValue.value,
+							id: `DNG:${h_row.idValue.value}`,
+						};
+
+						return {
+							title: h_row.requirementNameValue.value,
+							subtitle: h_row.idValue.value,
+							uri: h_row.artifact.value,
+							source: k_connection,
+						};
+					});
 				}
 
-				a_complete = [...a_mapped];
+				// ref group
+				const g_group = a_groups[g_channel.index];
+
+				// update rows
+				g_group.rows = a_mapped;
+
+				// clean state
+				g_group.state = GroupState.FRESH;
+
+				// update
+				a_groups = a_groups;
 			});
 
 			return;
@@ -108,32 +380,102 @@
 	}, true);
 
 	// bind tinymce keydown
-	y_editor.on('keydown', (y_event: KeyboardEvent) => {  // eslint-disable-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any
-		// new mention
-		if('@' === y_event.key) {
-			y_event.stopImmediatePropagation();
-			y_event.preventDefault();
+	y_editor.on('keydown', (d_event: KeyboardEvent) => {  // eslint-disable-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any
+		// mention data nodes
+		const {mentions:a_mentions} = get_mentions();
 
-			// get cursor offset
-			const g_rect = y_editor.selection.getBoundingClientRect();
+		// no nodes
+		if(!a_mentions.length) {
+			// new mention
+			if('@' === d_event.key) {
+				d_event.stopImmediatePropagation();
+				d_event.preventDefault();
 
-			if(!g_rect) {
-				debugger;
-				throw new Error(`y_editor.selection has no bounding client rect`);
+				// get cursor offset
+				const g_rect = y_editor.selection.getBoundingClientRect();
+
+				if(!g_rect) {
+					debugger;
+					throw new Error(`y_editor.selection has no bounding client rect`);
+				}
+
+				const {
+					left: x_left,
+					top: x_top,
+				} = g_rect;
+
+				// update autocomplete widget offset
+				b_display = true;
+				x_offset_x = x_left + 15;
+				x_offset_y = x_top + 107;
+
+				// insert new mention
+				y_editor.execCommand('mceInsertContent', false, `<span class="ve-mention" data-mention="${encode_attr({})}">@</span>`);
+			}
+			// other, cancel mentions
+			else {
+				k_session.abortAll();
+				b_display = false;
+			}
+		}
+		// mentions exist
+		else {
+			const si_key = d_event.key;
+
+			// navigation key
+			switch(si_key) {
+				// go up
+				case 'ArrowUp': {
+					d_event.preventDefault();
+					bump_selection(-1);
+					return;
+				}
+
+				// go down
+				case 'ArrowDown': {
+					d_event.preventDefault();
+					bump_selection(+1);
+					return;
+				}
+
+				// select attribute
+				case 'Tab': {
+					break;
+				}
+
+				// accept item
+				case 'Accept':
+				case 'Enter': {
+					d_event.preventDefault();
+					select_item();
+					break;
+				}
+
+				default: {
+					break;
+				}
 			}
 
-			const {
-				left: x_left,
-				top: x_top,
-			} = g_rect;
+			// key does not edit input
+			if(A_NON_CHANGING_KEY.includes(d_event.key)) {
+				return;
+			}
 
-			// update autocomplete widget offset
-			b_display = true;
-			x_offset_x = x_left + 15;
-			x_offset_y = x_top + 100;
+			// key closes mentions
+			if(A_CANCEL_KEY.includes(d_event.key)) {
+				b_display = false;
+			}
 
-			// insert new mention
-			y_editor.execCommand('mceInsertContent', false, `<span class="ve-mention" data-mention="${encode_attr({})}">@</span>`);
+			// abort pending requests
+			k_session.abortAll();
+
+			// invalidate all groups
+			for(const g_group of a_groups) {
+				g_group.state = GroupState.DIRTY;
+			}
+
+			// indicate update to svelte
+			a_groups = a_groups;
 		}
 	}, true);
 
@@ -147,7 +489,7 @@
 	};
 
 	function bolden_keyword(s_display: string) {
-		return escape_html(s_display).replace(s_search, `<b>${s_search}</b>`);
+		return escape_html(s_display).replace(new RegExp('('+escape_regex(s_search)+')', 'i'), '<b>$1</b>');
 	}
 
 </script>
@@ -217,30 +559,41 @@
 						display: inline-block;
 					}
 
-					.row {
-						padding: 6px;
-						cursor: default;
-						display: flex;
+					.group {
 
-						&:hover {
-							background-color: #ECF0FF;
+						&.dirty {
+							filter: blur(1px);
+							opacity: 0.5;
 						}
 
-						.ve-icon {
-						}
+						.row {
+							padding: 5px 6px;
+							cursor: default;
+							display: flex;
+							border: 1px solid transparent;
 
-						.info {
-							.no-scrollbar();
-							overflow-x: scroll;
-
-							.title {
-								width: max-content;
+							&.item-selected {
+								background-color: #ECF0FF;
+								border-top: 1px solid rgba(100, 100, 100, 0.2);
+								border-bottom: 1px solid rgba(100, 100, 100, 0.2);
 							}
-							.subtitle {
-								width: max-content;
 
-								font-size: 12px;
-								color: var(--ve-color-medium-text);
+							.ve-icon {
+							}
+
+							.info {
+								.no-scrollbar();
+								overflow-x: scroll;
+
+								.title {
+									width: max-content;
+								}
+								.subtitle {
+									width: max-content;
+
+									font-size: 12px;
+									color: var(--ve-color-medium-text);
+								}
 							}
 						}
 					}
@@ -262,7 +615,7 @@
 </svg>
 
 
-<div class="container" style="display:{b_display? 'block': 'none'}; left:{x_offset_x}px; top:{x_offset_y}px;">
+<div class="container" style="display:{b_display? 'block': 'none'}; left:{x_offset_x}px; top:{x_offset_y}px;" bind:this={dm_container}>
 	<div class="heading">
 		Insert Cross-Reference
 	</div>
@@ -286,20 +639,24 @@
 
 	<div class="tab-content-scrollable">
 		<div class="tab-content">
-			<div class="content selected">
-				{#each a_complete as g_complete}
-					<div class="row" data-uri={g_complete.uri}>
-						<span class="ve-icon">
-							{@html H_ICONS[g_complete.source.label]}
-						</span>
-						<span class="info">
-							<div class="title">
-								{@html bolden_keyword(g_complete.title)}
+			<div class="content" bind:this={dm_content}>
+				{#each a_groups as g_group, i_group}
+					<div class="group" class:dirty={GroupState.DIRTY === g_group.state}>
+						{#each g_group.rows as g_row, i_row}
+							<div class="row" data-uri={g_row.uri} on:mouseenter={mouseenter_row} on:mouseleave={mouseleave_row} on:click={select_item} class:item-selected={!i_group && !i_row}>
+								<span class="ve-icon">
+									{@html H_ICONS[g_row.source.label]}
+								</span>
+								<span class="info">
+									<div class="title">
+										{@html bolden_keyword(g_row.title)}
+									</div>
+									<div class="subtitle">
+										{@html bolden_keyword(g_row.subtitle)}
+									</div>
+								</span>
 							</div>
-							<div class="subtitle">
-								{@html bolden_keyword(g_complete.subtitle)}
-							</div>
-						</span>
+						{/each}
 					</div>
 				{/each}
 			</div>

@@ -48,3 +48,5 @@ export function oderom<
 		...f_spread(si_key, w_value),
 	}), {} as Record<string, OutType>);
 }
+
+export const escape_regex = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

@@ -19,6 +19,7 @@ import {
 	VeOrmClass,
 } from './Serializable';
 import type { ConnectionQuery } from '#/element/QueryTable/model/QueryTable';
+import type { SearcherMask } from '#/common/helper/sparql-code';
 
 export interface ModelVersionDescriptor {
 	id: string;
@@ -47,9 +48,9 @@ export abstract class Connection<
 
 	// abstract fetchVersions(): Promise<ModelVersionDescriptor[]>;
 
-	abstract execute(sq_query: string): Promise<QueryRow[]>;
+	abstract execute(sq_query: string, fk_controller?: (d_controller: AbortController) => void): Promise<QueryRow[]>;
 
-	abstract search(s_input: string): ConnectionQuery;
+	abstract search(s_input: string, xm_types?: SearcherMask): ConnectionQuery;
 }
 
 
@@ -68,7 +69,7 @@ export namespace SparqlConnection {
 }
 
 export interface SparqlSearcher extends TypedPrimitive<'SparqlSearcher'> {
-	function: (this: SparqlConnection, s_input: string) => SparqlSelectQuery;
+	function: (this: SparqlConnection, s_input: string, xm_types?: SearcherMask) => SparqlSelectQuery;
 }
 
 export abstract class SparqlConnection<
@@ -97,9 +98,9 @@ export abstract class SparqlConnection<
 		return this._h_prefixes || (this._h_prefixes = this.context.prefixes);
 	}
 
-	search(s_input: string): SparqlSelectQuery {
+	search(s_input: string, xm_types?: SearcherMask): SparqlSelectQuery {
 		// @ts-expect-error this is fine
-		return this._f_searcher(s_input);
+		return this._f_searcher(s_input, xm_types);
 	}
 }
 
@@ -168,8 +169,8 @@ export class PlainSparqlConnection extends SparqlConnection<PlainSparqlConnectio
 		return this._gc_serialized.graph;
 	}
 
-	async execute(sq_query: SparqlString): Promise<QueryRow[]> {
-		return await this._k_endpoint.select(sq_query);
+	async execute(sq_query: SparqlString, fk_controller?: (d_controller: AbortController) => void): Promise<QueryRow[]> {
+		return await this._k_endpoint.select(sq_query, fk_controller);
 	}
 }
 
@@ -240,8 +241,8 @@ export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Se
 		}
 	}
 
-	async execute(sq_query: SparqlString): Promise<QueryRow[]> {
-		return await this._k_endpoint.select(sq_query);
+	async execute(sq_query: SparqlString, fk_controller?: (d_controller: AbortController) => void): Promise<QueryRow[]> {
+		return await this._k_endpoint.select(sq_query, fk_controller);
 	}
 }
 

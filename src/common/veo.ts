@@ -1,10 +1,27 @@
 import type {
-	DotFragment, Labeled, PrimitiveValue, TypedLabeledObject, TypedLabeledPrimitive,
+	DotFragment,
+	Labeled,
+	PrimitiveValue,
+	TypedLabeledObject,
+	TypedLabeledPrimitive,
 } from '#/common/types';
-import type { MmsSparqlQueryTable, PlainSparqlQueryTable, QueryBuilder, QueryField, QueryFieldGroup, QueryParam, QueryTable, QueryType } from '#/element/QueryTable/model/QueryTable';
 
-import type { Connection, MmsSparqlConnection, PlainSparqlConnection, SparqlConnection, SparqlQueryContext } from '#/model/Connection';
-import type { Serializable } from '#/model/Serializable';
+import type {MmsSparqlQueryTable,
+	PlainSparqlQueryTable,
+	QueryBuilder,
+	QueryField,
+	QueryFieldGroup,
+	QueryParam,
+	QueryTable,
+	QueryType} from '#/element/QueryTable/model/QueryTable';
+
+import type {Connection,
+	MmsSparqlConnection,
+	PlainSparqlConnection,
+	SparqlConnection,
+	SparqlQueryContext} from '#/model/Connection';
+
+import type {Serializable} from '#/model/Serializable';
 
 import type {
 	Split,
