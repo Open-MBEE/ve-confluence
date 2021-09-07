@@ -29,6 +29,7 @@
 	import {faQuestionCircle, faCog} from '@fortawesome/free-solid-svg-icons';
 
 	import {
+		dm_main,
 		qs,
 	} from '#/util/dom';
 
@@ -120,12 +121,25 @@
 		// initial sidebar alignment
 		queueMicrotask(realign_sidebar);
 
+		const d_mutation_observer = new MutationObserver((a_mutations) => {
+			// each mutation in list
+			for(const d_mutation of a_mutations) {
+				// style attribute change; realign control bar
+				if('attributes' === d_mutation.type && 'style' === d_mutation.attributeName) {
+					// realign sidebar for main content margin changes
+					if(d_mutation.oldValue?.includes('margin-top')) {
+						realign_sidebar();
+					}
+				}
+			}
+		});
+
 		// create new observer
 		const d_observer = new ResizeObserver(() => {
 			realign_sidebar();
 		});
-
-		d_observer.observe(dm_bar, {attributes:true});
+		d_mutation_observer.observe(dm_main, {attributes:true, attributeOldValue:true});
+		d_observer.observe(dm_bar);
 
 		k_page = await ConfluencePage.fromCurrentPage();
 
