@@ -21,13 +21,29 @@
 		Channel,
 	} from '../model/AutocompleteSession';
 
-	import type {QueryRow} from '#/common/types';
+	import type {QueryRow,
+		ValuedLabeledObject} from '#/common/types';
 
 	import type {Connection} from '#/model/Connection';
 
 	import {escape_html} from '#/util/strings';
-import AsyncLockPool from '#/util/async-lock-pool';
-import { escape_regex } from '#/util/belt';
+
+	import AsyncLockPool from '#/util/async-lock-pool';
+
+	import {
+		escape_regex,
+		ode,
+		oderac,
+	} from '#/util/belt';
+
+	import Select from 'svelte-select';
+
+import Fa from 'svelte-fa';
+
+import {faAngleDown,
+		faArrowDown} from '@fortawesome/free-solid-svg-icons';
+
+import {safe_not_equal} from 'svelte/internal';
 
 	export let y_editor: PatchedEditor;
 	export let g_context: Context;
@@ -35,6 +51,11 @@ import { escape_regex } from '#/util/belt';
 	enum GroupState {
 		FRESH,
 		DIRTY,
+	}
+
+	enum DisplayMode {
+		ITEM,
+		ATTRIBUTE,
 	}
 
 	interface Row {
@@ -45,6 +66,7 @@ import { escape_regex } from '#/util/belt';
 	}
 
 	type RowGroup = {
+		channel_hash: string;
 		state: GroupState;
 		rows: Row[];
 	};
@@ -55,20 +77,48 @@ import { escape_regex } from '#/util/belt';
 	let b_display = false;
 	let x_offset_x = 0;
 	let x_offset_y = 0;
-	let a_groups: RowGroup[] = [];
+	let h_groups: Record<string, RowGroup> = {};
 	let i_select = 0;
 	let dm_container!: HTMLDivElement;
 	let dm_content!: HTMLDivElement;
+	let xc_mode = DisplayMode.ITEM;
+	let a_attributes: ValuedLabeledObject[] = [];
 
 	let k_session = new AutocompleteSession({
 		g_context,
-		ready(a_channels) {
-			a_groups = a_channels.map(g_channel => ({
-				state: GroupState.DIRTY,
-				rows: [],
-			}) as RowGroup);
+		ready(h_channels) {
+			h_groups = ode(h_channels).reduce((h_out, [si_channel, g_channel]) => ({
+				...h_out,
+				[g_channel.hash]: {
+					channel_hash: g_channel.hash,
+					state: GroupState.DIRTY,
+					rows: [],
+				} as RowGroup,
+			}), {});
 		},
 	});
+
+	function filter_channels(s_name: string) {
+		k_session.setChannelUse(g_channel => s_name === g_channel.connection.label);
+		qs(dm_container, '.filter.selected')?.classList.remove('selected');
+		qs(dm_container, `.filter[data-channel="${s_name}"]`)?.classList.add('selected');
+
+		// reload view
+		render_search();
+	}
+
+	function enable_all_channels() {
+		k_session.setChannelUse(() => true);
+		qs(dm_container, '.filter.selected')?.classList.remove('selected');
+		qs(dm_container, `.filter[data-channel-all]`)?.classList.add('selected');
+
+		// reload view
+		render_search();
+	}
+
+	function row_id(g_row: Row, si_channel: string) {
+		return `DNG:${g_row.subtitle}`;
+	}
 
 	const A_NON_CHANGING_KEY = [
 		'Alt',
@@ -100,11 +150,6 @@ import { escape_regex } from '#/util/belt';
 		'Cancel',
 	];
 
-	const H_CACHE: Record<string, {
-		title: string;
-		id: string;
-	}> = {};
-
 	function* range(s_from: string, s_to: string) {
 		for(let i_char=s_from.codePointAt(0)!, i_to=s_to.codePointAt(0)!; i_char<i_to; i_char++) {
 			yield String.fromCodePoint(i_char);
@@ -113,7 +158,7 @@ import { escape_regex } from '#/util/belt';
 
 	interface Scenario {
 		input: string;
-		groups: RowGroup[];
+		groups: Record<string, RowGroup>;
 		ready: boolean;
 	}
 
@@ -132,22 +177,29 @@ import { escape_regex } from '#/util/belt';
 		const precache = async(s_input: string) => {
 			const f_release = await kl_precache.acquire();
 
-			const a_groups_local: RowGroup[] = [];
+			const h_groups_local: Record<string, RowGroup> = {};
 
-			const g_scenario: Scenario = H_PRECACHE[s_input] = {
+			let g_scenario: Scenario = H_PRECACHE[s_input] = {
 				input: s_input,
 				ready: false,
-				groups: a_groups_local,
+				groups: h_groups_local,
 			};
 
 			void k_session_precache.update(s_input, (g_channel, a_rows) => {
-				a_groups_local[g_channel.index] = {
+				h_groups_local[g_channel.hash] = {
+					channel_hash: g_channel.hash,
 					state: XC_FRESH,
 					rows: a_rows.map(h => query_row_to_display_row(h, g_channel.connection)),
 				};
-			}).then(() => {
-				for(let i_check=0; i_check<a_groups_local.length; i_check++) {
-					if(!a_groups_local[i_check]) a_groups_local[i_check] = {state:XC_FRESH, rows:[] as Row[]};
+			}, true).then(() => {
+				for(const si_channel of Object.keys(h_groups_local)) {
+					if(!h_groups_local[si_channel]) {
+						h_groups_local[si_channel] = {
+							channel_hash: si_channel,
+							state: XC_FRESH,
+							rows: [] as Row[],
+						};
+					}
 				}
 
 				g_scenario.ready = true;
@@ -172,13 +224,13 @@ import { escape_regex } from '#/util/belt';
 				void precache('sh');
 				void precache('th');
 
-				for(const s_char of range('a', 'z')) {
-					void precache(s_char+'a');
-					void precache(s_char+'e');
-					void precache(s_char+'i');
-					void precache(s_char+'o');
-					void precache(s_char+'u');
-				}
+				// for(const s_char of range('a', 'z')) {
+				// 	void precache(s_char+'a');
+				// 	void precache(s_char+'e');
+				// 	void precache(s_char+'i');
+				// 	void precache(s_char+'o');
+				// 	void precache(s_char+'u');
+				// }
 
 				for(const s_char of range('a', 'z')) {
 					if('bcfgps'.includes(s_char)) {
@@ -220,37 +272,140 @@ import { escape_regex } from '#/util/belt';
 		return {anchor:dm_anchor, mentions:dm_focus.hasAttribute('data-mention')? [dm_focus]: qsa(dm_focus, '[data-mention]') as HTMLElement[]};
 	}
 
-	function select_item() {
+	async function select_row() {
 		const dm_selected = qs(dm_content, '.item-selected');
 
 		if(!dm_selected) {
 			throw new Error(`Cannot select item, nothing selected`);
 		}
 
-		const p_item = dm_selected.getAttribute('data-uri')!;
+		if(DisplayMode.ITEM === xc_mode) {
+			return await select_item(dm_selected);
+		}
+		else if(DisplayMode.ATTRIBUTE === xc_mode) {
+			return select_attribute(dm_selected);
+		}
+	}
 
-		const {
-			title: s_title,
-			id: si_item,
-		} = H_CACHE[p_item];
+	function prompt_attribute_selector() {
+		for(const dm_mention of get_mentions().mentions) {
+			qs(dm_mention, '.attribute').classList.add('active');
+			xc_mode = DisplayMode.ATTRIBUTE;
+			b_display = true;
+		}
+	}
+
+	async function select_item(dm_selected: HTMLDivElement) {
+		// placeholder id
+		const si_item = dm_selected.getAttribute('data-id');
+
+		// lookup item iri
+		const p_item = dm_selected.getAttribute('data-iri')!;
+
+		// lookup channel hash
+		const si_channel = dm_selected.parentElement!.getAttribute('data-channel-hash')!;
 
 		// mention data nodes
-		const {anchor:dm_anchor, mentions:a_mentions} = get_mentions();
+		const {mentions:a_mentions} = get_mentions();
 
-		// replace content
+		// each mention
 		for(const dm_mention of a_mentions) {
+			// replace content
 			dm_mention.textContent = `@${si_item}`;
 
-			const dm_attribute = dd('');
+			// get channel
+			const g_channel = k_session.getChannel(si_channel);
 
-			// append attribute selector
-			dm_mention.appendChild(dm_attribute);
+			// set mention metadata
+			dm_mention.setAttribute('data-mention', encode_attr({
+				connection: g_channel.connection.toSerialized(),
+				item: {
+					iri: p_item,
+				},
+			}));
+		}
+
+		// get item details
+		const g_item = await k_session.fetchItemDetails(si_channel, p_item);
+
+		// each mention
+		for(const dm_mention of a_mentions) {
+			// load attributes
+			a_attributes = oderac(g_item, (si_key, {label:s_label, value:s_value}) => ({
+				label: s_label,
+				key: si_key,
+				value: s_value,
+			}));
+
+			// switch to attribute selector
+			xc_mode = DisplayMode.ATTRIBUTE;
+
+			// create active attribute selector
+			dm_mention.appendChild(dd('span', {
+				class: 'attribute active',
+			}, [
+				dd('span', {
+					class: 'content',
+				}, [
+					'|',  // cursor preview
+				]),
+				dd('span', {
+					class: 'indicator',
+				}),
+			]));
+
+			const dm_attribute = qs(dm_mention, '.attribute') as HTMLSpanElement;
+
+			dm_attribute.addEventListener('click', prompt_attribute_selector);
+			dm_attribute.addEventListener('input', prompt_attribute_selector);
+			dm_attribute.addEventListener('keydown', (d_event) => {
+				d_event.preventDefault();
+
+				if('Backspace' === d_event.key) {
+					dm_attribute.textContent = '|';
+				}
+
+				prompt_attribute_selector();
+			});
+
+			new Fa({
+				target: qs(dm_attribute, '.indicator'),
+				props: {
+					icon: faAngleDown,
+				},
+			});
+		}
+	}
+
+	function select_attribute(dm_selected: HTMLDivElement): void {
+		//
+		const g_attr = decode_attr(dm_selected.getAttribute('data-attribute')!) as ValuedLabeledObject;
+
+		// mention data nodes
+		const {mentions:a_mentions} = get_mentions();
+
+		// each mention
+		for(const dm_mention of a_mentions) {
+			// selector no longer active
+			const dm_attribute = qs(dm_mention, '.attribute');
+			dm_attribute.classList.remove('active');
+
+			// parse mention metadata
+			const g_mention = decode_attr(dm_mention.getAttribute('data-mention')!) as Record<string, unknown>;
+
+			// add display attribute and re-encode
+			dm_mention.setAttribute('data-mention', encode_attr({
+				...g_mention,
+				display_attribute: g_attr,
+			}));
+
+			// replace text content with new attribute
+			qs(dm_attribute, '.content').textContent = g_attr.label;
 		}
 
 		// hide autocomplete
 		b_display = false;
 	}
-	
 
 	function mouseenter_row(d_event: MouseEvent) {
 		for(const dm_selected of qsa(dm_content, SI_CLASS_ITEM_SELECTED) as HTMLElement[]) {
@@ -304,6 +459,57 @@ import { escape_regex } from '#/util/belt';
 		}
 	}
 
+	const XT_DEBOUNCE = 350;
+	let i_debounce = 0;
+
+	function render_search(b_debounce=false) {
+		// precache available
+		const g_scenario = H_PRECACHE[s_search];
+		if(g_scenario?.ready) {
+			// update
+			h_groups = g_scenario.groups;
+
+			// exit
+			return;
+		}
+
+		// debounce
+		clearTimeout(i_debounce);
+		i_debounce = setTimeout(() => {
+			// apply query
+			void k_session.update(s_search, (g_channel: Channel, a_rows: QueryRow[]) => {
+				let a_mapped: Row[] = [];
+				const k_connection = g_channel.connection;
+
+				if('DNG Requirements' === g_channel.connection.label) {
+					a_mapped = a_rows.map(h_row => ({
+						title: h_row.requirementNameValue.value,
+						subtitle: h_row.idValue.value,
+						uri: h_row.artifact.value,
+						source: k_connection,
+					}));
+				}
+
+				// ref/create group
+				const si_channel = g_channel.hash;
+				const g_group = h_groups[si_channel] = h_groups[si_channel] || {
+					channel_hash: si_channel,
+					state: GroupState.DIRTY,
+					rows: [],
+				};
+
+				// update rows
+				g_group.rows = a_mapped;
+
+				// clean state
+				g_group.state = GroupState.FRESH;
+
+				// update
+				h_groups = h_groups;
+			});
+		}, b_debounce? XT_DEBOUNCE: 0);
+	}
+
 	y_editor.on('input', (y_event: InputEvent) => {
 		// mention data nodes
 		const {anchor:dm_anchor, mentions:a_mentions} = get_mentions();
@@ -319,49 +525,8 @@ import { escape_regex } from '#/util/belt';
 			// prevent confluence from doing something
 			y_event.stopImmediatePropagation();
 
-			// precache available
-			const g_scenario = H_PRECACHE[s_search];
-			if(g_scenario?.ready) {
-				// update
-				a_groups = g_scenario.groups;
-
-				// exit
-				return;
-			}
-
-			// apply query
-			void k_session.update(s_search, (g_channel: Channel, a_rows: QueryRow[]) => {
-				let a_mapped: Row[] = [];
-				const k_connection = g_channel.connection;
-
-				if('DNG Requirements' === g_channel.connection.label) {
-					a_mapped = a_rows.map((h_row) => {
-						H_CACHE[h_row.artifact.value] = {
-							title: h_row.requirementNameValue.value,
-							id: `DNG:${h_row.idValue.value}`,
-						};
-
-						return {
-							title: h_row.requirementNameValue.value,
-							subtitle: h_row.idValue.value,
-							uri: h_row.artifact.value,
-							source: k_connection,
-						};
-					});
-				}
-
-				// ref group
-				const g_group = a_groups[g_channel.index];
-
-				// update rows
-				g_group.rows = a_mapped;
-
-				// clean state
-				g_group.state = GroupState.FRESH;
-
-				// update
-				a_groups = a_groups;
-			});
+			// render search
+			render_search(true);
 
 			return;
 		}
@@ -440,7 +605,7 @@ import { escape_regex } from '#/util/belt';
 
 				// select attribute
 				case 'Tab': {
-					break;
+					return;
 				}
 
 				// accept item
@@ -448,7 +613,7 @@ import { escape_regex } from '#/util/belt';
 				case 'Enter': {
 					d_event.preventDefault();
 					select_item();
-					break;
+					return;
 				}
 
 				default: {
@@ -470,12 +635,12 @@ import { escape_regex } from '#/util/belt';
 			k_session.abortAll();
 
 			// invalidate all groups
-			for(const g_group of a_groups) {
+			for(const [, g_group] of ode(h_groups)) {
 				g_group.state = GroupState.DIRTY;
 			}
 
 			// indicate update to svelte
-			a_groups = a_groups;
+			h_groups = h_groups;
 		}
 	}, true);
 
@@ -515,11 +680,12 @@ import { escape_regex } from '#/util/belt';
 
 		.heading {
 			font-weight: 600;
-			padding: 6px 8px;
+			padding: 6px 8px 4px;
 			height: 20px;
+			border-bottom: 1px solid var(--ve-color-medium-light-text);
 		}
 
-		.tab-select-scrollable {
+		.filter-select-scrollable {
 			.no-scrollbar();
 
 			overflow-x: scroll;
@@ -527,11 +693,11 @@ import { escape_regex } from '#/util/belt';
 			height: 20px;
 			background-color: var(--ve-color-medium-light-text);
 
-			.tab-select {
+			.filter-select {
 				width: max-content;
 				cursor: pointer;
 
-				.tab {
+				.filter {
 					padding: 6px;
 
 					&:hover {
@@ -546,12 +712,12 @@ import { escape_regex } from '#/util/belt';
 			}
 		}
 
-		.tab-content-scrollable {
+		.filter-content-scrollable {
 			overflow-y: scroll;
 			overflow-x: hidden;
 			height: calc(100% - 64px);
 
-			.tab-content {
+			.filter-content {
 				.content {
 					display: hidden;
 
@@ -601,6 +767,23 @@ import { escape_regex } from '#/util/belt';
 			}
 		}
 	}
+
+	:global(.ve-mention .selectContainer) {
+		--height: 20px;
+		--inputPadding: 0 4px;
+		--itemPadding: 0 4px;
+		--padding: 0 4px;
+		--selectedItemPadding: 0 4px;
+		--background: var(--ve-color-button-light);
+		--itemActiveBackground: var(--ve-color-medium-light-text);
+		--itemIsActiveBG: var(--ve-color-medium-text);
+		--itemIsActiveColor: var(--ve-color-light-text);
+		--itemHoverBG: #ECF0FF;
+		--border: 1px solid var(--ve-color-medium-light-text);
+		--borderFocusColor: var(--ve-color-medium-light-text);
+		--borderRadius: 3px;
+		margin-left: 4px;
+	}
 </style>
 
 <svg style="display:none" version="2.0" xmlns="http://www.w3.org/2000/svg">
@@ -617,48 +800,84 @@ import { escape_regex } from '#/util/belt';
 
 <div class="container" style="display:{b_display? 'block': 'none'}; left:{x_offset_x}px; top:{x_offset_y}px;" bind:this={dm_container}>
 	<div class="heading">
-		Insert Cross-Reference
+		{#if DisplayMode.ITEM === xc_mode}
+			Insert Cross-Reference
+		{:else if DisplayMode.ATTRIBUTE === xc_mode}
+			Select Display Attribute
+		{/if}
 	</div>
 
-	<div class="tab-select-scrollable">
-		<div class="tab-select">
-			<span class="tab selected">
-				All
-			</span>
-			<span class="tab">
-				DNG Requirements
-			</span>
-			<span class="tab">
-				Helix Dictionary Items
-			</span>
-			<span class="tab">
-				People
-			</span>
+	{#if DisplayMode.ITEM === xc_mode}
+		<div class="filter-select-scrollable">
+			<div class="filter-select">
+				<span class="filter selected" data-channel-all=1 on:click={() => enable_all_channels()}>
+					All
+				</span>
+				<span class="filter" data-channel="DNG Requirements" on:click={() => filter_channels('DNG Requirements')}>
+					DNG Requirements
+				</span>
+				<span class="filter" data-channel="Helix" on:click={() => filter_channels('Helix')}>
+					Helix Dictionary Items
+				</span>
+				<span class="filter" data-channel="People" on:click={() => filter_channels('People')}>
+					People
+				</span>
+			</div>
 		</div>
-	</div>
+	{/if}
 
-	<div class="tab-content-scrollable">
-		<div class="tab-content">
+	<div class="filter-content-scrollable">
+		<div class="filter-content">
 			<div class="content" bind:this={dm_content}>
-				{#each a_groups as g_group, i_group}
-					<div class="group" class:dirty={GroupState.DIRTY === g_group.state}>
-						{#each g_group.rows as g_row, i_row}
-							<div class="row" data-uri={g_row.uri} on:mouseenter={mouseenter_row} on:mouseleave={mouseleave_row} on:click={select_item} class:item-selected={!i_group && !i_row}>
-								<span class="ve-icon">
-									{@html H_ICONS[g_row.source.label]}
-								</span>
+				{#if DisplayMode.ITEM === xc_mode}
+					{#each ode(h_groups) as [, g_group], i_group}
+						<div class="group" class:dirty={GroupState.DIRTY === g_group.state} data-channel-hash={g_group.channel_hash}>
+							{#each g_group.rows as g_row, i_row}
+								<div class="row"
+									data-iri={g_row.uri}
+									data-id={row_id(g_row, g_group.channel_hash)}
+									on:mouseenter={mouseenter_row}
+									on:mouseleave={mouseleave_row}
+									on:click={select_row}
+									class:item-selected={!i_group && !i_row}
+								>
+									<span class="ve-icon">
+										{@html H_ICONS[g_row.source.label]}
+									</span>
+									<span class="info">
+										<div class="title">
+											{@html bolden_keyword(g_row.title)}
+										</div>
+										<div class="subtitle">
+											{@html bolden_keyword(g_row.subtitle)}
+										</div>
+									</span>
+								</div>
+							{/each}
+						</div>
+					{/each}
+				{:else if DisplayMode.ATTRIBUTE === xc_mode}
+					{#each a_attributes as g_attr, i_attr}
+						<div class="group">
+							<div class="row"
+								data-attribute={encode_attr(g_attr)}
+								on:mouseenter={mouseenter_row}
+								on:mouseleave={mouseleave_row}
+								on:click={select_row}
+								class:item-selected={!i_attr}
+							>
 								<span class="info">
 									<div class="title">
-										{@html bolden_keyword(g_row.title)}
+										{g_attr.label}
 									</div>
 									<div class="subtitle">
-										{@html bolden_keyword(g_row.subtitle)}
+										{g_attr.value}
 									</div>
 								</span>
 							</div>
-						{/each}
-					</div>
-				{/each}
+						</div>
+					{/each}
+				{/if}
 			</div>
 		</div>
 	</div>

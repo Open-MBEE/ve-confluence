@@ -13,7 +13,7 @@ import type {
 	Instantiable,
 } from '#/common/types';
 
-import type {VeoPath} from '#/common/veo';
+import type {VeoPath, VeoPathTarget} from '#/common/veo';
 
 import {
 	VeOdm,
@@ -179,19 +179,7 @@ export class QueryFieldGroup extends VeOdm<QueryFieldGroup.Serialized> {
 	}
 }
 
-
-export namespace QueryBuilder {
-	export interface Serialized extends TypedPrimitive<'QueryBuilder'> {
-		function: (this: QueryTable) => Promise<ConnectionQuery>;
-	}
-}
-
-export class QueryBuilder extends VeOdm<QueryBuilder.Serialized> {
-	get function(): (this: QueryTable) => Promise<ConnectionQuery> {
-		return this._gc_serialized.function;
-	}
-}
-
+export type TableQueryBuilder = (this: QueryTable) => Promise<ConnectionQuery>;
 
 export namespace QueryType {
 	export interface Serialized<
@@ -199,15 +187,14 @@ export namespace QueryType {
 	>extends TypedKeyedLabeledObject<'QueryType'> {
 		queryParametersPaths: VeoPath.QueryParameter<ConnectionType>[];
 		queryFieldGroupPath: VeoPath.QueryFieldGroup;
-		queryBuilderPath: VeoPath.QueryBuilder;
+		queryBuilderPath: VeoPathTarget;
 	}
 }
 
 export class QueryType<ConnectionType extends DotFragment=DotFragment> extends VeOdmKeyedLabeled<QueryType.Serialized<ConnectionType>> {
-	get queryBuilder(): QueryBuilder {
+	get queryBuilder(): TableQueryBuilder {
 		const sp_builder = this._gc_serialized.queryBuilderPath;
-		const gc_builder = this._k_store.resolveSync<QueryBuilder.Serialized>(sp_builder);
-		return new QueryBuilder(sp_builder, gc_builder, this._g_context);
+		return this._k_store.resolveSync(sp_builder) as unknown as TableQueryBuilder;
 	}
 
 	get value(): string {
@@ -316,7 +303,7 @@ export abstract class QueryTable<
 		const h_param_values = this._h_param_values_lists;
 
 		// no such param
-		if(!this.queryType.queryParametersPaths.map(sp => this._k_store.idPartSync(sp)).includes(si_param)) {
+		if(!this.queryType.queryParametersPaths.map(sp => this._k_store.idPartSync(sp).join('.')).includes(si_param)) {
 			throw new Error(`No such parameter has the id '${si_param}'`);
 		}
 
@@ -331,7 +318,7 @@ export abstract class QueryTable<
 	}
 
 	fetchQueryBuilder(this: QueryTable): Promise<ConnectionQuery> {
-		return this.queryType.queryBuilder.function.call(this);
+		return this.queryType.queryBuilder.call(this);
 	}
 
 

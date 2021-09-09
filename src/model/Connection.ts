@@ -1,4 +1,7 @@
-import type {VeoPath, VeoPathTarget} from '#/common/veo';
+import type {
+	VeoPath,
+	VeoPathTarget,
+} from '#/common/veo';
 
 import type {
 	UrlString,
@@ -11,15 +14,20 @@ import type {
 	TypedPrimitive,
 } from '#/common/types';
 
-import SparqlEndpoint, { SparqlQuery, SparqlSelectQuery } from '../util/sparql-endpoint';
+import SparqlEndpoint, {
+	SparqlQuery,
+	SparqlSelectQuery,
+} from '../util/sparql-endpoint';
 
 import {
 	Primitive,
 	VeOdmLabeled,
 	VeOrmClass,
 } from './Serializable';
-import type { ConnectionQuery } from '#/element/QueryTable/model/QueryTable';
-import type { SearcherMask } from '#/common/helper/sparql-code';
+
+import type {ConnectionQuery} from '#/element/QueryTable/model/QueryTable';
+
+import type {SearcherMask} from '#/common/helper/sparql-code';
 
 export interface ModelVersionDescriptor {
 	id: string;
@@ -51,6 +59,8 @@ export abstract class Connection<
 	abstract execute(sq_query: string, fk_controller?: (d_controller: AbortController) => void): Promise<QueryRow[]>;
 
 	abstract search(s_input: string, xm_types?: SearcherMask): ConnectionQuery;
+
+	abstract detail(p_item: string): ConnectionQuery;
 }
 
 
@@ -64,19 +74,24 @@ export namespace SparqlConnection {
 	export interface Serialized<TypeString extends DefaultType=DefaultType> extends Connection.Serialized<TypeString> {
 		endpoint: UrlString;
 		contextPath: VeoPath.SparqlQueryContext;
-		searcherPath: VeoPathTarget;
+		searchPath: VeoPathTarget;
+		detailPath: VeoPathTarget;
 	}
 }
 
-export interface SparqlSearcher extends TypedPrimitive<'SparqlSearcher'> {
-	function: (this: SparqlConnection, s_input: string, xm_types?: SearcherMask) => SparqlSelectQuery;
-}
+// export interface SparqlSearcher extends TypedPrimitive<'SparqlSearcher'> {
+// 	(this: SparqlConnection, s_input: string, xm_types?: SearcherMask) => SparqlSelectQuery;
+// }
+
+export type SparqlSearcher = (this: SparqlConnection, s_input: string, xm_types?: SearcherMask) => SparqlSelectQuery;
+export type SparqlDetailer = (this: SparqlConnection, p_item: string) => SparqlSelectQuery;
 
 export abstract class SparqlConnection<
 	Serialized extends SparqlConnection.Serialized=SparqlConnection.Serialized,
 > extends Connection<Serialized> {
 	protected _k_endpoint!: SparqlEndpoint;
-	protected _f_searcher!: SparqlSearcher['function'];
+	protected _f_searcher!: SparqlSearcher;
+	protected _f_detailer!: SparqlDetailer;
 
 	protected _h_prefixes?: Hash;
 
@@ -86,8 +101,8 @@ export abstract class SparqlConnection<
 			prefixes: this.prefixes,
 		});
 
-		const gc_searcher = this._k_store.resolveSync(this._gc_serialized.searcherPath) as unknown as SparqlSearcher;
-		this._f_searcher = gc_searcher.function;
+		this._f_searcher = this._k_store.resolveSync(this._gc_serialized.searchPath) as unknown as SparqlSearcher;
+		this._f_detailer = this._k_store.resolveSync(this._gc_serialized.detailPath) as unknown as SparqlDetailer;
 	}
 
 	get context(): SparqlQueryContext {
@@ -101,6 +116,11 @@ export abstract class SparqlConnection<
 	search(s_input: string, xm_types?: SearcherMask): SparqlSelectQuery {
 		// @ts-expect-error this is fine
 		return this._f_searcher(s_input, xm_types);
+	}
+
+	detail(p_item: string): SparqlSelectQuery {
+		// @ts-expect-error this is fine
+		return this._f_detailer(p_item);
 	}
 }
 

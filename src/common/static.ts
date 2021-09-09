@@ -32,7 +32,7 @@ static_css += /* syntax: css */ `
 		--ve-color-accent-light: #2C7E8F;
 		--ve-color-accent-dark: #205C68;
 		--ve-color-accent-darker: #E6E6E6;
-		--ve-color-accent-dark-border: #102E34
+		--ve-color-accent-dark-border: #102E34;
 		--ve-color-button-light: #EDEDED;
 		--ve-color-error-red: #FF6060;
 	}

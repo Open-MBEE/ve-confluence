@@ -179,6 +179,41 @@ export enum SearcherMask {
 	ALL = 0xffff,
 }
 
+export function dng_detailer_query(this: MmsSparqlConnection, p_artifact: string): SparqlSelectQuery {
+	return new SparqlSelectQuery({
+		select: [
+			'?idValue',
+			'?requirementNameValue',
+			'?requirementTextValue',
+		],
+		from: `<${this.modelGraph}>`,
+		bgp: /* syntax: sparql */ `
+			?artifact a oslc_rm:Requirement ;
+				oslc:instanceShape [
+					dct:title "Requirement"^^rdf:XMLLiteral ;
+				] ;
+				.
+
+			# exclude requirements that are part of a requirement document
+			filter not exists {
+				?collection a oslc_rm:RequirementCollection ;
+					oslc_rm:uses ?artifact ;
+					.
+			}
+			
+			${H_NATIVE_DNG_PATTERNS.id}
+
+			${H_NATIVE_DNG_PATTERNS.requirementName}
+
+			${H_NATIVE_DNG_PATTERNS.requirementText}
+
+			values ?artifact {
+				<${p_artifact}>
+			}
+		`,
+	});
+}
+
 export function dng_searcher_query(this: MmsSparqlConnection, s_input: string, xm_types?: number): SparqlSelectQuery {
 	// criteria for searching
 	const h_criteria = {

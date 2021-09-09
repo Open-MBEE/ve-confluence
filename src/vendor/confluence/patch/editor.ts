@@ -18,7 +18,8 @@ import {
 	qsa,
 	uuid_v4,
 } from '#/util/dom';
-import { delete_json } from '#/util/fetch';
+
+import {delete_json} from '#/util/fetch';
 
 import {
 	ConfluenceDocument,
@@ -29,11 +30,16 @@ import {
 } from '../module/confluence';
 
 import Autocomplete from '#/element/Mentions/component/Autocomplete.svelte';
-import type { SvelteComponent } from 'svelte/internal';
-import { static_css } from '#/common/static';
-import type { Context } from '#/model/Serializable';
-import { ObjectStore } from '#/model/ObjectStore';
-import { K_HARDCODED } from '#/common/hardcoded';
+
+import type {SvelteComponent} from 'svelte/internal';
+
+import {static_css} from '#/common/static';
+
+import type {Context} from '#/model/Serializable';
+
+import {ObjectStore} from '#/model/ObjectStore';
+
+import {K_HARDCODED} from '#/common/hardcoded';
 
 const timeout = (xt_wait: number) => new Promise((fk_resolve) => {
 	setTimeout(() => {
@@ -182,7 +188,7 @@ function adjust_page_element(dm_node: HTMLTableElement) {
 	}, [
 		dd('td', {}, [
 			dd('h4', {}, ['CED Query Table']),
-			dd('p', {}, [`You can remove this query table here, but editting its parameters must be done from the viewing page`]),
+			dd('p', {}, [`You can remove this query table here, but editing its parameters must be done from the viewing page`]),
 		]),
 	]));
 }
@@ -297,9 +303,7 @@ window.addEventListener('DOMContentLoaded', () => {
 				a_roots.push(dm_node);
 			}
 
-			// monkey_patch_tinymce();
-
-			// debugger;?
+			// editor initialized
 			editor_initialized();
 		});
 
@@ -323,11 +327,36 @@ window.addEventListener('DOMContentLoaded', () => {
 				// grab ref to iframe's content document
 				d_doc_editor = (dm_node as HTMLIFrameElement).contentDocument!;
 
+				const dm_staging = dd('div', {
+					id: 'svelte-staging',
+					style: `display:none;`,
+				}, [], d_doc_editor);
+
+				d_doc_editor.body.appendChild(dm_staging);
+
 				// observe mutations to editor
 				observe_editor();
 			}
 		}
 	});
+
+	// observe childList mutations future on iframe parent
+	dmt_rte.observe(dm_rte, {
+		childList: true,
+	});
+
+	// copy all styles onto editor iframe as they are added by svelte
+	{
+		new MutationObserver((a_mutations) => {
+			for(const dm_node of child_list_mutations_added_nodes(a_mutations)) {
+				if('STYLE' === dm_node.tagName) {
+					d_doc_editor.head.appendChild(dm_node.cloneNode(true));
+				}
+			}
+		}).observe(document.head, {
+			childList: true,
+		});
+	}
 
 	// observe childList mutations future on iframe parent
 	dmt_rte.observe(dm_rte, {
@@ -346,21 +375,6 @@ let b_editor_ready = false;
 let b_store_ready = false;
 
 function init_overlays() {
-	// dm_mentions = dd('div', {
-	// 	id: 've-mentions',
-	// 	style: `
-	// 		display: none;
-	// 		position: absolute;
-	// 		width: 100px;
-	// 		height: 100px;
-	// 		background-color: red;
-	// 	`,
-	// }, [
-	// 	'hi',
-	// ]);
-
-	// document.body.append(dm_mentions);
-
 	if(b_store_ready) {
 		init_autocomplete();
 	}
@@ -389,6 +403,35 @@ function tinymce_ready() {
 			padding: 6px;
 			border-radius: 4px;
 			font-weight: 600;
+		}
+
+		.ve-mention>.attribute {
+			display: inline-flex;
+			min-width: 120px;
+			border: 1px solid var(--ve-color-medium-light-text);
+			border-radius: 3px;
+			margin-left: 4px;
+			padding: 0 4px;
+			background-color: var(--ve-color-button-light);
+		}
+
+		.ve-mention .content {
+			min-width: 110px;
+			margin-right: 3px;
+		}
+
+		.ve-mention .indicator {
+			color: black;
+			transform: scale(0.75);
+		}
+
+		.ve-mention>.attribute.active {
+			border-color: var(--ve-color-accent-light);
+			background-color: transparent;
+		}
+
+		.ve-mention>.attribute.active .content {
+			color: var(--ve-color-medium-light-text);
 		}
 	`], d_doc_editor));
 
@@ -521,6 +564,34 @@ async function publish_document() {
 			default: {
 				break;
 			}
+		}
+	}
+
+	// special handling for ve elements
+	{
+		const a_mentions = qsa(d_doc_content, '[data-mention]');
+		for(const dm_mention of a_mentions) {
+			// parse mention metadata
+			const g_mention = JSON.parse(dm_mention.getAttribute('data-mention')!);
+
+			// // replace with macro
+			// ConfluencePage.annotatedSpan({
+			// 	params: {
+			// 		class: 've-mention',
+			// 		id: uuid_v4(),
+			// 	},
+			// 	body: [
+			// 		ConfluencePage.annotatedSpan({
+			// 			params: {
+			// 				style: 'display:none',
+			// 				class: 've-cql-search-tag',
+			// 			},
+			// 			body: f_builder('p', {}, [this.path]),
+			// 		}, k_contents),
+			// 		yn_table,
+			// 	],
+			// 	autoCursor: true,
+			// })
 		}
 	}
 

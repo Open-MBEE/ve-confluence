@@ -6,7 +6,7 @@
 	import {
 		ConfluencePage,
 		ConfluenceDocument,
-ConfluenceXhtmlDocument,
+		ConfluenceXhtmlDocument,
 	} from '#/vendor/confluence/module/confluence';
 
 	import type {
@@ -46,9 +46,17 @@ ConfluenceXhtmlDocument,
 	} from 'svelte-tabs';
 
 	import type {JsonObject} from '#/common/types';
-import { oderac, oderaf } from '#/util/belt';
-import XHTMLDocument, { xpathSelect1 } from '#/vendor/confluence/module/xhtml-document';
-import type { XhtmlString } from '#/util/strings';
+
+	import {
+		oderac,
+		oderaf,
+	} from '#/util/belt';
+
+	import XHTMLDocument, {xpathSelect1} from '#/vendor/confluence/module/xhtml-document';
+
+	import type {
+		XhtmlString,
+	} from '#/util/strings';
 
 	export let g_context: Context;
 
@@ -193,11 +201,10 @@ import type { XhtmlString } from '#/util/strings';
 			sx_document_metadata_remote = JSON.stringify(g_bundle?.data);
 
 			// user does not have edit permissions to document
-			b_read_only ||= !(await k_document.fetchUserHasUpdatePermissions());  // eslint-disable-line @typescript-eslint/no-unsafe-call
+			b_read_only ||= !await k_document.fetchUserHasUpdatePermissions();  // eslint-disable-line @typescript-eslint/no-unsafe-call
 		}
 
-		LOAD_PAGE_METADATA:
-		{
+		LOAD_PAGE_METADATA: {
 			if(!k_page) break LOAD_PAGE_METADATA;
 
 			const g_bundle = await k_page.fetchMetadataBundle();
@@ -206,8 +213,7 @@ import type { XhtmlString } from '#/util/strings';
 			sx_page_metadata_remote = JSON.stringify(g_bundle?.data);
 		}
 
-		LOAD_PAGE_CONTENT:
-		{
+		LOAD_PAGE_CONTENT: {
 			if(!k_page) break LOAD_PAGE_CONTENT;
 
 			const g_bundle = await k_page.fetchContentAsXhtmlDocument();

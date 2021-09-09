@@ -1,9 +1,10 @@
+import { H_HARDCODED_OBJECTS } from '#/common/hardcoded';
 import { SearcherMask } from '#/common/helper/sparql-code';
 import type {QueryRow} from '#/common/types';
 
 import type {VeoPathTarget} from '#/common/veo';
 
-import type {ConnectionQuery} from '#/element/QueryTable/model/QueryTable';
+import {ConnectionQuery, QueryField} from '#/element/QueryTable/model/QueryTable';
 
 import {Connection,
 	MmsSparqlConnection} from '#/model/Connection';
@@ -22,21 +23,22 @@ export interface ChannelConfig {
 }
 
 export interface Channel {
-	index: number;
 	connection: Connection;
 	types: SearcherMask;
 	limit?: number;
+	hash: string;
 }
 
 export interface SessionConfig {
 	g_context: Context;
 	channels?: ChannelConfig[];
-	ready?: (a_channels: Channel[]) => void;
+	ready?: (h_channels: Record<string, Channel>) => void;
 }
 
 export class AutocompleteSession {
 	protected _g_context: Context;
-	protected _a_channels: Channel[] = [];
+	protected _h_channels: Record<string, Channel> = {};
+	protected _a_channels_enabled: Channel[] = [];
 	protected _as_controllers: Set<AbortController> = new Set();
 
 	constructor(gc_session: SessionConfig) {
@@ -49,28 +51,53 @@ export class AutocompleteSession {
 		void this.init(gc_session.ready);
 	}
 
-	async init(fk_ready: SessionConfig['ready']) {
+
+	protected _add_channel(k_connection: Connection, h_features: {types: SearcherMask; limit: number}): void {
+		const si_channel = [
+			k_connection.hash(),
+			JSON.stringify(h_features),
+		].join('\n');
+
+		this._h_channels[si_channel] = {
+			connection: k_connection,
+			hash: si_channel,
+			...h_features,
+		};
+	}
+
+
+	setChannelUse(f_each: (g_channel: Channel) => boolean): void {
+		const a_enabled = [];
+
+		for(const g_channel of Object.values(this._h_channels)) {
+			if(f_each(g_channel)) {
+				a_enabled.push(g_channel);
+			}
+		}
+
+		this._a_channels_enabled = a_enabled;
+	}
+
+
+	async init(fk_ready: SessionConfig['ready']): Promise<void> {
 		const g_context = this._g_context;
 		const k_store = g_context.store;
 		const h_connections = await k_store.options('document#connection.**', g_context);
 
-		const a_channels = this._a_channels;
+		const h_channels = this._h_channels;
+
 		for(const [sp_connection, gc_connection] of ode(h_connections)) {
 			switch(gc_connection.type) {
 				case 'MmsSparqlConnection': {
 					const k_connection = await VeOdm.createFromSerialized(MmsSparqlConnection, sp_connection, gc_connection, g_context);
 
 					// push as separate channels
-					a_channels.push({
-						index: a_channels.length,
-						connection: k_connection,
+					this._add_channel(k_connection, {
 						types: SearcherMask.ID_EXACT | SearcherMask.ID_START,
 						limit: 20,
 					});
 
-					a_channels.push({
-						index: a_channels.length,
-						connection: k_connection,
+					this._add_channel(k_connection, {
 						types: SearcherMask.NAME_START | SearcherMask.NAME_CONTAINS,
 						limit: 50,
 					});
@@ -83,16 +110,33 @@ export class AutocompleteSession {
 			}
 		}
 
+		// enable all channels by default
+		this.setChannelUse(() => true);
+
 		if(fk_ready) {
-			fk_ready(a_channels);
+			fk_ready(h_channels);
 		}
 	}
 
-	async update(s_input: string, fk_rows: (g_channel: Channel, a_rows: QueryRow[]) => void): Promise<void> {
+
+	async update(s_input: string, fk_rows: (g_channel: Channel, a_rows: QueryRow[]) => void, b_cache=false): Promise<void> {
 		const a_queries: Promise<void>[] = [];
 
 		// each channel
-		for(const g_channel of this._a_channels) {
+		for(const g_channel of this._a_channels_enabled) {
+			// construct local storage key
+			const si_storage = `ve-autocomplete#${g_channel.hash}:${s_input}`;
+
+			// exists in local storage
+			const sx_cache = localStorage.getItem(si_storage);
+			if(sx_cache && 'string' === typeof sx_cache) {
+				try {
+					fk_rows(g_channel, JSON.parse(sx_cache));
+					return;
+				}
+				catch(e_parse) {}
+			}
+
 			// ref connection
 			const k_connection = g_channel.connection;
 
@@ -141,12 +185,52 @@ export class AutocompleteSession {
 				// exit
 				if(b_exit) return;
 
+				// cache
+				if(b_cache) {
+					localStorage.setItem(si_storage, JSON.stringify(a_rows));
+				}
+
 				// callback with new rows
 				fk_rows(g_channel, a_rows);
 			})());
 		}
 
 		await Promise.all(a_queries);
+	}
+
+	getChannel(si_channel: string) {
+		return this._h_channels[si_channel];
+	}
+
+	async fetchItemDetails(si_channel: string, p_item: string) {
+		// get connection
+		const k_connection = this._h_channels[si_channel].connection;
+
+		// build detailer query
+		const k_query = k_connection.detail(p_item);
+
+		// execute query (should only be 1 row)
+		const a_rows = await k_connection.execute(k_query.paginate(2));
+
+		const g_item = a_rows[0];
+
+		return {
+			idValue: {
+				label: 'Requirement ID',
+				value: g_item.idValue.value,
+			},
+			requirementNameValue: {
+				label: 'Requirement Name',
+				value: g_item.requirementNameValue.value,
+			},
+			requirementTextValue: {
+				label: 'Requirement Text',
+				value: g_item.requirementTextValue.value,
+			},
+		};
+
+		// this._g_context.store.optionsSync('hardcoded#queryField.sparql.dng.**', this._g_context, QueryField);
+
 	}
 
 	abortAll(): number {

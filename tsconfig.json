@@ -27,6 +27,8 @@
     "noEmit": true,
     "strictNullChecks": true,
 
+    "types": [],
+
     "plugins": [
       {
         "transform": "@zerollup/ts-transform-paths",

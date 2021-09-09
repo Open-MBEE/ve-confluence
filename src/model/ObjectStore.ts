@@ -50,13 +50,14 @@ class UnhandledLocationError extends Error {
 
 
 function parse_path(sp_path: VeoPathTarget): [VeoPath.Location, DotFragment[]] {
-	const a_parts = sp_path.split('#');
+	const m_parts = /^([\w_0-9-]+)#(.+)$/.exec(sp_path);
 
-	if(2 !== a_parts.length) {
+	if(!m_parts) {
+		debugger;
 		throw new TypeError(`Invalid path string: '${sp_path}'; no storage parameter`);
 	}
 
-	const [si_storage, s_frags] = a_parts as [VeoPath.Location, string];
+	const [, si_storage, s_frags] = m_parts as unknown as [string, VeoPath.Location, string];
 	const a_frags = s_frags.split('.');
 
 	return [si_storage, a_frags];
@@ -200,7 +201,7 @@ export class ObjectStore {
 	}
 
 	// eslint-disable-next-line class-methods-use-this
-	idPartSync(sp_path: string): string {
+	idPartSync(sp_path: string): string[] {
 		const a_parts = sp_path.split('#');
 
 		if(2 !== a_parts.length) {
@@ -210,7 +211,7 @@ export class ObjectStore {
 		const [, s_frags] = a_parts as [VeoPath.Location, string];
 		const a_frags = s_frags.split('.');
 
-		return a_frags[3];
+		return a_frags.slice(3);
 	}
 
 	_parse_path(sp_path: VeoPathTarget): [VeoPath.Location, DotFragment[], SerializationLocation] {
@@ -258,7 +259,7 @@ export class ObjectStore {
 	}
 
 	optionsSync<
-		PathString extends `hardcoded#${string}`,
+		PathString extends VeoPathTarget,
 		ValueType extends ResolvePath<PathString, TypedLabeledPrimitive>,
 		ClassType extends VeOdm<ValueType>,
 	>(sp_path: PathString, g_context: Context, dc_class: Instantiable<ValueType, ClassType>): Record<string, ClassType> {
