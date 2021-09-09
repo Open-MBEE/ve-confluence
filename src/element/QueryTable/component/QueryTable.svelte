@@ -106,7 +106,7 @@
 	// $: b_changed = '' !== si_query_hash_previous && (!b_published || b_changed_published_parameters);
 	$: b_changed = b_published? si_query_hash_previous !== si_query_hash_published: '' !== si_query_hash_previous;
 	// let b_not_changed = '' === si_query_hash_previous || (b_published && !b_changed_published_parameters)
-
+	
 	// once the component mounts
 	onMount(async() => {
 		// get query table's connection
@@ -676,13 +676,12 @@
 
 		.table-browse {
 			background-color: #F4F5F7;
-			border-right: 2px solid var(--ve-color-dark-background);
-			border-left:  2px solid var(--ve-color-dark-background);
-			border-top: 2px solid var(--ve-color-dark-background);
 			border-bottom: 1px solid #C1C7D0;
+			border-right: 2px solid var(--ve-color-dark-background);
+			border-left: 2px solid var(--ve-color-dark-background);
 
 			position: sticky;
-			top: 40px;
+			top: 79px;
 			z-index: 1;
 
 			.control {
@@ -743,6 +742,12 @@
 					z-index: 1;
 				}
 
+				thead {
+					position: sticky;
+					top: 110px;
+					z-index: 1;
+				}
+
 				tbody {
 					display: block;
 					max-height: 500px;
@@ -754,6 +759,7 @@
 					width: 100%;
 					table-layout: fixed;
 				}
+
 				thead {
 					width: 100%
 				}
@@ -807,7 +813,7 @@
 			</span>
 		</div>
 
-		<div class="ve-table" class:published={b_published} class:changed={b_changed} class:expanded={b_display_parameters}>
+	<div class="ve-table" class:published={b_published} class:changed={b_changed} class:expanded={b_display_parameters}>
 			<div class="config">
 				<span class="tabs">
 					<span class="parameters" on:click={toggle_parameters} class:active={b_display_parameters}>
