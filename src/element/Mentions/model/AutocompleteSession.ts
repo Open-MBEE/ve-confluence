@@ -23,6 +23,7 @@ export interface ChannelConfig {
 }
 
 export interface Channel {
+	connection_path: VeoPathTarget,
 	connection: Connection;
 	types: SearcherMask;
 	limit?: number;
@@ -52,13 +53,14 @@ export class AutocompleteSession {
 	}
 
 
-	protected _add_channel(k_connection: Connection, h_features: {types: SearcherMask; limit: number}): void {
+	protected _add_channel(sp_connection: VeoPathTarget, k_connection: Connection, h_features: {types: SearcherMask; limit: number}): void {
 		const si_channel = [
 			k_connection.hash(),
 			JSON.stringify(h_features),
 		].join('\n');
 
 		this._h_channels[si_channel] = {
+			connection_path: sp_connection,
 			connection: k_connection,
 			hash: si_channel,
 			...h_features,
@@ -92,12 +94,12 @@ export class AutocompleteSession {
 					const k_connection = await VeOdm.createFromSerialized(MmsSparqlConnection, sp_connection, gc_connection, g_context);
 
 					// push as separate channels
-					this._add_channel(k_connection, {
+					this._add_channel(sp_connection, k_connection, {
 						types: SearcherMask.ID_EXACT | SearcherMask.ID_START,
 						limit: 20,
 					});
 
-					this._add_channel(k_connection, {
+					this._add_channel(sp_connection, k_connection, {
 						types: SearcherMask.NAME_START | SearcherMask.NAME_CONTAINS,
 						limit: 50,
 					});

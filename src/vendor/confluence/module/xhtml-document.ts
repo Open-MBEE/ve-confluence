@@ -89,7 +89,7 @@ export class XHTMLDocument {
 	// }
 
 	select1<NodeType extends SelectedValue=SelectedValue>(sx_xpath: string): NodeType {
-		return xpathSelect(sx_xpath, this._y_doc, true)[0] as NodeType;
+		return xpathSelect(sx_xpath, this._y_doc)[0] as NodeType;
 	}
 
 	createCDATA(s_cdata: string): CDATASection {

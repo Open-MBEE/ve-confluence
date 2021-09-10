@@ -268,8 +268,15 @@ import {safe_not_equal} from 'svelte/internal';
 		// text node; traverse up
 		const dm_focus = ('#text' === dm_anchor.nodeName? dm_anchor.parentNode: dm_anchor) as HTMLElement;
 
+		let a_mentions = dm_focus.hasAttribute('data-mention')? [dm_focus]: qsa(dm_focus, '[data-mention]') as HTMLElement[];
+
+		if(!a_mentions.length) {
+			const a_mentions_all = qsa(document, '[data-mention]') as HTMLElement[];
+			if(1 === a_mentions_all.length) a_mentions = a_mentions_all;
+		}
+
 		// find mention data
-		return {anchor:dm_anchor, mentions:dm_focus.hasAttribute('data-mention')? [dm_focus]: qsa(dm_focus, '[data-mention]') as HTMLElement[]};
+		return {anchor:dm_anchor, mentions:a_mentions};
 	}
 
 	async function select_row() {
@@ -287,12 +294,25 @@ import {safe_not_equal} from 'svelte/internal';
 		}
 	}
 
-	function prompt_attribute_selector() {
-		for(const dm_mention of get_mentions().mentions) {
-			qs(dm_mention, '.attribute').classList.add('active');
-			xc_mode = DisplayMode.ATTRIBUTE;
-			b_display = true;
-		}
+	function prompt_attribute_selector(dm_mention: HTMLDivElement) {
+		qs(dm_mention, '.attribute').classList.add('active');
+		xc_mode = DisplayMode.ATTRIBUTE;
+		b_display = true;
+
+		queueMicrotask(() => {
+			const dm_hover = document.querySelector(':hover');
+			if(dm_hover) {
+				const dm_row = dm_hover.closest('.row[data-attribute]');
+
+				if(dm_row) {
+					for(const dm_selected of qsa(dm_mention, SI_CLASS_ITEM_SELECTED) as HTMLElement[]) {
+						dm_selected.classList.remove(SI_CLASS_ITEM_SELECTED);
+					}
+
+					dm_row.classList.add(SI_CLASS_ITEM_SELECTED);
+				}
+			}
+		});
 	}
 
 	async function select_item(dm_selected: HTMLDivElement) {
@@ -310,6 +330,9 @@ import {safe_not_equal} from 'svelte/internal';
 
 		// each mention
 		for(const dm_mention of a_mentions) {
+			// make mention not editable
+			dm_mention.contentEditable = 'false';
+
 			// replace content
 			dm_mention.textContent = `@${si_item}`;
 
@@ -318,6 +341,7 @@ import {safe_not_equal} from 'svelte/internal';
 
 			// set mention metadata
 			dm_mention.setAttribute('data-mention', encode_attr({
+				connection_path: g_channel.connection_path,
 				connection: g_channel.connection.toSerialized(),
 				item: {
 					iri: p_item,
@@ -343,6 +367,7 @@ import {safe_not_equal} from 'svelte/internal';
 			// create active attribute selector
 			dm_mention.appendChild(dd('span', {
 				class: 'attribute active',
+				contentEditable: 'false',
 			}, [
 				dd('span', {
 					class: 'content',
@@ -356,8 +381,12 @@ import {safe_not_equal} from 'svelte/internal';
 
 			const dm_attribute = qs(dm_mention, '.attribute') as HTMLSpanElement;
 
-			dm_attribute.addEventListener('click', prompt_attribute_selector);
-			dm_attribute.addEventListener('input', prompt_attribute_selector);
+			dm_attribute.addEventListener('click', () => {
+				prompt_attribute_selector(dm_mention);
+			});
+			dm_attribute.addEventListener('input', () => {
+				prompt_attribute_selector(dm_mention);
+			});
 			dm_attribute.addEventListener('keydown', (d_event) => {
 				d_event.preventDefault();
 
@@ -365,7 +394,7 @@ import {safe_not_equal} from 'svelte/internal';
 					dm_attribute.textContent = '|';
 				}
 
-				prompt_attribute_selector();
+				prompt_attribute_selector(dm_mention);
 			});
 
 			new Fa({

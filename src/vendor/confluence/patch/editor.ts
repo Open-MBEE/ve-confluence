@@ -35,11 +35,12 @@ import type {SvelteComponent} from 'svelte/internal';
 
 import {static_css} from '#/common/static';
 
-import type {Context} from '#/model/Serializable';
+import {Context, VeOdm} from '#/model/Serializable';
 
 import {ObjectStore} from '#/model/ObjectStore';
 
 import {K_HARDCODED} from '#/common/hardcoded';
+import { Transclusion } from '#/model/Transclusion';
 
 const timeout = (xt_wait: number) => new Promise((fk_resolve) => {
 	setTimeout(() => {
@@ -383,6 +384,12 @@ function init_overlays() {
 }
 
 function init_autocomplete() {
+	// check for mentions
+	const a_mentions = qsa(d_doc_editor, '[data-mention]') as HTMLDivElement[];
+	for(const dm_mention of a_mentions) {
+		dm_mention.contentEditable = 'false';
+	}
+
 	kv_autocomplete = new Autocomplete({
 		target: document.body,
 		props: {
@@ -567,31 +574,79 @@ async function publish_document() {
 		}
 	}
 
+	const h_replacements: Record<string, (k: ConfluenceXhtmlDocument) => Node> = {};
 	// special handling for ve elements
 	{
 		const a_mentions = qsa(d_doc_content, '[data-mention]');
 		for(const dm_mention of a_mentions) {
 			// parse mention metadata
-			const g_mention = JSON.parse(dm_mention.getAttribute('data-mention')!);
+			const g_mention = decode_attr(dm_mention.getAttribute('data-mention')!) as Record<string, unknown>;
 
-			// // replace with macro
-			// ConfluencePage.annotatedSpan({
-			// 	params: {
-			// 		class: 've-mention',
-			// 		id: uuid_v4(),
-			// 	},
-			// 	body: [
-			// 		ConfluencePage.annotatedSpan({
-			// 			params: {
-			// 				style: 'display:none',
-			// 				class: 've-cql-search-tag',
-			// 			},
-			// 			body: f_builder('p', {}, [this.path]),
-			// 		}, k_contents),
-			// 		yn_table,
-			// 	],
-			// 	autoCursor: true,
-			// })
+			// prep transclusion metadata
+			const si_transclusion = uuid_v4().replace(/_/g, '-');
+			const gc_transclusion = {
+				type: 'Transclusion',
+				connectionPath: g_mention.connection_path,
+				item: g_mention.item,
+				displayAttribute: g_mention.display_attribute,
+			};
+
+			// create transclusion instance
+			const sp_transclusion =  `page#elements.serialized.transclusion.${si_transclusion}`;
+			// @ts-expect-error veo path typing
+			const k_transclusion = await VeOdm.createFromSerialized(Transclusion, sp_transclusion, gc_transclusion, G_CONTEXT);
+
+			// save transclusion to page metadata
+			await k_transclusion.save();
+
+
+			dm_mention.replaceWith(dd('table', {
+				'class': 'wysiwyg-macro',
+				'data-macro-name': 'span',
+				'data-macro-id': si_transclusion,
+				'data-macro-parameters': `atlassian-macro-output-type=INLINE|id=${si_transclusion}|class=ve-replace`,
+				'data-macro-schema-version': '1',
+				'data-macro-body-type': 'RICH_TEXT',
+			}, [
+				dd('tbody', {}, [
+					dd('tr', {}, [
+						dd('td', {
+							class: 'wysiwyg-macro-body',
+						}, [
+							dd('p', {
+								class: 'auto-cursor-target',
+							}, [
+								dd('br', {}, [], d_doc_content),
+							], d_doc_content),
+						], d_doc_content),
+					], d_doc_content),
+				], d_doc_content),
+			], d_doc_content));
+
+			h_replacements[si_transclusion] = (k_contents: ConfluenceXhtmlDocument) => {
+				const f_builder = k_contents.builder();
+
+				// replace with macro
+				return ConfluencePage.annotatedSpan({
+					params: {
+						class: 've-mention',
+						id: si_transclusion,
+					},
+					body: [
+						ConfluencePage.annotatedSpan({
+							params: {
+								style: 'display:none',
+								class: 've-cql-search-tag',
+							},
+							body: f_builder('p', {}, [sp_transclusion]),
+						}, k_contents),
+						f_builder('p', {}, [
+							'Loading transclusion...',
+						]),
+					],
+					autoCursor: true,
+				}, k_contents);
+			};
 		}
 	}
 
@@ -617,8 +672,10 @@ async function publish_document() {
 	// create confluence XHTML doc instance
 	const k_contents = new ConfluenceXhtmlDocument(sx_storage);
 
-	// instantiate confluence page from current Meta object
-	const k_page = await ConfluencePage.fromCurrentPage();
+	for(const [si_replacement, f_replace] of ode(h_replacements)) {
+		const yn_macro: Node = k_contents.select1(`//ac:structured-macro[@ac:macro-id="${si_replacement}"]`);
+		yn_macro.parentNode?.replaceChild(f_replace(k_contents), yn_macro);
+	}
 
 	// get commit message from DOM
 	const s_msg = (qs(document.body, '#versionComment') as HTMLInputElement).value;
