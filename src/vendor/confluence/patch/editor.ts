@@ -40,7 +40,7 @@ import {Context, VeOdm} from '#/model/Serializable';
 import {ObjectStore} from '#/model/ObjectStore';
 
 import {K_HARDCODED} from '#/common/hardcoded';
-import { Transclusion } from '#/model/Transclusion';
+import { Transclusion } from '#/element/Transclusion/model/Transclusion';
 
 const timeout = (xt_wait: number) => new Promise((fk_resolve) => {
 	setTimeout(() => {
