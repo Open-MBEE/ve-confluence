@@ -13,7 +13,7 @@ import type {
 	Instantiable,
 } from '#/common/types';
 
-import type {VeoPath} from '#/common/veo';
+import type {VeoPath, VeoPathTarget} from '#/common/veo';
 
 import {
 	VeOdm,
@@ -186,11 +186,6 @@ export namespace QueryBuilder {
 	}
 }
 
-export class QueryBuilder extends VeOdm<QueryBuilder.Serialized> {
-	get function(): (this: QueryTable) => Promise<ConnectionQuery> {
-		return this._gc_serialized.function;
-	}
-}
 
 export namespace ParamQueryBuilder {
 	export interface Serialized extends TypedPrimitive<'ParamQueryBuilder'> {
@@ -203,6 +198,7 @@ export class ParamQueryBuilder extends VeOdm<ParamQueryBuilder.Serialized> {
 		return this._gc_serialized.function;
 	}
 }
+export type TableQueryBuilder = (this: QueryTable) => Promise<ConnectionQuery>;
 
 export namespace QueryType {
 	export interface Serialized<
@@ -210,16 +206,15 @@ export namespace QueryType {
 	>extends TypedKeyedLabeledObject<'QueryType'> {
 		queryParametersPaths: VeoPath.QueryParameter<ConnectionType>[];
 		queryFieldGroupPath: VeoPath.QueryFieldGroup;
-		queryBuilderPath: VeoPath.QueryBuilder;
 		paramQueryBuilderPath: VeoPath.ParamQueryBuilder;
+		queryBuilderPath: VeoPathTarget;
 	}
 }
 
 export class QueryType<ConnectionType extends DotFragment=DotFragment> extends VeOdmKeyedLabeled<QueryType.Serialized<ConnectionType>> {
-	get queryBuilder(): QueryBuilder {
+	get queryBuilder(): TableQueryBuilder {
 		const sp_builder = this._gc_serialized.queryBuilderPath;
-		const gc_builder = this._k_store.resolveSync<QueryBuilder.Serialized>(sp_builder);
-		return new QueryBuilder(sp_builder, gc_builder, this._g_context);
+		return this._k_store.resolveSync(sp_builder) as unknown as TableQueryBuilder;
 	}
 
 	get paramQueryBuilder(): ParamQueryBuilder {
@@ -338,7 +333,7 @@ export abstract class QueryTable<
 		const h_param_values = this._h_param_values_lists;
 
 		// no such param
-		if(!this.queryType.queryParametersPaths.map(sp => this._k_store.idPartSync(sp)).includes(si_param)) {
+		if(!this.queryType.queryParametersPaths.map(sp => this._k_store.idPartSync(sp).join('.')).includes(si_param)) {
 			throw new Error(`No such parameter has the id '${si_param}'`);
 		}
 
@@ -411,7 +406,17 @@ export abstract class QueryTable<
 			params: {
 				id: this.path,
 			},
-			body: yn_table,
+			body: [
+				ConfluencePage.annotatedSpan({
+					params: {
+						style: 'display:none',
+						class: 've-cql-search-tag',
+					},
+					body: f_builder('p', {}, [this.path]),
+				}, k_contents),
+				yn_table,
+			],
+			autoCursor: true,
 		}, k_contents);
 
 		// use anchor
@@ -438,7 +443,7 @@ export abstract class QueryTable<
 		else {
 			throw new Error(`No directive node was given`);
 		}
-
+debugger;
 		return {
 			rows: a_rows,
 			contents: k_contents,
@@ -472,7 +477,7 @@ export abstract class SparqlQueryTable<
 	Serialized extends SparqlQueryTable.Serialized=SparqlQueryTable.Serialized,
 	LocalQueryType extends QueryType<'sparql'>=QueryType<'sparql'>,
 > extends QueryTable<'sparql', Serialized, LocalQueryType> {
-	protected _h_options!: Record<VeoPath.SparqlQueryType, LocalQueryType>;
+	protected _h_options!: Record<string, LocalQueryType>;
 
 	// @ts-expect-error weired serialized unions
 	abstract fetchConnection(): Promise<SparqlConnection>;
@@ -492,7 +497,7 @@ export abstract class SparqlQueryTable<
 			label: s_label,
 		} = g_query_type;
 
-		const h_options = this._h_options as Record<string, LocalQueryType>;
+		const h_options = this._h_options;
 		for(const sp_test in h_options) {
 			const k_test = h_options[sp_test];
 

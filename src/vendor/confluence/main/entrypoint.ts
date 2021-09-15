@@ -41,15 +41,45 @@ import type XhtmlDocument from '#/vendor/confluence/module/xhtml-document';
 import {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
 
 
-import {H_HARDCODED_OBJECTS, K_HARDCODED} from '#/common/hardcoded';
+import {
+	H_HARDCODED_OBJECTS,
+	K_HARDCODED,
+} from '#/common/hardcoded';
 
-import {Context, VeOdm} from '#/model/Serializable';
+import {
+	Context,
+	Serializable,
+	VeOdm,
+	VeOdmConstructor,
+} from '#/model/Serializable';
 
 import {ObjectStore} from '#/model/ObjectStore';
-import { xpathEvaluate, xpathSelect, xpathSelect1 } from '#/vendor/confluence/module/xhtml-document';
-import type { VeoPath } from '#/common/veo';
-import type { TypedKeyedUuidedObject, TypedObject, TypedPrimitive } from '#/common/types';
-import { inject_frame, P_SRC_WYSIWYG_EDITOR, SR_HASH_VE_PAGE_EDIT_MODE } from './inject-frame';
+
+import {
+	xpathEvaluate,
+	xpathSelect,
+	xpathSelect1,
+} from '#/vendor/confluence/module/xhtml-document';
+
+import type {VeoPath} from '#/common/veo';
+
+import type {
+	TypedKeyedUuidedObject,
+	TypedObject,
+	TypedPrimitive,
+} from '#/common/types';
+
+import {
+	inject_frame,
+	P_SRC_WYSIWYG_EDITOR,
+	SR_HASH_VE_PAGE_EDIT_MODE,
+} from './inject-frame';
+
+import {Transclusion} from '#/element/Transclusion/model/Transclusion';
+
+import TransclusionComponent from '#/element/Transclusion/component/TransclusionComponent.svelte';
+
+import type {SvelteComponentDev} from 'svelte/internal';
 
 
 // write static css
@@ -87,6 +117,11 @@ interface Correlation {
 interface ViewBundle extends Correlation {
 	/**
 	 * directive's HTML element in the current DOM
+	 */
+	render: HTMLElement;
+
+	/**
+	 * anchor point to insert component before
 	 */
 	anchor: HTMLElement;
 
@@ -257,7 +292,9 @@ function render_component(g_bundle: ViewBundle, b_hide_anchor = false) {
 	const dm_anchor = g_bundle.anchor;
 
 	// hide anchor
-	if(b_hide_anchor) dm_anchor.style.display = 'none';
+	if(b_hide_anchor) {
+		(g_bundle.render || dm_anchor).style.display = 'none';
+	}
 
 	// render component
 	new g_bundle.component({
@@ -411,32 +448,56 @@ export async function main(): Promise<void> {
 				throw new Error(`Expected exactly 1 annotated span element on page with id="${sp_element}" but found ${a_spans.length}`);
 			}
 
+			const dm_render = a_spans[0] as HTMLElement;
+
 			// select adjacent element
-			const dm_render = a_spans[0].parentElement!.nextSibling as HTMLElement;
+			const dm_anchor = dm_render.parentElement!.nextSibling as HTMLElement;
+
+			// model and component class
+			let dc_model!: VeOdmConstructor<Serializable, VeOdm<Serializable>>;
+			// let dc_component: {new(o: Record<string, unknown>): SvelteComponent};
+			let dc_component!: typeof SvelteComponentDev;
 
 			// deserialize
 			switch(gc_element.type) {
+				// query table
 				case 'MmsSparqlQueryTable': {
-					// construct table model
-					const k_query_table = await VeOdm.createFromSerialized(MmsSparqlQueryTable, sp_element, gc_element as MmsSparqlQueryTable.Serialized, G_CONTEXT);
+					// @ts-expect-error safu
+					dc_model = MmsSparqlQueryTable;
+					dc_component = QueryTable;
+					break;
+				}
 
-					// inject component
-					new QueryTable({
-						target: dm_render.parentElement!,
-						anchor: dm_render,
-						props: {
-							k_query_table,
-							yn_directive,
-							dm_anchor: dm_render,
-							b_published: true,
-						},
-					});
+				// transclusion
+				case 'Transclusion': {
+					// debugger;
+					// @ts-expect-error safu
+					dc_model = Transclusion;
+					dc_component = TransclusionComponent;
 					break;
 				}
 
 				default: {
+					debugger;
 					break;
 				}
+			}
+
+			if(dc_model) {
+				// construct model instance
+				const k_model = await VeOdm.createFromSerialized(dc_model, sp_element, gc_element as Serializable, G_CONTEXT);
+
+				// inject component
+				render_component({
+					component: dc_component,
+					render: dm_render,
+					anchor: dm_anchor,
+					node: yn_directive,
+					props: {
+						k_model,
+						b_published: true,
+					},
+				}, true);
 			}
 		}
 	}
@@ -444,6 +505,12 @@ export async function main(): Promise<void> {
 
 const H_HASH_TRIGGERS: Record<string, (de_hash_change?: HashChangeEvent) => Promise<void>> = {
 	async 'load-editor'(de_hash_change?: HashChangeEvent) {
+		// apply beta changes
+		replace_edit_button();
+
+		if(!p_original_edit_link) {
+			throw new Error(`Original page edit button link was never captured`);
+		}
 		return await inject_frame(p_original_edit_link);
 	},
 
@@ -471,8 +538,8 @@ const H_HASH_TRIGGERS: Record<string, (de_hash_change?: HashChangeEvent) => Prom
 		// update version info
 		kv_control_bar.$set({s_app_version:`${process.env.VERSION}-beta`});
 
-		// apply beta changes
-		replace_edit_button();
+		// // apply beta changes
+		// replace_edit_button();
 
 		await Promise.resolve();
 	},
@@ -487,6 +554,9 @@ const H_HASH_TRIGGERS: Record<string, (de_hash_change?: HashChangeEvent) => Prom
 let p_original_edit_link = '';
 
 function replace_edit_button() {
+	// already replaced
+	if(p_original_edit_link) return;
+
 	const dm_edit = qs(dm_main, 'a#editPageLink')! as HTMLAnchorElement;
 	p_original_edit_link = dm_edit.href;
 	dm_edit.href = '#load-editor';
@@ -521,6 +591,9 @@ const H_PATH_SUFFIX_TO_HASH: Record<string, string> = {
 };
 
 function dom_ready() {
+	// apply beta changes
+	replace_edit_button();
+
 	// listen for hash change
 	window.addEventListener('hashchange', hash_updated);
 

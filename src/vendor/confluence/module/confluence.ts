@@ -13,7 +13,10 @@ import {
 } from '#/common/static';
 
 import {
+	delete_json,
+	FetchConfig,
 	get_json,
+	post_json,
 	put_json,
 	Response,
 } from '#/util/fetch';
@@ -239,7 +242,7 @@ export type PageMap<
 > = Map<ConfluenceApi.BasicPage, OdmMap<Serialized, InstanceType>>;
 
 
-async function confluence_get_json<Data extends JsonObject>(pr_path: string, gc_get?: {search?: Hash}): Promise<Response<Data>> {
+export async function confluence_get_json<Data extends JsonObject>(pr_path: string, gc_get?: FetchConfig): Promise<Response<Data>> {
 	// complete path with API
 	pr_path = `${P_API_DEFAULT}${pr_path}`;
 
@@ -247,12 +250,28 @@ async function confluence_get_json<Data extends JsonObject>(pr_path: string, gc_
 	return await get_json<Data>(pr_path, gc_get);
 }
 
-async function confluence_put_json<Data extends JsonObject>(pr_path: string, gc_post?: {body?: string; json?: JsonValue}): Promise<Response<Data>> {
+export async function confluence_put_json<Data extends JsonObject>(pr_path: string, gc_put?: FetchConfig): Promise<Response<Data>> {
 	// complete path with API
 	pr_path = `${P_API_DEFAULT}${pr_path}`;
 
 	// forward to fetch method
-	return await put_json<Data>(pr_path, gc_post);
+	return await put_json<Data>(pr_path, gc_put);
+}
+
+export async function confluence_post_json<Data extends JsonObject>(pr_path: string, gc_post?: FetchConfig): Promise<Response<Data>> {
+	// complete path with API
+	pr_path = `${P_API_DEFAULT}${pr_path}`;
+
+	// forward to fetch method
+	return await post_json<Data>(pr_path, gc_post);
+}
+
+export async function confluence_delete_json<Data extends JsonObject>(pr_path: string, gc_delete?: FetchConfig): Promise<Response<Data>> {
+	// complete path with API
+	pr_path = `${P_API_DEFAULT}${pr_path}`;
+
+	// forward to fetch method
+	return await delete_json<Data>(pr_path, gc_delete);
 }
 
 async function fetch_page_properties<
@@ -370,7 +389,8 @@ export abstract class ConfluenceEntity<MetadataType extends PageOrDocumentMetada
 export interface MacroConfig {
 	uuid?: string;
 	params?: Hash;
-	body: Node;
+	body: Node | Node[] | string;
+	autoCursor?: boolean;
 }
 
 export function autoCursorMutate(yn_node: Node, k_contents: XhtmlDocument): void {
@@ -400,6 +420,12 @@ export function autoCursorMutate(yn_node: Node, k_contents: XhtmlDocument): void
 	}
 }
 
+export function autoCursorNode(f_builder: ReturnType<XhtmlDocument["builder"]>) {
+	return f_builder('p', {
+		class: 'auto-cursor-target',
+	}, [f_builder('br')]);
+}
+
 export function autoCursor(yn_node: Node, k_contents: XhtmlDocument): Node[] {
 	const f_builder = k_contents.builder();
 
@@ -407,18 +433,14 @@ export function autoCursor(yn_node: Node, k_contents: XhtmlDocument): Node[] {
 
 	const yn_sibling_prev = yn_node.previousSibling;
 	if(!yn_sibling_prev || 'p' !== yn_sibling_prev.nodeName) {
-		a_nodes.push(f_builder('p', {
-			class: 'auto-cursor-target',
-		}, [f_builder('br')]));
+		a_nodes.push(autoCursorNode(f_builder));
 	}
 
 	a_nodes.push(yn_node);
 
 	const yn_sibling_next = yn_node.nextSibling;
 	if(!yn_sibling_next || 'p' !== yn_sibling_next?.nodeName) {
-		a_nodes.push(f_builder('p', {
-			class: 'auto-cursor-target',
-		}, [f_builder('br')]));
+		a_nodes.push(autoCursorNode(f_builder));
 	}
 
 	return a_nodes;
@@ -463,6 +485,29 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 	static annotatedSpan(gc_macro: MacroConfig, k_contents: XhtmlDocument): Node {
 		const f_builder = k_contents.builder();
 
+		let yn_body;
+		{
+			const z_body = gc_macro.body;
+			let a_nodes = [];
+
+			if(Array.isArray(z_body)) {
+				a_nodes = gc_macro.autoCursor
+					? [
+						...z_body.flatMap(yn => [autoCursorNode(f_builder), yn]),
+						autoCursorNode(f_builder),
+					]
+					: z_body;
+			}
+			else if('string' === typeof z_body) {
+				a_nodes = gc_macro.autoCursor? [autoCursorNode(f_builder), z_body, autoCursorNode(f_builder)]: [z_body];
+			}
+			else {
+				a_nodes = gc_macro.autoCursor? autoCursor(z_body, k_contents): [z_body];
+			}
+
+			yn_body = f_builder('ac:rich-text-body', {}, a_nodes);
+		}
+
 		return f_builder('ac:structured-macro', {
 			'ac:name': 'span',
 			'ac:schema-version': '1',
@@ -474,27 +519,29 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 			f_builder('ac:parameter', {
 				'ac:name': 'atlassian-macro-output-type',
 			}, ['INLINE']),
-			f_builder('ac:rich-text-body', {}, [
-				...autoCursor(gc_macro.body, k_contents),
-			]),
+			yn_body,
 		]);
 	}
 
 	static async fromCurrentPage(): Promise<ConfluencePage> {
 		const k_page = new ConfluencePage(G_META.page_id, G_META.page_title);
 		const dm_modified = document.querySelector('a.last-modified') as HTMLAnchorElement;
-		const s_search = new URL(dm_modified.href).search;
-		const a_versions = new URLSearchParams(s_search).getAll('selectedPageVersions');
 
-		// deduce page version
-		const n_local = a_versions?.length? +a_versions[a_versions.length - 1]: 1;
+		// check version against remote
+		if(dm_modified) {
+			const s_search = new URL(dm_modified.href).search;
+			const a_versions = new URLSearchParams(s_search).getAll('selectedPageVersions');
 
-		// compare versions
-		const n_remote = await k_page.fetchVersionNumber();
+			// deduce page version
+			const n_local = a_versions?.length? +a_versions[a_versions.length - 1]: 1;
 
-		// versions are out-of-sync
-		if(n_local !== n_remote) {
-			throw new Error(`Page is out of sync. Please reload`);
+			// compare versions
+			const n_remote = await k_page.fetchVersionNumber();
+
+			// versions are out-of-sync
+			if(n_local !== n_remote) {
+				throw new Error(`Page is out of sync. Please reload`);
+			}
 		}
 
 		return k_page;
@@ -579,6 +626,10 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 
 		// save to field and return
 		return (this._g_info = g_info);
+	}
+
+	getDisplayUrlString(): string {
+		return `/display/${G_META.space_key}/${this._s_page_title.replace(/ /g, '+')}`;
 	}
 
 	async fetchAncestry(b_force=false): Promise<ConfluenceApi.BasicPage[]> {
@@ -850,10 +901,10 @@ export class ConfluenceDocument extends ConfluenceEntity<DocumentMetadata> {
 				cql: [
 					'type=page',
 					`space.key=${G_META.space_key}`,
-					[
+					'('+[
 						`id=${this._si_cover_page}`,
 						`ancestor=${this._si_cover_page}`,
-					].join(' or '),
+					].join(' or ')+')',
 					`text~"${sr_path}"`,
 				].join(' and '),
 				expand: 'body.storage',

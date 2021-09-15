@@ -82,3 +82,10 @@ export async function put_json<Data extends JsonObject>(
 ): Promise<Response<Data>> {
 	return request_json<Data>('PUT', pr_uri, gc_fetch);
 }
+
+export async function delete_json<Data extends JsonObject>(
+	pr_uri: string,
+	gc_fetch: FetchConfig | null = null
+): Promise<Response<Data>> {
+	return request_json<Data>('DELETE', pr_uri, gc_fetch);
+}

@@ -7,7 +7,7 @@ import type {
 	TypedKeyedUuidedObject,
 } from '#/common/types';
 
-import type {VeoPath} from '#/common/veo';
+import type {VeoPath, VeoPathTarget} from '#/common/veo';
 
 import type {ObjectStore} from '#/model/ObjectStore';
 
@@ -190,14 +190,14 @@ export type VeOdmConstructor<
 	Serialized extends Serializable | Primitive,
 	InstanceType extends VeOdm<Serialized>,
 > = {
-	new(sp_path: VeoPath.Full, gc_serialized: Serialized, g_context: Context): InstanceType;
+	new(sp_path: VeoPathTarget, gc_serialized: Serialized, g_context: Context): InstanceType;
 };
 
 export class VeOdm<Serialized extends Serializable | Primitive> {
 	static async createFromSerialized<
 		Serialized extends Serializable | Primitive,
 		Instance extends VeOdm<Serialized>,
-	>(dc_model: VeOdmConstructor<Serialized, Instance>, sp_path: VeoPath.Full, gc_serialized: Serialized, g_context: Context): Promise<Instance> {
+	>(dc_model: VeOdmConstructor<Serialized, Instance>, sp_path: VeoPathTarget, gc_serialized: Serialized, g_context: Context): Promise<Instance> {
 		return await (new dc_model(sp_path, gc_serialized, g_context)).ready();
 	}
 

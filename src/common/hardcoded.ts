@@ -15,6 +15,11 @@ import type {
 	QueryType,
 } from '#/element/QueryTable/model/QueryTable';
 
+import type {
+	MmsSparqlConnection,
+	SparqlConnection,
+} from '#/model/Connection';
+
 import {
 	MetadataBundle,
 	MetadataShape,
@@ -31,7 +36,12 @@ import {
 	XhtmlString,
 } from '#/util/strings';
 
-import {build_dng_select_param_query, build_dng_select_query_from_params} from './helper/sparql-code';
+import {
+	build_dng_select_param_query,
+	build_dng_select_query_from_params,
+	dng_detailer_query,
+	dng_searcher_query,
+} from './helper/sparql-code';
 
 import H_PREFIXES from './prefixes';
 
@@ -186,7 +196,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 						'hardcoded#queryParameter.sparql.dng.maturity',
 					],
 					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basicWithChildren',
-					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.basicParamsL3',
+					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.table.basicParamsL3',
 					paramQueryBuilderPath: 'hardcoded#paramQueryBuilder.sparql.dng.default',
 				},
 				asr: {
@@ -296,12 +306,22 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 		},
 	}),
 
+	queryContext: {
+		sparql: {
+			dng: {
+				common: {
+					prefixes: H_PREFIXES,
+				},
+			},
+		},
+	},
+
 	paramQueryBuilder: {
 		sparql: {
 			dng: {
 				default: {
 					function: build_dng_select_param_query,
-				},
+				}
 			},
 		},
 	},
@@ -309,11 +329,15 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 	queryBuilder: {
 		sparql: {
 			dng: {
-				basicParams: {
-					function: build_dng_select_query_from_params,
+				search: {
+					basic: dng_searcher_query,
 				},
-				basicParamsL3: {
-					function(this: MmsSparqlQueryTable): Promise<SparqlSelectQuery> {
+				detail: {
+					basic: dng_detailer_query,
+				},
+				table: {
+					basicParams: build_dng_select_query_from_params,
+					basicParamsL3(this: MmsSparqlQueryTable): Promise<SparqlSelectQuery> {
 						return build_dng_select_query_from_params.call(this, {
 							bgp: /* syntax: js */ `
 								?_level a rdf:Property ;
@@ -324,9 +348,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 							`,
 						});
 					},
-				},
-				basicParamsL3ChildrenAndL4s: {
-					function(this: MmsSparqlQueryTable): Promise<SparqlSelectQuery> {
+					basicParamsL3ChildrenAndL4s(this: MmsSparqlQueryTable): Promise<SparqlSelectQuery> {
 						return build_dng_select_query_from_params.call(this, {
 							bgp: /* syntax: js */ `
 								?_level a rdf:Property ;
@@ -345,16 +367,6 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 							`,
 						});
 					},
-				},
-			},
-		},
-	},
-
-	queryContext: {
-		sparql: {
-			dng: {
-				common: {
-					prefixes: H_PREFIXES,
 				},
 			},
 		},

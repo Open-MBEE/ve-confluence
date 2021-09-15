@@ -5,7 +5,7 @@ import type {
 	VeOdm,
 } from '#/model/Serializable';
 
-import type {VeoPath} from './veo';
+import type {VeoPath, VeoPathTarget} from './veo';
 
 export type Hash = Record<string, string>;
 
@@ -134,7 +134,7 @@ export interface Instantiable<
 	ValueType extends Serializable | Primitive,
 	ClassType extends VeOdm<ValueType>,
 > {
-	new(sp: VeoPath.Full, gc: ValueType, g: Context): ClassType;
+	new(sp: VeoPathTarget, gc: ValueType, g: Context): ClassType;
 }
 
 export type PathTarget<

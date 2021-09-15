@@ -1,6 +1,9 @@
 import type {MmsSparqlQueryTable, QueryParam} from '#/element/QueryTable/model/QueryTable';
+import type { MmsSparqlConnection } from '#/model/Connection';
+import { ode, oderac, oderom } from '#/util/belt';
 
-import {SparqlSelectQuery, Sparql} from '../../util/sparql-endpoint';
+import {NoOpSparqlSelectQuery, SparqlSelectQuery, Sparql} from '../../util/sparql-endpoint';
+
 import type {Hash, SparqlString} from '../types';
 
 const terse_lit = (s: string) => `"${s.replace(/[\r\n]+/g, '').replace(/"/g, '\\"')}"`;
@@ -222,6 +225,167 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 		sort: [
 			...a_selects.includes('?idValue')? ['asc(?idValue)']: [],
 			'asc(?artifact)',
+		],
+	});
+}
+
+export enum SearcherMask {
+	DEFAULT = 0,
+	ID_EXACT = 1 << 0,
+	ID_START = 1 << 1,
+	NAME_EXACT = 1 << 2,
+	NAME_START = 1 << 3,
+	NAME_CONTAINS = 1 << 4,
+	ALL = 0xffff,
+}
+
+export function dng_detailer_query(this: MmsSparqlConnection, p_artifact: string): SparqlSelectQuery {
+	return new SparqlSelectQuery({
+		select: [
+			'?idValue',
+			'?requirementNameValue',
+			'?requirementTextValue',
+		],
+		from: `<${this.modelGraph}>`,
+		bgp: /* syntax: sparql */ `
+			?artifact a oslc_rm:Requirement ;
+				oslc:instanceShape [
+					dct:title "Requirement"^^rdf:XMLLiteral ;
+				] ;
+				.
+
+			# exclude requirements that are part of a requirement document
+			filter not exists {
+				?collection a oslc_rm:RequirementCollection ;
+					oslc_rm:uses ?artifact ;
+					.
+			}
+			
+			${H_NATIVE_DNG_PATTERNS.id}
+
+			${H_NATIVE_DNG_PATTERNS.requirementName}
+
+			${H_NATIVE_DNG_PATTERNS.requirementText}
+
+			values ?artifact {
+				<${p_artifact}>
+			}
+		`,
+	});
+}
+
+export function dng_searcher_query(this: MmsSparqlConnection, s_input: string, xm_types?: number): SparqlSelectQuery {
+	// criteria for searching
+	const h_criteria = {
+		1: [],
+		2: [],
+		3: [],
+		4: [],
+	} as Record<string, string[]>;
+
+	// sanitize input string
+	const s_sanitized = s_input.trim()
+		.replace(/[\r\n]/g, '')
+		.replace(/\\/g, '\\\\')
+		.replace(/"/g, '\\"');
+
+	// default to all
+	xm_types ||= SearcherMask.ALL;
+
+	// an id candidate requires ensuring requirement name is non-emtpy
+	let b_id_candidate = false;
+
+	// multirank-ness
+	let b_multirank = false;
+
+	// id candidate
+	if(/^\d+$/.test(s_sanitized)) {
+		if(xm_types & SearcherMask.ID_EXACT) {
+			b_id_candidate = true;
+			h_criteria[1].push(`str(?idValue) = "${s_sanitized}"`);
+		}
+
+		if(xm_types & SearcherMask.ID_START) {
+			b_id_candidate = true;
+			h_criteria[3].push(`strStarts(?idValue, "${s_sanitized}")`);
+		}
+	}
+
+	// requirement name exact
+	if(xm_types & SearcherMask.NAME_EXACT) {
+		h_criteria[1].push(`str(lcase(?requirementNameValue)) = "${s_sanitized}"`);
+	}
+
+	// requirement name start
+	if(xm_types & SearcherMask.NAME_START) {
+		h_criteria[2].push(`strStarts(lcase(?requirementNameValue), "${s_sanitized}")`);
+	}
+
+	// requirement name contains
+	if(xm_types & SearcherMask.NAME_CONTAINS && s_sanitized.length > 1) {
+		h_criteria[4].push(`contains(lcase(?requirementNameValue), "${s_sanitized}")`);
+	}
+
+	// filter criteria
+	const a_criteria = ode(h_criteria).filter(([, a]) => a.length);
+
+	// no criteria; return no-op
+	if(!a_criteria.length) return new NoOpSparqlSelectQuery();
+
+	// set multirank-ness
+	b_multirank = a_criteria.length > 1;
+
+	// build query
+	return new SparqlSelectQuery({
+		count: '?artifact',
+		select: [
+			...(b_multirank? ['?rank']: []),
+			'?artifact',
+			'?idValue',
+			'?requirementNameValue',
+			`(strLen(strBefore(lcase(?requirementNameValue), "${s_sanitized}")) as ?score)`,
+		],
+		from: `<${this.modelGraph}>`,
+		bgp: /* syntax: sparql */ `
+			?artifact a oslc_rm:Requirement ;
+				oslc:instanceShape [
+					dct:title "Requirement"^^rdf:XMLLiteral ;
+				] ;
+				.
+
+			# exclude requirements that are part of a requirement document
+			filter not exists {
+				?collection a oslc_rm:RequirementCollection ;
+					oslc_rm:uses ?artifact ;
+					.
+			}
+			
+			${H_NATIVE_DNG_PATTERNS.id}
+
+			${H_NATIVE_DNG_PATTERNS.requirementName}
+
+			hint:Prior hint:rangeSafe 'true' .
+
+			${b_id_candidate? `filter(?requirementNameValue != "")`: ''}
+
+			${b_multirank /* eslint-disable @typescript-eslint/indent */
+				? `
+					bind(${a_criteria.reverse().reduce((s_out, [si_priority, a_conditions]) => `
+						if(${a_conditions.join(' || ')}, ${si_priority}, ${s_out})
+					`.trim(), '0')} as ?rank)
+
+					filter(?rank > 0)
+				`
+				: `filter(${a_criteria.reduce((a_out, [, a_conditions]) => [
+					...a_out,
+					a_conditions.join(' || '),
+				], [] as string[]).join(' || ')})`}
+			`,
+
+		sort: [
+			...(b_multirank? ['asc(?rank)']: []),
+			'asc(?score)',
+			'asc(?requirementNameValue)',
 		],
 	});
 }
