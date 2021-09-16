@@ -4,7 +4,7 @@ import type {QueryRow} from '#/common/types';
 
 import type {VeoPathTarget} from '#/common/veo';
 
-import {ConnectionQuery, QueryField} from '#/element/QueryTable/model/QueryTable';
+import type {ConnectionQuery} from '#/element/QueryTable/model/QueryTable';
 
 import {Connection,
 	MmsSparqlConnection} from '#/model/Connection';

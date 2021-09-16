@@ -290,9 +290,35 @@ function* correlate(gc_correlator: CorrelationDescriptor): Generator<ViewBundle>
 
 function render_component(g_bundle: ViewBundle, b_hide_anchor = false) {
 	const dm_anchor = g_bundle.anchor;
+	const dm_render = g_bundle.render;
+	const dm_parent = dm_render.parentElement!;
 
+	// re-stitch together inline paragraph
+	if(TransclusionComponent === g_bundle.component && (('P' === dm_parent.nodeName && !qsa(dm_parent, 'br').length) || ('SPAN' === dm_parent.nodeName && 'P' === dm_parent.parentElement?.nodeName && !qsa(dm_parent.parentElement, 'br').length))) {
+		dm_anchor.style.display = 'none';
+
+		const dm_parent_render = g_bundle.render.closest('p')!;
+		dm_parent_render.style.display = 'inline';
+		const dm_tag = dm_parent_render.nextElementSibling as HTMLElement;
+
+		dm_tag.style.display = 'none';
+
+		const dm_placeholder = dm_tag.nextElementSibling;
+		if(dm_placeholder && 'P' === dm_placeholder.nodeName) {
+			(dm_placeholder as HTMLElement).style.display = 'none';
+
+			const dm_follow = dm_placeholder.nextElementSibling;
+			if(dm_follow && 'P' === dm_follow.nodeName) {
+				qs(dm_follow, 'br')?.remove();
+				(dm_follow as HTMLElement).style.display = 'inline';
+			}
+		}
+
+		// add special prop for transclusion
+		g_bundle.props!.b_inlined = true;
+	}
 	// hide anchor
-	if(b_hide_anchor) {
+	else if(b_hide_anchor) {
 		(g_bundle.render || dm_anchor).style.display = 'none';
 	}
 
@@ -450,7 +476,10 @@ export async function main(): Promise<void> {
 			const dm_render = a_spans[0] as HTMLElement;
 
 			// select adjacent element
-			const dm_anchor = dm_render.parentElement!.nextSibling as HTMLElement;
+			let dm_anchor = dm_render.parentElement!.nextSibling as HTMLElement;
+			if(!dm_anchor && 'SPAN' === dm_render.parentElement?.nodeName) {
+				dm_anchor = dm_render.parentElement.parentElement!.nextElementSibling as HTMLElement;
+			}
 
 			// model and component class
 			let dc_model!: VeOdmConstructor<Serializable, VeOdm<Serializable>>;

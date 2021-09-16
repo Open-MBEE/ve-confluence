@@ -5,7 +5,7 @@ import {
 } from "#/util/dom";
 
 import {
-	confluence_editor_injections,
+	confluence_editor_injections, process,
 } from '#/common/static';
 
 import {
@@ -16,11 +16,9 @@ import {
 export const SR_HASH_VE_PAGE_EDIT_MODE = '#editor';
 
 // export const P_SRC_WYSIWYG_EDITOR = 'https://ced-cdn-test.s3-us-gov-west-1.amazonaws.com/confluence-ui/injected-editor.js';
-export const P_SRC_WYSIWYG_EDITOR = 'http://localhost:3001/public/build/confluence-editor.dev.js';
-export const P_SRC_EDITOR_SUPPLEMENT = 'http://localhost:3001/public/build/editor.dev.js';
 
-// export const P_SRC_WYSIWYG_EDITOR = 'https://ced-cdn-test.s3-us-gov-west-1.amazonaws.com/confluence-ui/confluence-editor.dev.js';
-// export const P_SRC_EDITOR_SUPPLEMENT = 'https://ced-cdn-test.s3-us-gov-west-1.amazonaws.com/confluence-ui/editor.dev.js';
+export const P_SRC_WYSIWYG_EDITOR = process.env.PRODUCTION? 'https://ced-cdn-test.s3-us-gov-west-1.amazonaws.com/confluence-ui/confluence-editor.dev.js': 'http://localhost:3001/public/build/confluence-editor.dev.js';
+export const P_SRC_EDITOR_SUPPLEMENT = process.env.PRODUCTION? 'https://ced-cdn-test.s3-us-gov-west-1.amazonaws.com/confluence-ui/editor.dev.js': 'http://localhost:3001/public/build/editor.dev.js';
 
 const B_AWAIT_PRELOAD = false;
 

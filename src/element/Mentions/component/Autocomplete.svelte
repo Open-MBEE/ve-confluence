@@ -602,6 +602,7 @@ import {safe_not_equal} from 'svelte/internal';
 				b_display = true;
 				x_offset_x = x_left + 15;
 				x_offset_y = x_top + 107;
+				xc_mode = DisplayMode.ITEM;
 
 				// insert new mention
 				y_editor.execCommand('mceInsertContent', false, `<span class="ve-mention" data-mention="${encode_attr({})}">@</span>`);
