@@ -14,8 +14,6 @@
 	import {
 		faCheckCircle,
 		faCircleNotch,
-		faEdit,
-		faFilter,
 		faHistory,
 		faPen,
 		faQuestionCircle,
@@ -30,24 +28,14 @@
 	} from '../model/QueryTable';
 
 	import type {
-		QueryRow,
 		ValuedLabeledObject,
 	} from '#/common/types';
 
-	import type {
+	import {
 		Connection,
+		connectionHasVersioning,
 		ModelVersionDescriptor,
 	} from '#/model/Connection';
-
-	import {
-		autoCursorMutate,
-		ConfluencePage,
-		wrapCellInHtmlMacro,
-	} from '#/vendor/confluence/module/confluence';
-
-	import XHTMLDocument from '#/vendor/confluence/module/xhtml-document';
-
-	import {process} from '#/common/static';
 
 	import type {TypedString} from '#/util/strings';
 
@@ -119,6 +107,11 @@
 
 			// pending version information
 			s_display_version = '...';
+
+			// ensure versioned connection
+			if(!connectionHasVersioning(k_connection)) {
+				throw new Error(`Connection does not have versioning: ${k_connection.hash()}`);
+			}
 
 			// get model version descriptor from connection
 			g_version = await k_connection.fetchCurrentVersion();

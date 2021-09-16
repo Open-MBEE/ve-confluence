@@ -11,6 +11,7 @@
 
 	import {
 		Connection,
+		connectionHasVersioning,
 		MmsSparqlConnection,
 	} from '#/model/Connection';
 
@@ -20,14 +21,11 @@
 
 	import type {
 		Context,
-		Serializable,
 	} from '#/model/Serializable';
 
 	import {
 		VeOdm,
 	} from '#/model/Serializable';
-
-	import type {VeoPath} from '#/common/veo';
 
 	import SelectItem from './SelectItem.svelte';
 
@@ -39,14 +37,13 @@
 	import Fa from 'svelte-fa';
 
 	import Modal from 'svelte-simple-modal';
+
 	import ContextDummy from './ContextDummy.svelte';
 	// import {bind} from 'svelte-simple-modal';
 
 	import {
-		ConfluenceEntity,
 		ConfluencePage,
 	} from '#/vendor/confluence/module/confluence';
-
 
 	import type {PageMap} from '#/vendor/confluence/module/confluence';
 
@@ -55,13 +52,11 @@
 		QueryTable,
 	} from '#/element/QueryTable/model/QueryTable';
 
-	import {
-		writable,
-	} from 'svelte/store';
 
 	import UpdateDatasetConfirmation from './UpdateDatasetConfirmation.svelte';
 
-	import type { SvelteComponent } from 'svelte/internal';
+	import type {SvelteComponent} from 'svelte/internal';
+
 
 	type CustomDataProperties = {
 		status_mode: G_STATUS;
@@ -101,7 +96,7 @@
 				case 'MmsSparqlConnection': {
 					const k_connection = await VeOdm.createFromSerialized(
 						MmsSparqlConnection,
-						sp_connection as VeoPath.MmsSparqlConnection,
+						sp_connection,
 						gc_connection as MmsSparqlConnection.Serialized, g_context
 					);
 
@@ -348,6 +343,10 @@
 	}
 
 	async function fetch_version_info(k_connection: Connection): Promise<[ModelVersionDescriptor[], ModelVersionDescriptor, string]> {
+		if(!connectionHasVersioning(k_connection)) {
+			throw new Error(`Connection does not support versioning`);
+		}
+
 		const [a_versions_raw, g_version_current_raw] = await Promise.all([
 			k_connection.fetchVersions(),
 			k_connection.fetchCurrentVersion(),

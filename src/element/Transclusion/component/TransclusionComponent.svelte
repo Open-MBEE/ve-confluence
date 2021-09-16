@@ -10,12 +10,15 @@
 
 	import Fa from 'svelte-fa';
 
-	import {MmsSparqlConnection} from '#/model/Connection';
+	import type {MmsSparqlConnection} from '#/model/Connection';
 
 	import type {TypedString} from '#/util/strings';
 
 	import {ode} from '#/util/belt';
-import { dm_main, qs } from '#/util/dom';
+
+	import {
+		dm_main,
+	} from '#/util/dom';
 
 	/**
 	* The transclusion model

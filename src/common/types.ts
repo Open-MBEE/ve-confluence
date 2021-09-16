@@ -5,7 +5,7 @@ import type {
 	VeOdm,
 } from '#/model/Serializable';
 
-import type {VeoPath, VeoPathTarget} from './veo';
+import type {VeoPathTarget} from './veo';
 
 export type Hash = Record<string, string>;
 

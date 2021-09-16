@@ -1,21 +1,20 @@
 <script lang="ts">
 	import {
 		lang,
-		process,
-	} from "#/common/static";
+	} from '#/common/static';
 
 	import type {
 		MmsSparqlQueryTable,
-	} from "#/element/QueryTable/model/QueryTable";
+	} from '#/element/QueryTable/model/QueryTable';
 
 	import type {
 		Connection,
 		ModelVersionDescriptor,
-	} from "#/model/Connection";
+	} from '#/model/Connection';
 
 	import type {
 		PageMap,
-	} from "#/vendor/confluence/module/confluence";
+	} from '#/vendor/confluence/module/confluence';
 
 	import type {
 		ModalContext,

@@ -1,9 +1,10 @@
-import { oderom } from '#/util/belt';
+import {oderom} from '#/util/belt';
 
 import type jQuery from 'jquery';
 
 import type tinymce from 'tinymce';
-import type { JsonValue } from './types';
+
+import type {JsonValue} from './types';
 
 export const $PATCHED = Symbol('patched');
 

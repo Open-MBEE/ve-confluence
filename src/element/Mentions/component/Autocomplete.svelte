@@ -1,6 +1,4 @@
 <script lang="ts">
-	import {onMount} from 'svelte';
-
 	import {
 		dd,
 		decode_attr,
@@ -36,14 +34,11 @@
 		oderac,
 	} from '#/util/belt';
 
-	import Select from 'svelte-select';
+	import Fa from 'svelte-fa';
 
-import Fa from 'svelte-fa';
-
-import {faAngleDown,
-		faArrowDown} from '@fortawesome/free-solid-svg-icons';
-
-import {safe_not_equal} from 'svelte/internal';
+	import {
+		faAngleDown,
+	} from '@fortawesome/free-solid-svg-icons';
 
 	export let y_editor: PatchedEditor;
 	export let g_context: Context;

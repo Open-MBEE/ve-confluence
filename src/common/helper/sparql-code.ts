@@ -1,17 +1,22 @@
 import type {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
-import type { MmsSparqlConnection } from '#/model/Connection';
-import { ode, oderac, oderom } from '#/util/belt';
 
-import {NoOpSparqlSelectQuery, SparqlSelectQuery} from '../../util/sparql-endpoint';
+import type {MmsSparqlConnection} from '#/model/Connection';
 
-import type {Hash, SparqlString} from '../types';
+import {
+	ode,
+} from '#/util/belt';
+
+import {NoOpSparqlSelectQuery,
+	SparqlSelectQuery} from '../../util/sparql-endpoint';
+
+import type {Hash,
+	SparqlString} from '../types';
 
 const terse_lit = (s: string) => `"${s.replace(/[\r\n]+/g, '').replace(/"/g, '\\"')}"`;
 
-function attr(h_props: Hash, si_attr: string, s_attr_key: string, b_many=false) {
+function attr(h_props: Hash, si_attr: string, s_attr_key: string) {
 	const sx_prop = h_props[si_attr] = `?_${si_attr}`;
 
-	if(!s_attr_key) debugger;
 	return /* syntax: sparql */ `
 		${sx_prop} a rdf:Property ;
 			rdfs:label ${terse_lit(s_attr_key)} .
@@ -119,7 +124,7 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 			// insert binding pattern fragment
 			a_bgp.push(/* syntax: sparql */ `
 				optional {
-					${attr(h_props, si_param, s_value, b_many)}
+					${attr(h_props, si_param, s_value)}
 				}
 			`);
 		}
@@ -279,7 +284,7 @@ export function dng_searcher_query(this: MmsSparqlConnection, s_input: string, x
 	return new SparqlSelectQuery({
 		count: '?artifact',
 		select: [
-			...(b_multirank? ['?rank']: []),
+			...b_multirank? ['?rank']: [],
 			'?artifact',
 			'?idValue',
 			'?requirementNameValue',
@@ -323,7 +328,7 @@ export function dng_searcher_query(this: MmsSparqlConnection, s_input: string, x
 			`,
 
 		sort: [
-			...(b_multirank? ['asc(?rank)']: []),
+			...b_multirank? ['asc(?rank)']: [],
 			'asc(?score)',
 			'asc(?requirementNameValue)',
 		],

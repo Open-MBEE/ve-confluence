@@ -48,15 +48,10 @@
 	import type {JsonObject} from '#/common/types';
 
 	import {
-		oderac,
 		oderaf,
 	} from '#/util/belt';
 
 	import XHTMLDocument, {xpathSelect1} from '#/vendor/confluence/module/xhtml-document';
-
-	import type {
-		XhtmlString,
-	} from '#/util/strings';
 
 	export let g_context: Context;
 
@@ -71,7 +66,6 @@
 	let dm_bar: HTMLDivElement;
 	let b_collapsed = true;
 	let dm_icon_dropdown: HTMLDivElement;
-	let b_document = false;
 
 	let sx_document_metadata_remote: string;
 	$: sx_document_metadata_local = '';
@@ -443,7 +437,6 @@
 		b_page_content_writable = false;
 
 		const g_bundle = await k_page.fetchContentAsXhtmlDocument();
-		const n_version = g_bundle.versionNumber;
 
 		let k_contents = new XHTMLDocument(sx_page_content_editted as string);
 

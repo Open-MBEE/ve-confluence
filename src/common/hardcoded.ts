@@ -15,11 +15,6 @@ import type {
 	QueryType,
 } from '#/element/QueryTable/model/QueryTable';
 
-import type {
-	MmsSparqlConnection,
-	SparqlConnection,
-} from '#/model/Connection';
-
 import {
 	MetadataBundle,
 	MetadataShape,

@@ -1,12 +1,23 @@
 import type {TypedLabeledObject} from '#/common/types';
 
-import type {VeoPath, VeoPathTarget} from '#/common/veo';
+import type {VeoPathTarget} from '#/common/veo';
 
-import {Connection, MmsSparqlConnection} from '#/model/Connection';
+import {
+	Connection,
+	MmsSparqlConnection,
+} from '#/model/Connection';
 
-import {VeOdm, VeOdmLabeled} from '#/model/Serializable';
-import { oderom } from '#/util/belt';
-import { HtmlString, TypedString } from '#/util/strings';
+import {
+	VeOdm,
+	VeOdmLabeled,
+} from '#/model/Serializable';
+
+import {oderom} from '#/util/belt';
+
+import {
+	HtmlString,
+	TypedString,
+} from '#/util/strings';
 
 
 export namespace Transclusion {

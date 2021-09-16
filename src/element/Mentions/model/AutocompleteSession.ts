@@ -1,5 +1,6 @@
-import { H_HARDCODED_OBJECTS } from '#/common/hardcoded';
-import { SearcherMask } from '#/common/helper/sparql-code';
+
+import {SearcherMask} from '#/common/helper/sparql-code';
+
 import type {QueryRow} from '#/common/types';
 
 import type {VeoPathTarget} from '#/common/veo';
@@ -12,7 +13,6 @@ import {Connection,
 import {
 	Context,
 	VeOdm,
-	VeOdmConstructor,
 } from '#/model/Serializable';
 
 import {ode} from '#/util/belt';
@@ -23,7 +23,7 @@ export interface ChannelConfig {
 }
 
 export interface Channel {
-	connection_path: VeoPathTarget,
+	connection_path: VeoPathTarget;
 	connection: Connection;
 	types: SearcherMask;
 	limit?: number;
@@ -91,7 +91,7 @@ export class AutocompleteSession {
 		for(const [sp_connection, gc_connection] of ode(h_connections)) {
 			switch(gc_connection.type) {
 				case 'MmsSparqlConnection': {
-					const k_connection = await VeOdm.createFromSerialized(MmsSparqlConnection, sp_connection, gc_connection, g_context);
+					const k_connection = await VeOdm.createFromSerialized(MmsSparqlConnection, sp_connection, gc_connection as MmsSparqlConnection.Serialized, g_context);
 
 					// push as separate channels
 					this._add_channel(sp_connection, k_connection, {
@@ -232,7 +232,6 @@ export class AutocompleteSession {
 		};
 
 		// this._g_context.store.optionsSync('hardcoded#queryField.sparql.dng.**', this._g_context, QueryField);
-
 	}
 
 	abortAll(): number {
@@ -245,5 +244,4 @@ export class AutocompleteSession {
 		as_controllers.clear();
 		return nl_aborted;
 	}
-
 }
