@@ -27,10 +27,12 @@
 
 	import Fa from 'svelte-fa';
 
-	import {faQuestionCircle, faCog} from '@fortawesome/free-solid-svg-icons';
+	import {faQuestionCircle} from '@fortawesome/free-solid-svg-icons';
 
 	import {
 		dm_main,
+		dm_main_header,
+		// dm_sidebar,
 		qs,
 	} from '#/util/dom';
 
@@ -46,15 +48,10 @@
 	import type {JsonObject} from '#/common/types';
 
 	import {
-		oderac,
 		oderaf,
 	} from '#/util/belt';
 
 	import XHTMLDocument, {xpathSelect1} from '#/vendor/confluence/module/xhtml-document';
-
-	import type {
-		XhtmlString,
-	} from '#/util/strings';
 
 	export let g_context: Context;
 
@@ -68,7 +65,7 @@
 
 	let dm_bar: HTMLDivElement;
 	let b_collapsed = true;
-	let b_document = false;
+	let dm_icon_dropdown: HTMLDivElement;
 
 	let sx_document_metadata_remote: string;
 	$: sx_document_metadata_local = '';
@@ -89,6 +86,11 @@
 	$: b_page_content_writable = b_page_json_valid && (new ConfluenceXhtmlDocument(sx_page_content_editted as string)).toString() !== sx_page_content_remote;
 	
 	const dm_sidebar = qs(document.body, '.ia-fixed-sidebar') as HTMLDivElement;
+	// if(dm_sidebar) {
+	// 	let dm_sidebar_scrollable = (qs(dm_sidebar, '.ia-scrollable-section') as HTMLDivElement);
+	// 	let n_pre_scrolltop = dm_sidebar.scrollTop || 0;
+	// }
+	
 	$: {
 		try {
 			g_document_metadata_editted = JSON.parse(sx_document_metadata_local) as DocumentMetadata;
@@ -118,9 +120,31 @@
 	let k_page: ConfluencePage | null = null;
 	let k_document: ConfluenceDocument | null = null;
 
-	function realign_sidebar() {
-		// realign sidebar with main content everytime the ve header height changes
-		dm_sidebar.style.top = String(dm_bar.getBoundingClientRect().bottom) + 'px';
+	function realign_control_bar() {
+		if('' !== dm_main_header.style.position) {
+			dm_bar.style.marginTop = '0px';
+			// when the 'overlay-header' class is applied for the nav bar, adjust margins
+			if(dm_main_header.className.split(/\s+/g).includes('overlay-header')) {
+				dm_bar.style.marginTop = '-10px';
+			}
+		}
+		else {
+			dm_bar.style.marginTop = '-20px';
+		}
+
+
+		// // when scrolling down the wiki header style changes, so update the control bar margin
+		// if('' !== dm_sidebar.style.width) {
+		// 	dm_sidebar.style.marginTop = `${dm_bar.getBoundingClientRect().height || 38}px`;
+
+		// 	dm_sidebar_scrollable.scrollTop = n_pre_scrolltop;
+
+		// 	debugger;
+
+		// 	if(dm_expanded) {
+		// 		dm_expanded.style.paddingLeft = `calc(${dm_sidebar.style.width} + 20px)`;
+		// 	}
+		// }
 	}
 
 	onMount(async() => {
@@ -134,28 +158,28 @@
 			b_read_only = true;
 		}
 
-		// initial sidebar alignment
-		queueMicrotask(realign_sidebar);
+		// initial control bar alignment
+		queueMicrotask(realign_control_bar);
 
-		const d_mutation_observer = new MutationObserver((a_mutations) => {
+		// // wait for transition to complete and then realign again
+		// setTimeout(realign_control_bar, 1500);
+
+		// create new observer
+		const d_observer = new MutationObserver((a_mutations) => {
 			// each mutation in list
 			for(const d_mutation of a_mutations) {
 				// style attribute change; realign control bar
 				if('attributes' === d_mutation.type && 'style' === d_mutation.attributeName) {
-					// realign sidebar for main content margin changes
-					if(d_mutation.oldValue?.includes('margin-top')) {
-						realign_sidebar();
-					}
+					realign_control_bar();
 				}
 			}
 		});
 
-		// create new observer
-		const d_observer = new ResizeObserver(() => {
-			realign_sidebar();
-		});
-		d_mutation_observer.observe(dm_main, {attributes:true, attributeOldValue:true});
-		d_observer.observe(dm_bar);
+		// // start observing 'sidebar' attribute changes
+		// d_observer.observe(dm_sidebar, {attributes:true});
+
+		d_observer.observe(dm_main, {attributes:true});
+		d_observer.observe(dm_main_header, {attributes:true});
 
 		k_page = await ConfluencePage.fromCurrentPage();
 
@@ -196,12 +220,12 @@
 	function toggle_collapse() {
 		b_collapsed = !b_collapsed;
 		if(b_collapsed) {
-			dm_sidebar.style.transitionDuration = '400ms';
-			// remove transition time once it's complete
-			setTimeout(() => dm_sidebar.style.transitionDuration = '0ms', 400);
+			dm_icon_dropdown.classList.add('rotate-expand');
+			dm_icon_dropdown.classList.remove('rotate-collapse');
 		}
 		else {
-			dm_sidebar.style.transitionDuration = '0ms';
+			dm_icon_dropdown.classList.add('rotate-collapse');
+			dm_icon_dropdown.classList.remove('rotate-expand');
 		}
 	}
 
@@ -310,33 +334,6 @@
 		}
 	}
 
-	// const H_CONNECTION_TEMPLATE = {
-
-	// };
-
-	// const H_PRECONFIGURED_CONNECTIONS = {
-	// 	dng: {
-	// 		clipper: {
-	// 			endpoint: 'https://ced.jpl.nasa.gov/sparql',
-	// 			modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/data.europa-clipper',
-	// 			metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/metadata.clipper',
-	// 			contextPath: 'hardcoded#queryContext.sparql.dng.common',
-	// 		},
-	// 		msr: {
-	// 			endpoint: 'https://ced.jpl.nasa.gov/sparql',
-	// 			modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/data.msr',
-	// 			metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/metadata.msr',
-	// 			contextPath: 'hardcoded#queryContext.sparql.dng.common',
-	// 		},
-	// 		psyche: {
-	// 			endpoint: 'dngmdkneptuneinstance-xenorvo9hjet.czfuvclv0tgf.us-gov-west-1.neptune.amazonaws.com',
-	// 			modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/data.msr',
-	// 			metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/metadata.msr',
-	// 			contextPath: 'hardcoded#queryContext.sparql.dng.common',
-	// 		},
-	// 	},
-	// };
-
 	const H_PATHS_CLIPPER = {
 		connection: {
 			sparql: {
@@ -344,10 +341,12 @@
 					dng: {
 						type: 'MmsSparqlConnection',
 						label: 'DNG Requirements',
-						endpoint: 'https://ced.jpl.nasa.gov/sparql',
-						modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/data.europa-clipper',
+						endpoint: 'https://ced-uat.jpl.nasa.gov/sparql',
+						modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/Model.Europa.2021-08-25T23-31-04_375Z',
 						metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/Metadata.Europa',
 						contextPath: 'hardcoded#queryContext.sparql.dng.common',
+						searchPath: 'hardcoded#queryBuilder.sparql.dng.search.basic',
+						detailPath: 'hardcoded#queryBuilder.sparql.dng.detail.basic',
 					},
 				},
 			},
@@ -361,10 +360,12 @@
 					dng: {
 						type: 'MmsSparqlConnection',
 						label: 'DNG Requirements',
-						endpoint: 'https://ced.jpl.nasa.gov/sparql',
-						modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/data.msr',
-						metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/metadata.msr',
+						endpoint: 'https://ced-uat.jpl.nasa.gov/sparql',
+						modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/Model.MSR',
+						metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/Metadata.MSR',
 						contextPath: 'hardcoded#queryContext.sparql.dng.common',
+						searchPath: 'hardcoded#queryBuilder.sparql.dng.search.basic',
+						detailPath: 'hardcoded#queryBuilder.sparql.dng.detail.basic',
 					},
 				},
 			},
@@ -413,7 +414,6 @@
 		b_page_content_writable = false;
 
 		const g_bundle = await k_page.fetchContentAsXhtmlDocument();
-		const n_version = g_bundle.versionNumber;
 
 		let k_contents = new XHTMLDocument(sx_page_content_editted as string);
 
@@ -466,9 +466,15 @@
 	.ve-control-bar {
 		background-color: var(--ve-color-dark-background);
 		color: var(--ve-color-light-text);
-		margin-top: 0px;
+
+		// margins to offset wiki 'main' content padding
+		margin-left: -40px;
+		margin-right: -40px;
+		margin-top: -20px;
+		margin-bottom: 20px;
 		
 		.heading {
+			position: relative;
 			cursor: pointer;
 
 			.heading-center {
@@ -477,16 +483,10 @@
 				align-items: center;
 				min-height: 38px;
 				margin-left: 20px;
-				column-gap: 10px;
 				
 				.title {
 					font-weight: 500;
 					font-size: 12pt;
-				}
-
-				.app-title {
-					font-style: italic;	
-					font-size: 10pt;
 				}
 
 				.icon-help {
@@ -497,10 +497,6 @@
 				.icon-dropdown {
 					position: absolute;
 					right: 1em;
-
-					span {
-						font-size: 13px;
-					}
 				}
 
 				.icon-readonly {
@@ -603,129 +599,133 @@
 					</span>
 				{/if}
 				<span class="title">
-					{k_page ? k_page.pageTitle : ''}
-				</span>
-				<span class="app-title">
-					{lang.basic.app_title} v{s_app_version}
+					{lang.basic.app_title}
 				</span>
 				{#if b_read_only}
 					<span class="icon-readonly">
 						Read-Only
 					</span>
 				{/if}
-				<span class="icon-dropdown">
+				<span class="icon-help">
+					<!-- help icon -->
+					<Fa icon={faQuestionCircle} size="2x"></Fa>
+				</span>
+				<span class="version">
+					v{s_app_version}
+				</span>
+				<span class="icon-dropdown animated rotate-expand" bind:this={dm_icon_dropdown}>
 					<!-- drop-down -->
-					<Fa icon={faCog} size="sm"></Fa> 
-					<span>
-						Edit Document Settings
-					</span>                   
+					<svg width="24" height="25" viewBox="0 0 24 25" fill="none" xmlns="http://www.w3.org/2000/svg">
+						<path d="M7.41 9.09L12 13.67L16.59 9.09L18 10.5L12 16.5L6 10.5L7.41 9.09Z" fill="white"/>
+					</svg>                        
 				</span>
 			</div>
 		</div>
 		{#if !b_collapsed}
-		<div class="expanded" transition:slide={{}} bind:this={dm_expanded}>
-			<Tabs>
-				<TabList>
+			<div class="expanded" transition:slide={{}} bind:this={dm_expanded}>
+				<Tabs>
+					<TabList>
+						{#if k_document}
+							<Tab>Document Data Status</Tab>
+						{/if}
+						{#if b_admin}
+							<Tab>Admin</Tab>
+						{/if}
+					</TabList>
+
 					{#if k_document}
-						<Tab>Document Data Status</Tab>
+						<TabPanel>
+							<div class="tab-body">
+								<p>New updates are available every Friday at 10:00 PM</p>
+								<DatasetsTable {g_context}></DatasetsTable>
+							</div>
+						</TabPanel>
 					{/if}
+
 					{#if b_admin}
-						<Tab>Admin</Tab>
-					{/if}
-				</TabList>
+						<TabPanel>
+							<div class="tab-body">
+								<section>
+									<h3>Document</h3>
+									{#if k_document}
+										<div>
+											<h4>
+												Edit document metadata:
+											</h4>
 
-				{#if k_document}
-					<TabPanel>
-						<div class="tab-body">
-							<p>New updates are available every Friday at 10:00 PM</p>
-							<DatasetsTable {g_context}></DatasetsTable>
-						</div>
-					</TabPanel>
-				{/if}
-
-				{#if b_admin}
-					<TabPanel>
-						<div class="tab-body">
-							<section>
-								<h3>Document</h3>
-								{#if k_document}
+											<p>
+												<textarea bind:value={sx_document_metadata_local} class="code-edit" spellcheck="false" />
+											</p>
+											<button class="ve-button-primary" disabled={b_read_only || !b_document_json_writable} on:click={overwrite_document_json}>
+												{#if b_document_json_writable}
+													Overwrite JSON
+												{:else if b_document_json_valid}
+													JSON is unchanged
+												{:else}
+													Invalid JSON
+												{/if}
+											</button>
+										</div>
+									{/if}
 									<div>
 										<h4>
-											Edit document metadata:
+											{#if k_document}
+												Reset document metadata to a preset: 
+											{:else}
+												Convert this page to become the document cover page of a new document:
+											{/if}
+										</h4>
+										<button class="ve-button-primary" on:click={() => k_document? create_document(H_PATHS_CLIPPER): reset_document(H_PATHS_CLIPPER)}>Clipper preset</button>
+										<button class="ve-button-primary" on:click={() => k_document? create_document(H_PATHS_MSR): reset_document(H_PATHS_MSR)}>MSR preset</button>
+									</div>
+								</section>
+								<section>
+									<h3>Page</h3>
+									<div>
+										<h4>
+											Edit page metadata:
 										</h4>
 
 										<p>
-											<textarea bind:value={sx_document_metadata_local} class="code-edit" spellcheck="false" />
+											<textarea bind:value={sx_page_metadata_local} class="code-edit" spellcheck="false" />
 										</p>
-										<button class="ve-button-primary" disabled={b_read_only || !b_document_json_writable} on:click={overwrite_document_json}>
-											{#if b_document_json_writable}
+										<button class="ve-button-primary" disabled={b_read_only_page || !b_page_json_writable} on:click={overwrite_page_json}>
+											{#if b_page_json_writable}
 												Overwrite JSON
-											{:else if b_document_json_valid}
+											{:else if b_page_json_valid}
 												JSON is unchanged
 											{:else}
 												Invalid JSON
 											{/if}
 										</button>
 									</div>
-								{/if}
-								<div>
-									<h4>
-										{#if k_document}
-											Reset document metadata to a preset: 
-										{:else}
-											Convert this page to become the document cover page of a new document:
-										{/if}
-									</h4>
-									<button class="ve-button-primary" on:click={() => k_document? create_document(H_PATHS_CLIPPER): reset_document(H_PATHS_CLIPPER)}>Clipper preset</button>
-									<button class="ve-button-primary" on:click={() => k_document? create_document(H_PATHS_MSR): reset_document(H_PATHS_MSR)}>MSR preset</button>
-								</div>
-							</section>
-							<section>
-								<h3>Page</h3>
-								<div>
-									<h4>
-										Edit page metadata:
-									</h4>
 
-									<p>
-										<textarea bind:value={sx_page_metadata_local} class="code-edit" spellcheck="false" />
-									</p>
-									<button class="ve-button-primary" disabled={b_read_only_page || !b_page_json_writable} on:click={overwrite_page_json}>
-										{#if b_page_json_writable}
-											Overwrite JSON
-										{:else if b_page_json_valid}
-											JSON is unchanged
-										{:else}
-											Invalid JSON
-										{/if}
-									</button>
-								</div>
-								<div>
-									<h4>Reset page metadata:</h4>
-									<span>
-										<button class="ve-button-primary" disabled={b_read_only_page} on:click={() => reset_page()}>Clear all unused objects</button>
-										<button class="ve-button-primary" disabled={b_read_only_page} on:click={() => reset_page(true)}>Force reset metadata</button>
-									</span>
-								</div>
+									<div>
+										<h4>Reset page metadata:</h4>
+										<span>
+											<button class="ve-button-primary" disabled={b_read_only_page} on:click={() => reset_page()}>Clear all unused objects</button>
+											<button class="ve-button-primary" disabled={b_read_only_page} on:click={() => reset_page(true)}>Force reset metadata</button>
+										</span>
+									</div>
 
-								<div>
-									<h4>
-										Edit page content:
-									</h4>
+									<div>
+										<h4>
+											Edit page content:
+										</h4>
 
-									<p>
-										<textarea bind:value={sx_page_content_local} class="code-edit" spellcheck="false" />
-									</p>
-									<button class="ve-button-primary" disabled={b_read_only_page || !b_page_content_writable} on:click={overwrite_page_content}>
-										{#if b_page_content_writable}
-											Overwrite Content
-										{:else if b_page_content_valid}
-											Content is unchanged
-										{:else}
-											Invalid Content
-										{/if}
-									</button>
-								</div>
+										<p>
+											<textarea bind:value={sx_page_content_local} class="code-edit" spellcheck="false" />
+										</p>
+										<button class="ve-button-primary" disabled={b_read_only_page || !b_page_content_writable} on:click={overwrite_page_content}>
+											{#if b_page_content_writable}
+												Overwrite Content
+											{:else if b_page_content_valid}
+												Content is unchanged
+											{:else}
+												Invalid Content
+											{/if}
+										</button>
+									</div>
 								</section>
 							</div>
 						</TabPanel>

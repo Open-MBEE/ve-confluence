@@ -1,10 +1,23 @@
 import type {TypedLabeledObject} from '#/common/types';
 
-import type {VeoPath, VeoPathTarget} from '#/common/veo';
+import type {VeoPathTarget} from '#/common/veo';
 
-import {Connection, MmsSparqlConnection} from '#/model/Connection';
+import {
+	Connection,
+	MmsSparqlConnection,
+} from '#/model/Connection';
 
-import {VeOdm, VeOdmLabeled} from '#/model/Serializable';
+import {
+	VeOdm,
+	VeOdmLabeled,
+} from '#/model/Serializable';
+
+import {oderom} from '#/util/belt';
+
+import {
+	HtmlString,
+	TypedString,
+} from '#/util/strings';
 
 
 export namespace Transclusion {
@@ -23,11 +36,18 @@ export namespace Transclusion {
 	}
 }
 
+function key_to_label(si_key: string) {
+	return si_key.replace(/Value$/, '')
+		.replace(/([A-Z])/g, ' $1')
+		.replace(/^([a-z])([a-z]$|)/, (_, s_a: string, s_b: string) => s_a.toUpperCase()+(s_b || '').toUpperCase());
+}
+
 export class Transclusion<
 	Serialized extends Transclusion.Serialized=Transclusion.Serialized,
 > extends VeOdmLabeled<Serialized> {
 	protected _s_display!: string;
 	protected _k_connection!: Connection;
+	protected _h_attributes!: Record<string, [string, TypedString]>;
 
 	initSync(): void {
 		this._s_display = '';
@@ -78,10 +98,20 @@ export class Transclusion<
 
 		const si_key = this._gc_serialized.displayAttribute.key;
 
+		this._h_attributes = oderom(a_rows[0], (si_attr, g_field) => ({
+			[si_attr]: [key_to_label(si_attr), new HtmlString(g_field.value)],
+		}));
+
 		return this._s_display = a_rows[0][si_key].value;
 	}
 
 	get fallbackDisplayText(): string {
 		return this._gc_serialized.displayAttribute.value;
+	}
+
+	get attributes(): Record<string, [string, TypedString]> {
+		if(!this._h_attributes) throw new Error('Attributes not yet initialized');
+
+		return this._h_attributes;
 	}
 }

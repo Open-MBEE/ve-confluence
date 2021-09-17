@@ -7,13 +7,12 @@ import type {
 	TypedObject,
 	QueryRow,
 	TypedKeyedPrimitive,
-	TypedPrimitive,
 	ValuedLabeledObject,
 	TypedKeyedUuidedObject,
 	Instantiable,
 } from '#/common/types';
 
-import type {VeoPath, VeoPathTarget} from '#/common/veo';
+import type {VeoPathTarget} from '#/common/veo';
 
 import {
 	VeOdm,
@@ -39,7 +38,8 @@ import {
 } from '#/vendor/confluence/module/confluence';
 
 import XHTMLDocument from '#/vendor/confluence/module/xhtml-document';
-import { process } from '#/common/static';
+
+import {process} from '#/common/static';
 
 export namespace QueryParamValue {
 	export interface Serialized extends TypedLabeledObject<'QueryParamValue'> {
@@ -169,7 +169,7 @@ export class QueryField extends VeOdmKeyed<QueryField.Serialized> {
 
 export namespace QueryFieldGroup {
 	export interface Serialized extends TypedObject<'QueryFieldGroup'> {
-		queryFieldsPaths: VeoPath.SparqlQueryField[];
+		queryFieldsPaths: VeoPathTarget[];
 	}
 }
 
@@ -179,34 +179,14 @@ export class QueryFieldGroup extends VeOdm<QueryFieldGroup.Serialized> {
 	}
 }
 
-
-export namespace QueryBuilder {
-	export interface Serialized extends TypedPrimitive<'QueryBuilder'> {
-		function: (this: QueryTable) => Promise<ConnectionQuery>;
-	}
-}
-
-
-export namespace ParamQueryBuilder {
-	export interface Serialized extends TypedPrimitive<'ParamQueryBuilder'> {
-		function: (this: QueryTable, k_param: QueryParam, s_search_text?: string) => Promise<ConnectionQuery>;
-	}
-}
-
-export class ParamQueryBuilder extends VeOdm<ParamQueryBuilder.Serialized> {
-	get function(): (this: QueryTable, k_param: QueryParam, s_search_text?: string) => Promise<ConnectionQuery> {
-		return this._gc_serialized.function;
-	}
-}
 export type TableQueryBuilder = (this: QueryTable) => Promise<ConnectionQuery>;
 
 export namespace QueryType {
 	export interface Serialized<
 		ConnectionType extends string=string,
 	>extends TypedKeyedLabeledObject<'QueryType'> {
-		queryParametersPaths: VeoPath.QueryParameter<ConnectionType>[];
-		queryFieldGroupPath: VeoPath.QueryFieldGroup;
-		paramQueryBuilderPath: VeoPath.ParamQueryBuilder;
+		queryParametersPaths: VeoPathTarget[];
+		queryFieldGroupPath: VeoPathTarget;
 		queryBuilderPath: VeoPathTarget;
 	}
 }
@@ -215,14 +195,6 @@ export class QueryType<ConnectionType extends DotFragment=DotFragment> extends V
 	get queryBuilder(): TableQueryBuilder {
 		const sp_builder = this._gc_serialized.queryBuilderPath;
 		return this._k_store.resolveSync(sp_builder) as unknown as TableQueryBuilder;
-	}
-
-	get paramQueryBuilder(): ParamQueryBuilder {
-		const sp_builder = this._gc_serialized.paramQueryBuilderPath;
-		const gc_builder = this._k_store.resolveSync<ParamQueryBuilder.Serialized>(
-			this._gc_serialized.paramQueryBuilderPath
-		);
-		return new ParamQueryBuilder(sp_builder, gc_builder, this._g_context);
 	}
 
 	get value(): string {
@@ -240,19 +212,19 @@ export class QueryType<ConnectionType extends DotFragment=DotFragment> extends V
 		await this.ready();
 
 		return await Promise.all(this._gc_serialized.queryParametersPaths.map(async(sp_parameter) => {
-			const gc_query_param = await this._k_store.resolve<QueryParam.Serialized>(sp_parameter);
-			return new QueryParam(sp_parameter, gc_query_param, this._g_context);
+			const gc_query_param = await this._k_store.resolve(sp_parameter);
+			return new QueryParam(sp_parameter, gc_query_param as QueryParam.Serialized, this._g_context);
 		}));
 	}
 
-	get queryParametersPaths(): VeoPath.QueryParameter[] {
+	get queryParametersPaths(): VeoPathTarget[] {
 		return this._gc_serialized.queryParametersPaths;
 	}
 
 	get fields(): QueryField[] {
 		const sp_group = this._gc_serialized.queryFieldGroupPath;
-		const gc_field_group = this._k_store.resolveSync<QueryFieldGroup.Serialized>(sp_group);
-		return new QueryFieldGroup(sp_group, gc_field_group, this._g_context).fields;
+		const gc_field_group = this._k_store.resolveSync(sp_group);
+		return new QueryFieldGroup(sp_group, gc_field_group as unknown as QueryFieldGroup.Serialized, this._g_context).fields;
 	}
 }
 
@@ -263,7 +235,7 @@ export namespace QueryTable {
 		ConnectionType extends string=string,
 		TypeString extends DefaultType=DefaultType,
 	> extends TypedKeyedUuidedObject<TypeString> {
-		connectionPath: VeoPath.Connection<ConnectionType>;
+		connectionPath: VeoPathTarget;
 		parameterValues: Record<string, QueryParamValue.Serialized[]>;
 	}
 }
@@ -305,7 +277,7 @@ export abstract class QueryTable<
 
 	abstract setQueryType(g_query_type: ValuedLabeledObject): void;
 
-	abstract get queryTypeOptions(): Record<VeoPath.QueryType, LocalQueryType>;
+	abstract get queryTypeOptions(): Record<VeoPathTarget, LocalQueryType>;
 
 	async init(): Promise<void> {
 		await super.init();
@@ -315,9 +287,7 @@ export abstract class QueryTable<
 			// deep clone param values so list mutation does not affect original hash
 			const h_param_values = this._gc_serialized.parameterValues;
 			const h_param_values_lists = this._h_param_values_lists;
-
 			const a_params = await this.queryType.fetchParameters();
-
 			for(const k_param of a_params) {
 				const a_list = h_param_values[k_param.key] = h_param_values[k_param.key] || [];
 				h_param_values_lists[k_param.key] = new ParamValuesList(a_list);
@@ -347,13 +317,10 @@ export abstract class QueryTable<
 		return this._h_param_values_lists[si_param];
 	}
 
-	fetchParamQueryBuilder(k_param: QueryParam, s_search_text?: string): Promise<ConnectionQuery> {
-		return this.queryType.paramQueryBuilder.function.call(this, k_param, s_search_text);
+	fetchQueryBuilder(this: QueryTable): Promise<ConnectionQuery> {
+		return this.queryType.queryBuilder.call(this);
 	}
 
-	fetchQueryBuilder(): Promise<ConnectionQuery> {
-		return this.queryType.queryBuilder.function.call(this);
-	}
 
 	async exportResultsToCxhtml(this: QueryTable, k_connection: Connection, yn_anchor: Node, k_contents=this.getContext().source): Promise<{rows: QueryRow[]; contents: XHTMLDocument}> {
 		// fetch query builder
@@ -443,7 +410,7 @@ export abstract class QueryTable<
 		else {
 			throw new Error(`No directive node was given`);
 		}
-debugger;
+		debugger;
 		return {
 			rows: a_rows,
 			contents: k_contents,
@@ -452,8 +419,6 @@ debugger;
 }
 
 export interface ConnectionQuery {
-	stringify(): string;
-
 	paginate(n_limit: number, n_offset?: number): string;
 
 	count(): string;
@@ -468,8 +433,8 @@ export namespace SparqlQueryTable {
 		Group extends DotFragment=DotFragment,
 		TypeString extends DefaultType=DefaultType,
 	> extends QueryTable.Serialized<'sparql', TypeString> {
-		connectionPath: VeoPath.SparqlConnection;
-		queryTypePath: VeoPath.SparqlQueryType<Group>;
+		connectionPath: VeoPathTarget;
+		queryTypePath: VeoPathTarget;
 	}
 }
 
@@ -479,11 +444,10 @@ export abstract class SparqlQueryTable<
 > extends QueryTable<'sparql', Serialized, LocalQueryType> {
 	protected _h_options!: Record<string, LocalQueryType>;
 
-	// @ts-expect-error weired serialized unions
 	abstract fetchConnection(): Promise<SparqlConnection>;
 
 	initSync(): void {
-		this._h_options = this._k_store.optionsSync<QueryType.Serialized, LocalQueryType>(this._gc_serialized.queryTypePath, this._g_context, QueryType as unknown as Instantiable<QueryType.Serialized, LocalQueryType>);
+		this._h_options = this._k_store.optionsSync(this._gc_serialized.queryTypePath, this._g_context, QueryType as unknown as Instantiable<QueryType.Serialized, LocalQueryType>);
 		return super.initSync();
 	}
 
@@ -500,19 +464,18 @@ export abstract class SparqlQueryTable<
 		const h_options = this._h_options;
 		for(const sp_test in h_options) {
 			const k_test = h_options[sp_test];
-
 			if(si_value === k_test.value && s_label === k_test.label) {
 				this._assign({
-					queryTypePath: sp_test as VeoPath.SparqlQueryType,
+					queryTypePath: sp_test,
 				});
-
 				return;
 			}
 		}
+
 		throw new Error(`Unable to set .queryType property on QueryTable instance since ${JSON.stringify(g_query_type)} did not match any known queryType options`);
 	}
 
-	get queryTypeOptions(): Record<VeoPath.SparqlQueryType, LocalQueryType> {
+	get queryTypeOptions(): Record<VeoPathTarget, LocalQueryType> {
 		return this._h_options;
 	}
 }
@@ -529,8 +492,8 @@ export class PlainSparqlQueryTable<
 > extends SparqlQueryTable<PlainSparqlQueryTable.Serialized<Group>> {
 	async fetchConnection(): Promise<PlainSparqlConnection> {
 		const sp_connection = this._gc_serialized.connectionPath;
-		const gc_serialized = await this._k_store.resolve<PlainSparqlConnection.Serialized>(sp_connection);
-		return new PlainSparqlConnection(sp_connection, gc_serialized, this._g_context);
+		const gc_serialized = await this._k_store.resolve(sp_connection);
+		return new PlainSparqlConnection(sp_connection, gc_serialized as PlainSparqlConnection.Serialized, this._g_context);
 	}
 }
 
@@ -545,10 +508,9 @@ export class MmsSparqlQueryTable<
 > extends SparqlQueryTable<MmsSparqlQueryTable.Serialized<Group>> {
 	async fetchConnection(): Promise<MmsSparqlConnection> {
 		const sp_connection = this._gc_serialized.connectionPath;
-		const gc_serialized = await this._k_store.resolve<MmsSparqlConnection.Serialized>(sp_connection);
-		return new MmsSparqlConnection(sp_connection, gc_serialized, this._g_context);
+		const gc_serialized = await this._k_store.resolve(sp_connection);
+		return new MmsSparqlConnection(sp_connection, gc_serialized as MmsSparqlConnection.Serialized, this._g_context);
 	}
-
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars

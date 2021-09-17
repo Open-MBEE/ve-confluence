@@ -52,6 +52,7 @@ const H_REPLACE_IN = {
 			SPARQL_ENDPOINT: process.env.SPARQL_ENDPOINT,
 			DOORS_NG_PREFIX: process.env.DOORS_NG_PREFIX,
 			VERSION: G_PACKAGE.version,
+			PRODUCTION: B_PROD,
 		},
 	},
 	lang: yaml.load(fs.readFileSync(`./resource/${process.env.LANG_FILE || 'lang.yaml'}`))[process.env.LANG],
@@ -141,9 +142,9 @@ const svelte_plugins = ({terser:z_terser='auto'}={}) => [
 	// the bundle has been generated
 	!B_PROD && serve(),
 
-	// Watch the `public` directory and refresh the
-	// browser on changes when not in B_PROD
-	!B_PROD && livereload('public'),
+	// // Watch the `public` directory and refresh the
+	// // browser on changes when not in B_PROD
+	// !B_PROD && livereload('public'),
 
 	// If we're building for B_PROD (npm run build
 	// instead of npm run dev), minify

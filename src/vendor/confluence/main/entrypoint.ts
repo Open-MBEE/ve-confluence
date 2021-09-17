@@ -36,13 +36,11 @@ import DngArtifact from '#/element/DngArtifact/component/DngArtifact.svelte';
 
 import QueryTable from '#/element/QueryTable/component/QueryTable.svelte';
 
-import type XhtmlDocument from '#/vendor/confluence/module/xhtml-document';
 
 import {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
 
 
 import {
-	H_HARDCODED_OBJECTS,
 	K_HARDCODED,
 } from '#/common/hardcoded';
 
@@ -56,8 +54,6 @@ import {
 import {ObjectStore} from '#/model/ObjectStore';
 
 import {
-	xpathEvaluate,
-	xpathSelect,
 	xpathSelect1,
 } from '#/vendor/confluence/module/xhtml-document';
 
@@ -65,14 +61,11 @@ import type {VeoPath} from '#/common/veo';
 
 import type {
 	TypedKeyedUuidedObject,
-	TypedObject,
-	TypedPrimitive,
 } from '#/common/types';
 
 import {
 	inject_frame,
 	P_SRC_WYSIWYG_EDITOR,
-	SR_HASH_VE_PAGE_EDIT_MODE,
 } from './inject-frame';
 
 import {Transclusion} from '#/element/Transclusion/model/Transclusion';
@@ -100,7 +93,7 @@ import type {SvelteComponentDev} from 'svelte/internal';
 /**
  * tuple of a node's corresponding HTML element and a struct with properties to be used later
  */
-type Handle = [HTMLElement, Record<string, any>];
+type Handle = [HTMLElement, Record<string, unknown>];
 
 interface Correlation {
 	/**
@@ -111,7 +104,7 @@ interface Correlation {
 	/**
 	 * svelte props to pass to the component's constructor
 	 */
-	props?: Record<string, any>;
+	props?: Record<string, unknown>;
 }
 
 interface ViewBundle extends Correlation {
@@ -197,7 +190,7 @@ const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 	// 	},
 	// }),
 
-	'CAE CED Table Element': ([, g_struct]: [HTMLElement, Record<string, any>]) => {
+	'CAE CED Table Element': ([, g_struct]: [HTMLElement, Record<string, unknown>]) => {
 		const si_uuid = (g_struct.uuid as string) || uuid_v4().replace(/_/g, '-');
 		const si_key: VeoPath.Full = `page#elements.serialized.queryTable.${si_uuid}`;
 
@@ -225,37 +218,6 @@ const xpath_attrs = (a_attrs: string[]) => a_attrs.map(sx => `[${sx}]`).join('')
 
 let k_document: ConfluenceDocument | null;
 let k_source: ConfluenceXhtmlDocument;
-
-function control_bar(gc_bar: ControlBarConfig) {
-	const g_props = {...gc_bar.props};
-
-	// error is present
-	if('number' === typeof gc_bar.error) {
-		let s_message = '';
-		let xc_level = Ve4ErrorLevel.INFO;
-
-		switch(gc_bar.error) {
-			case Ve4Error.PERMISSIONS: {
-				s_message = lang.error.page_permissions;
-				xc_level = Ve4ErrorLevel.WARN;
-				break;
-			}
-
-			case Ve4Error.METADATA: {
-				s_message = lang.error.page_metadata;
-				xc_level = Ve4ErrorLevel.FATAL;
-				break;
-			}
-
-			case Ve4Error.UNKNOWN:
-			default: {
-				s_message = lang.error.unknown;
-				xc_level = Ve4ErrorLevel.FATAL;
-				break;
-			}
-		}
-	}
-}
 
 function* correlate(gc_correlator: CorrelationDescriptor): Generator<ViewBundle> {
 	// find all matching page nodes
@@ -290,9 +252,35 @@ function* correlate(gc_correlator: CorrelationDescriptor): Generator<ViewBundle>
 
 function render_component(g_bundle: ViewBundle, b_hide_anchor = false) {
 	const dm_anchor = g_bundle.anchor;
+	const dm_render = g_bundle.render;
+	const dm_parent = dm_render.parentElement!;
 
+	// re-stitch together inline paragraph
+	if(TransclusionComponent === g_bundle.component && (('P' === dm_parent.nodeName && !qsa(dm_parent, 'br').length) || ('SPAN' === dm_parent.nodeName && 'P' === dm_parent.parentElement?.nodeName && !qsa(dm_parent.parentElement, 'br').length))) {
+		dm_anchor.style.display = 'none';
+
+		const dm_parent_render = g_bundle.render.closest('p')!;
+		dm_parent_render.style.display = 'inline';
+		const dm_tag = dm_parent_render.nextElementSibling as HTMLElement;
+
+		dm_tag.style.display = 'none';
+
+		const dm_placeholder = dm_tag.nextElementSibling;
+		if(dm_placeholder && 'P' === dm_placeholder.nodeName) {
+			(dm_placeholder as HTMLElement).style.display = 'none';
+
+			const dm_follow = dm_placeholder.nextElementSibling;
+			if(dm_follow && 'P' === dm_follow.nodeName) {
+				qs(dm_follow, 'br')?.remove();
+				(dm_follow as HTMLElement).style.display = 'inline';
+			}
+		}
+
+		// add special prop for transclusion
+		g_bundle.props!.b_inlined = true;
+	}
 	// hide anchor
-	if(b_hide_anchor) {
+	else if(b_hide_anchor) {
 		(g_bundle.render || dm_anchor).style.display = 'none';
 	}
 
@@ -325,7 +313,6 @@ export async function main(): Promise<void> {
 		},
 	});
 
-	// G_CONTEXT.k_page =
 	k_page = await ConfluencePage.fromCurrentPage();
 
 	await Promise.allSettled([
@@ -392,8 +379,7 @@ export async function main(): Promise<void> {
 			live: `a[href="/display/${G_META.space_key}/${si_page_directive.replace(/ /g, '+')}"]`,
 			struct: (ym_node) => {
 				const ym_parent = ym_node.parentNode as Element;
-				// ym_parent.getAttribute('');
-				// debugger;
+
 				return {
 					label: ('ac:link' === ym_parent.nodeName? ym_parent.textContent: '') || si_page_directive,
 					// macro_id: (ym_parent 'ac:macro-id')
@@ -438,7 +424,7 @@ export async function main(): Promise<void> {
 
 		// resolve serialized element
 		for(const [sp_element, yn_directive] of a_paths) {
-			const gc_element = await K_OBJECT_STORE.resolve<TypedKeyedUuidedObject>(sp_element);
+			const gc_element = await K_OBJECT_STORE.resolve(sp_element as string);
 
 			// correlate to live DOM element
 			const a_spans = qsa(dm_main, `span[id="${sp_element}"]`);
@@ -451,7 +437,10 @@ export async function main(): Promise<void> {
 			const dm_render = a_spans[0] as HTMLElement;
 
 			// select adjacent element
-			const dm_anchor = dm_render.parentElement!.nextSibling as HTMLElement;
+			let dm_anchor = dm_render.parentElement!.nextSibling as HTMLElement;
+			if(!dm_anchor && 'SPAN' === dm_render.parentElement?.nodeName) {
+				dm_anchor = dm_render.parentElement.parentElement!.nextElementSibling as HTMLElement;
+			}
 
 			// model and component class
 			let dc_model!: VeOdmConstructor<Serializable, VeOdm<Serializable>>;
@@ -504,7 +493,7 @@ export async function main(): Promise<void> {
 }
 
 const H_HASH_TRIGGERS: Record<string, (de_hash_change?: HashChangeEvent) => Promise<void>> = {
-	async 'load-editor'(de_hash_change?: HashChangeEvent) {
+	async 'load-editor'() {
 		// apply beta changes
 		replace_edit_button();
 
@@ -522,7 +511,7 @@ const H_HASH_TRIGGERS: Record<string, (de_hash_change?: HashChangeEvent) => Prom
 		await Promise.resolve();
 	},
 
-	async 'beta'(de_hash_change?: HashChangeEvent) {
+	async 'beta'() {
 		const m_path = /^(.*[^+])\+*$/.exec(location.pathname);
 		if(m_path) {
 			const s_expect = m_path[1]+'+';
@@ -547,6 +536,8 @@ const H_HASH_TRIGGERS: Record<string, (de_hash_change?: HashChangeEvent) => Prom
 	async 'noop'() {
 		const dm_edit = qs(dm_main, 'a#editPageLink')! as HTMLAnchorElement;
 		dm_edit.href = '#noop';
+
+		await Promise.resolve();
 	},
 };
 
@@ -595,7 +586,7 @@ function dom_ready() {
 	replace_edit_button();
 
 	// listen for hash change
-	window.addEventListener('hashchange', hash_updated);
+	window.addEventListener('hashchange', hash_updated as (de: Event) => void);
 
 	INTERPRET_LOCATION: {
 		let si_page_title = location.pathname;
@@ -656,7 +647,7 @@ function dom_ready() {
 // entry point
 {
 	// kickoff main
-	main();
+	void main();
 
 	// document is already loaded
 	if(['complete', 'interactive', 'loaded'].includes(document.readyState)) {

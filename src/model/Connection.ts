@@ -1,5 +1,4 @@
 import type {
-	VeoPath,
 	VeoPathTarget,
 } from '#/common/veo';
 
@@ -10,17 +9,13 @@ import type {
 	SparqlString,
 	QueryRow,
 	TypedLabeledObject,
-	TypedLabeledPrimitive,
-	TypedPrimitive,
 } from '#/common/types';
 
 import SparqlEndpoint, {
-	SparqlQuery,
 	SparqlSelectQuery,
 } from '../util/sparql-endpoint';
 
 import {
-	Primitive,
 	VeOdmLabeled,
 	VeOrmClass,
 } from './Serializable';
@@ -52,10 +47,6 @@ export abstract class Connection<
 		return this._gc_serialized.endpoint;
 	}
 
-	// abstract fetchCurrentVersion(): Promise<ModelVersionDescriptor>;
-
-	// abstract fetchVersions(): Promise<ModelVersionDescriptor[]>;
-
 	abstract execute(sq_query: string, fk_controller?: (d_controller: AbortController) => void): Promise<QueryRow[]>;
 
 	abstract search(s_input: string, xm_types?: SearcherMask): ConnectionQuery;
@@ -73,17 +64,24 @@ export namespace SparqlConnection {
 
 	export interface Serialized<TypeString extends DefaultType=DefaultType> extends Connection.Serialized<TypeString> {
 		endpoint: UrlString;
-		contextPath: VeoPath.SparqlQueryContext;
+		contextPath: VeoPathTarget;
 		searchPath: VeoPathTarget;
 		detailPath: VeoPathTarget;
 	}
 }
 
-// export interface SparqlSearcher extends TypedPrimitive<'SparqlSearcher'> {
-// 	(this: SparqlConnection, s_input: string, xm_types?: SearcherMask) => SparqlSelectQuery;
-// }
+export interface VersionedConnection extends Connection {
+	fetchCurrentVersion(): Promise<ModelVersionDescriptor>;
+
+	fetchVersions(): Promise<ModelVersionDescriptor[]>;
+}
+
+export function connectionHasVersioning(k_connection: Connection): k_connection is VersionedConnection {
+	return !!(k_connection as VersionedConnection).fetchVersions;
+}
 
 export type SparqlSearcher = (this: SparqlConnection, s_input: string, xm_types?: SearcherMask) => SparqlSelectQuery;
+
 export type SparqlDetailer = (this: SparqlConnection, p_item: string) => SparqlSelectQuery;
 
 export abstract class SparqlConnection<
@@ -106,7 +104,7 @@ export abstract class SparqlConnection<
 	}
 
 	get context(): SparqlQueryContext {
-		return this._k_store.resolveSync<SparqlQueryContext>(this._gc_serialized.contextPath);
+		return this._k_store.resolveSync(this._gc_serialized.contextPath) as unknown as SparqlQueryContext;
 	}
 
 	get prefixes(): Hash {
@@ -114,12 +112,10 @@ export abstract class SparqlConnection<
 	}
 
 	search(s_input: string, xm_types?: SearcherMask): SparqlSelectQuery {
-		// @ts-expect-error this is fine
 		return this._f_searcher(s_input, xm_types);
 	}
 
 	detail(p_item: string): SparqlSelectQuery {
-		// @ts-expect-error this is fine
 		return this._f_detailer(p_item);
 	}
 }
@@ -128,7 +124,7 @@ export namespace PlainSparqlConnection {
 	export interface Serialized extends SparqlConnection.Serialized<'PlainSparqlConnection'> {
 		endpoint: UrlString;
 		graph: UrlString;
-		contextPath: VeoPath.SparqlQueryContext;
+		contextPath: VeoPathTarget;
 	}
 }
 
@@ -137,7 +133,7 @@ export namespace MmsSparqlConnection {
 		endpoint: UrlString;
 		modelGraph: UrlString;
 		metadataGraph: UrlString;
-		contextPath: VeoPath.SparqlQueryContext;
+		contextPath: VeoPathTarget;
 	}
 }
 
@@ -194,7 +190,7 @@ export class PlainSparqlConnection extends SparqlConnection<PlainSparqlConnectio
 	}
 }
 
-export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Serialized> {
+export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Serialized> implements VersionedConnection {
 	get modelGraph(): UrlString {
 		return this._gc_serialized.modelGraph;
 	}

@@ -7,7 +7,9 @@ import type {
 	TypedKeyedUuidedObject,
 } from '#/common/types';
 
-import type {VeoPath, VeoPathTarget} from '#/common/veo';
+import type {
+	VeoPathTarget,
+} from '#/common/veo';
 
 import type {ObjectStore} from '#/model/ObjectStore';
 
@@ -16,9 +18,6 @@ import type {
 	ConfluencePage,
 	ConfluenceXhtmlDocument,
 } from '#/vendor/confluence/module/confluence';
-
-import type XHTMLDocument from '#/vendor/confluence/module/xhtml-document';
-import type { SvelteComponent } from 'svelte';
 
 import type {
 	TypedKeyedLabeledObject,
@@ -193,7 +192,7 @@ export type VeOdmConstructor<
 	new(sp_path: VeoPathTarget, gc_serialized: Serialized, g_context: Context): InstanceType;
 };
 
-export class VeOdm<Serialized extends Serializable | Primitive> {
+export class VeOdm<Serialized extends Serializable | Primitive=Serializable | Primitive> {
 	static async createFromSerialized<
 		Serialized extends Serializable | Primitive,
 		Instance extends VeOdm<Serialized>,
@@ -203,15 +202,15 @@ export class VeOdm<Serialized extends Serializable | Primitive> {
 
 	private _b_ready = false;
 	private readonly _a_awaits: (() => void)[] = [];
-	private readonly _a_restores: ((k_new: this) => Promise<void>)[] = [];
+	private readonly _a_restores: ((k_new: VeOdm) => Promise<void>)[] = [];
 
-	protected _sp_path: VeoPath.Full;
+	protected _sp_path: VeoPathTarget;
 	protected readonly _gc_serialized: Serialized;
 	protected readonly _gc_serialized_init: Serialized;
 	protected _g_context: Context;
 	protected _k_store: ObjectStore;
 
-	constructor(sp_path: VeoPath.Full, gc_serialized: Serialized, g_context: Context) {
+	constructor(sp_path: VeoPathTarget, gc_serialized: Serialized, g_context: Context) {
 		this._sp_path = sp_path;
 		this._gc_serialized = deep_clone(gc_serialized);
 		this._gc_serialized_init = gc_serialized;
@@ -259,7 +258,7 @@ export class VeOdm<Serialized extends Serializable | Primitive> {
 		} as Serializable, this._g_context);
 	}
 
-	get path(): VeoPath.Full {
+	get path(): VeoPathTarget {
 		return this._sp_path;
 	}
 
@@ -287,7 +286,7 @@ export class VeOdm<Serialized extends Serializable | Primitive> {
 		return k_new;
 	}
 
-	onRestore(fk_restore: (k_new: this) => Promise<void>): void {
+	onRestore(fk_restore: (k_new: VeOdm) => Promise<void>): void {
 		this._a_restores.push(fk_restore);
 	}
 
@@ -371,7 +370,7 @@ export interface MetadataBundleVersionDescriptor extends JsonObject {
 export interface MetadataShape<TypeString extends string=string> extends PrimitiveObject {
 	type: TypeString;
 	schema: SchemaVersion;
-	paths: Record<VeoPath.Full, PrimitiveValue>;
+	paths: Record<VeoPathTarget, PrimitiveValue>;
 }
 
 export interface MetadataBundle<
@@ -387,7 +386,7 @@ export interface MetadataBundle<
 export interface JsonMetadataShape<TypeString extends string=string> extends JsonObject {
 	type: TypeString;
 	schema: SchemaVersion;
-	paths: Record<VeoPath.Full, JsonValue>;
+	paths: Record<VeoPathTarget, JsonValue>;
 }
 
 export interface JsonMetadataBundle<

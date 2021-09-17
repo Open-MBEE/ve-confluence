@@ -14,6 +14,8 @@ export abstract class TypedString<ContentTypeString extends ContentType=ContentT
 
 	abstract readonly contentType: ContentTypeString;
 
+	abstract get textContent(): string;
+
 	toString(): string {
 		return this._s_source;
 	}
@@ -21,14 +23,26 @@ export abstract class TypedString<ContentTypeString extends ContentType=ContentT
 
 export class PlainString extends TypedString<PlainContentType> {
 	readonly contentType = 'text/plain';
+
+	get textContent(): string {
+		return this.toString();
+	}
 }
 
 export class HtmlString extends TypedString<HtmlContentType> {
 	readonly contentType = 'text/html';
+
+	get textContent(): string {
+		return new DOMParser().parseFromString(this.toString(), this.contentType).textContent || '';
+	}
 }
 
 export class XhtmlString extends TypedString<XhtmlContentType> {
 	readonly contentType = 'application/xhtml+xml';
+
+	get textContent(): string {
+		return new DOMParser().parseFromString(this.toString(), this.contentType).textContent || '';
+	}
 }
 
 

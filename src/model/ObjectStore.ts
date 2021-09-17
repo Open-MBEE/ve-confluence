@@ -12,7 +12,6 @@ import type {
 import {
 	NL_PATH_FRAGMENTS,
 	ResolvePath,
-	VeoPath,
 	VeoPathTarget,
 } from '#/common/veo';
 
@@ -25,15 +24,16 @@ import type {
 	VeOdm,
 	WritableAsynchronousSerializationLocation,
 } from '#/model/Serializable';
-import { oderom } from '#/util/belt';
+
+import {oderom} from '#/util/belt';
 
 
 
 class UnhandledLocationError extends Error {
-	_si_storage: VeoPath.Location;
+	_si_storage: VeoPathTarget;
 	_a_frags: DotFragment[];
 
-	constructor(sp_path: VeoPathTarget, si_storage: VeoPath.Location, a_frags: DotFragment[]) {
+	constructor(sp_path: VeoPathTarget, si_storage: VeoPathTarget, a_frags: DotFragment[]) {
 		super(`VE Path ${si_storage} location not handled: '${sp_path}'`);
 		this._si_storage = si_storage;
 		this._a_frags = a_frags;
@@ -49,7 +49,7 @@ class UnhandledLocationError extends Error {
 }
 
 
-function parse_path(sp_path: VeoPathTarget): [VeoPath.Location, DotFragment[]] {
+function parse_path(sp_path: VeoPathTarget): [VeoPathTarget, DotFragment[]] {
 	const m_parts = /^([\w_0-9-]+)#(.+)$/.exec(sp_path);
 
 	if(!m_parts) {
@@ -57,14 +57,14 @@ function parse_path(sp_path: VeoPathTarget): [VeoPath.Location, DotFragment[]] {
 		throw new TypeError(`Invalid path string: '${sp_path}'; no storage parameter`);
 	}
 
-	const [, si_storage, s_frags] = m_parts as unknown as [string, VeoPath.Location, string];
+	const [, si_storage, s_frags] = m_parts as unknown as [string, VeoPathTarget, string];
 	const a_frags = s_frags.split('.');
 
 	return [si_storage, a_frags];
 }
 
 
-type LocationHash = Record<VeoPath.Location, SerializationLocation>;
+type LocationHash = Record<VeoPathTarget, SerializationLocation>;
 
 
 function describe_path_attempt(a_frags: string[], i_frag: number): string {
@@ -174,8 +174,8 @@ export class ObjectStore {
 	protected async _explode<
 		ValueType extends Serializable | Primitive,
 		ClassType extends VeOdm<ValueType>,
-	>(sp_target: VeoPath.Locatable, g_context: Context, c_frags: number, dc_class: Instantiable<ValueType, ClassType>): Promise<PathOptions<ValueType, ClassType>> {
-		const h_options: Record<string, ValueType> = await this.resolve(sp_target);
+	>(sp_target: VeoPathTarget, g_context: Context, c_frags: number, dc_class: Instantiable<ValueType, ClassType>): Promise<PathOptions<ValueType, ClassType>> {
+		const h_options = (await this.resolve(sp_target)) as Record<string, unknown>;
 
 		let h_out: PathOptions<ValueType, ClassType> = {};
 
@@ -189,10 +189,10 @@ export class ObjectStore {
 		}
 		else {
 			for(const si_frag in h_options) {
-				const sp_full = `${sp_target}.${si_frag}` as VeoPath.Full;
+				const sp_full = `${sp_target}.${si_frag}`;
 				h_out = {
 					...h_out,
-					[sp_full]: dc_class? new dc_class(sp_full, h_options[si_frag], g_context): h_options[si_frag],
+					[sp_full]: dc_class? new dc_class(sp_full, h_options[si_frag] as ValueType, g_context): h_options[si_frag],
 				};
 			}
 		}
@@ -200,21 +200,7 @@ export class ObjectStore {
 		return h_out;
 	}
 
-	// eslint-disable-next-line class-methods-use-this
-	idPartSync(sp_path: string): string[] {
-		const a_parts = sp_path.split('#');
-
-		if(2 !== a_parts.length) {
-			throw new TypeError(`Invalid path string: '${sp_path}'; no storage parameter`);
-		}
-
-		const [, s_frags] = a_parts as [VeoPath.Location, string];
-		const a_frags = s_frags.split('.');
-
-		return a_frags.slice(3);
-	}
-
-	_parse_path(sp_path: VeoPathTarget): [VeoPath.Location, DotFragment[], SerializationLocation] {
+	protected _parse_path(sp_path: VeoPathTarget): [VeoPathTarget, DotFragment[], SerializationLocation] {
 		const [si_storage, a_frags] = parse_path(sp_path);
 
 		if(!(si_storage in this._h_locations)) {
@@ -224,7 +210,7 @@ export class ObjectStore {
 		return [si_storage, a_frags, this._h_locations[si_storage]];
 	}
 
-	_parse_path_sync(sp_path: VeoPathTarget): [VeoPath.Location, DotFragment[], SynchronousSerializationLocation] {
+	protected _parse_path_sync(sp_path: VeoPathTarget): [VeoPathTarget, DotFragment[], SynchronousSerializationLocation] {
 		const [si_storage, a_frags, k_location] = this._parse_path(sp_path);
 
 		if(!k_location.isSynchronous) {
@@ -234,30 +220,25 @@ export class ObjectStore {
 		return [si_storage, a_frags, k_location as SynchronousSerializationLocation];
 	}
 
-	async options<
-		ValueType extends Serializable | Primitive,
-		ClassType extends VeOdm<ValueType>=VeOdm<ValueType>,
-	>(sp_path: VeoPath.Locatable, g_context: Context, dc_class?: Instantiable<ValueType, ClassType>): Promise<PathOptions<ValueType, ClassType>> {
-		const a_frags = sp_path.split('.');
-		const nl_frags = a_frags.length;
 
-		let sp_target!: VeoPath.Locatable;
+	// eslint-disable-next-line class-methods-use-this
+	idPartSync(sp_path: string): string[] {
+		const a_parts = sp_path.split('#');
 
-		if(nl_frags < NL_PATH_FRAGMENTS-1) {
-			if('**' === a_frags[nl_frags-1]) {
-				sp_target = a_frags.slice(0, -1).join('.') as VeoPath.Locatable;
-			}
-			else {
-				throw new Error(`Invalid path target: '${sp_path}'`);
-			}
-		}
-		else {
-			sp_target = sp_path.replace(/\.[^.]+$/, '') as VeoPath.Locatable;
+		if(2 !== a_parts.length) {
+			throw new TypeError(`Invalid path string: '${sp_path}'; no storage parameter`);
 		}
 
-		return this._explode<ValueType, ClassType>(sp_target, g_context, nl_frags, dc_class!);
+		const [, s_frags] = a_parts as [VeoPathTarget, string];
+		const a_frags = s_frags.split('.');
+
+		return a_frags.slice(3);
 	}
 
+
+	/**
+	 * Deduces all the available objects given a 'hardcoded#...' Veo Path pattern and constructs instance of the objects in memory
+	 */
 	optionsSync<
 		PathString extends VeoPathTarget,
 		ValueType extends ResolvePath<PathString, TypedLabeledPrimitive>,
@@ -266,10 +247,42 @@ export class ObjectStore {
 		const sp_parent = sp_path.replace(/\.[^.]+$/, '');
 		const h_options = this.resolveSync(sp_parent);
 		return oderom(h_options, (si_key, w_value) => ({
-			[`${sp_parent}.${si_key}`]: new dc_class(`${sp_parent}.${si_key}` as VeoPath.Full, w_value as ValueType, g_context),
+			[`${sp_parent}.${si_key}`]: new dc_class(`${sp_parent}.${si_key}`, w_value as ValueType, g_context),
 		}));
 	}
 
+
+	/**
+	 * Deduces all the available objects given a locatable Veo Path pattern and constructs instance of the objects in memory
+	 */
+	async options<
+		ValueType extends Serializable | Primitive,
+		ClassType extends VeOdm<ValueType>=VeOdm<ValueType>,
+	>(sp_path: VeoPathTarget, g_context: Context, dc_class?: Instantiable<ValueType, ClassType>): Promise<PathOptions<ValueType, ClassType>> {
+		const a_frags = sp_path.split('.');
+		const nl_frags = a_frags.length;
+
+		let sp_target!: VeoPathTarget;
+
+		if(nl_frags < NL_PATH_FRAGMENTS-1) {
+			if('**' === a_frags[nl_frags-1]) {
+				sp_target = a_frags.slice(0, -1).join('.');
+			}
+			else {
+				throw new Error(`Invalid path target: '${sp_path}'`);
+			}
+		}
+		else {
+			sp_target = sp_path.replace(/\.[^.]+$/, '');
+		}
+
+		return this._explode<ValueType, ClassType>(sp_target, g_context, nl_frags, dc_class!);
+	}
+
+
+	/**
+	 * Resolves a synchronously accessible Veo Path string (currently only 'hardcoded#...') to the raw data it references (i.e., primitive value)
+	 */
 	resolveSync<
 		PathString extends VeoPathTarget,
 		ValueType extends ResolvePath<PathString, TypedLabeledPrimitive>,
@@ -314,9 +327,13 @@ export class ObjectStore {
 		return access<ValueType>(g_metadata.paths, a_frags);
 	}
 
+
+	/**
+	 * Resolves a Veo Path string to the raw data it references (i.e., deserialized JSON or primitive value)
+	 */
 	async resolve<
-		PathString extends VeoPathTarget,
-		ValueType extends ResolvePath<PathString>,
+		PathString extends VeoPathTarget=VeoPathTarget,
+		ValueType extends ResolvePath<PathString>=ResolvePath<PathString>,
 	>(sp_path: PathString): Promise<ValueType> {
 		const [si_storage, a_frags, k_location] = this._parse_path(sp_path);
 
@@ -339,7 +356,7 @@ export class ObjectStore {
 		return access<ValueType>(g_metadata.paths, a_frags);
 	}
 
-	async commit(sp_path: VeoPath.Full, gc_serialized: Serializable, s_message=''): Promise<JsonObject> {
+	async commit(sp_path: VeoPathTarget, gc_serialized: Serializable, s_message=''): Promise<JsonObject> {
 		const [si_storage, a_frags, k_location] = this._parse_path(sp_path);
 
 		if(k_location.isReadOnly) {

@@ -180,18 +180,49 @@ function adjust_page_element(dm_node: HTMLTableElement) {
 		return;
 	}
 
+	// parse macro params
+	const h_params = dm_node.getAttribute('data-macro-parameters')!.split(/\|/g)
+		.map(s_pair => s_pair.split(/=/))
+		.reduce((h_out, [si_key, s_value]) => ({
+			...h_out,
+			[si_key]: s_value,
+		}), {});
+
+
 	// hide actual table row
 	hide_editor_element(dm_tr);
 
-	// append display-only row
-	dm_tr.parentNode!.appendChild(dd('tr', {
-		'data-adjusted': encode_attr({type:'display'} as Adjusted),
-	}, [
-		dd('td', {}, [
-			dd('h4', {}, ['CED Query Table']),
-			dd('p', {}, [`You can remove this query table here, but editing its parameters must be done from the viewing page`]),
-		]),
-	]));
+	// macro class
+	if('ve-mention' === h_params.class) {
+		// TODO: render Autocomplete component
+		const dm_ins = dd('tr', {
+			'data-adjusted': encode_attr({type:'display'} as Adjusted),
+		}, [
+			dd('td', {}, [
+				dd('h4', {}, ['Transclusion']),
+				dd('p', {}, [`TODO: replace this entire element with the Autocomplete component`]),
+			]),
+		]);
+
+		dm_ins.contentEditable = 'false';
+
+		dm_tr.parentNode!.appendChild(dm_ins);
+	}
+	else {
+		// append display-only row
+		const dm_ins = dd('tr', {
+			'data-adjusted': encode_attr({type:'display'} as Adjusted),
+		}, [
+			dd('td', {}, [
+				dd('h4', {}, ['CED Query Table?']),
+				dd('p', {}, [`You can remove this query table here, but editing its parameters must be done from the viewing page`]),
+			]),
+		]);
+
+		dm_ins.contentEditable = 'false';
+
+		dm_tr.parentNode!.appendChild(dm_ins);
+	}
 }
 
 function editor_initialized(a_nodes=qsa(d_doc_editor, 'body>*') as HTMLElement[]) {
@@ -592,7 +623,7 @@ async function publish_document() {
 			};
 
 			// create transclusion instance
-			const sp_transclusion =  `page#elements.serialized.transclusion.${si_transclusion}`;
+			const sp_transclusion = `page#elements.serialized.transclusion.${si_transclusion}`;
 			// @ts-expect-error veo path typing
 			const k_transclusion = await VeOdm.createFromSerialized(Transclusion, sp_transclusion, gc_transclusion, G_CONTEXT);
 
@@ -604,7 +635,7 @@ async function publish_document() {
 				'class': 'wysiwyg-macro',
 				'data-macro-name': 'span',
 				'data-macro-id': si_transclusion,
-				'data-macro-parameters': `atlassian-macro-output-type=INLINE|id=${si_transclusion}|class=ve-replace`,
+				'data-macro-parameters': `atlassian-macro-output-type=INLINE|id=${sp_transclusion}|class=ve-replace`,
 				'data-macro-schema-version': '1',
 				'data-macro-body-type': 'RICH_TEXT',
 			}, [
@@ -630,7 +661,7 @@ async function publish_document() {
 				return ConfluencePage.annotatedSpan({
 					params: {
 						class: 've-mention',
-						id: si_transclusion,
+						id: sp_transclusion,
 					},
 					body: [
 						ConfluencePage.annotatedSpan({

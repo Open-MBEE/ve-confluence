@@ -1,17 +1,22 @@
-import type {MmsSparqlQueryTable, QueryParam} from '#/element/QueryTable/model/QueryTable';
-import type { MmsSparqlConnection } from '#/model/Connection';
-import { ode, oderac, oderom } from '#/util/belt';
+import type {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
 
-import {NoOpSparqlSelectQuery, SparqlSelectQuery, Sparql} from '../../util/sparql-endpoint';
+import type {MmsSparqlConnection} from '#/model/Connection';
 
-import type {Hash, SparqlString} from '../types';
+import {
+	ode,
+} from '#/util/belt';
+
+import {NoOpSparqlSelectQuery,
+	SparqlSelectQuery} from '../../util/sparql-endpoint';
+
+import type {Hash,
+	SparqlString} from '../types';
 
 const terse_lit = (s: string) => `"${s.replace(/[\r\n]+/g, '').replace(/"/g, '\\"')}"`;
 
-function attr(h_props: Hash, si_attr: string, s_attr_key: string, b_many=false) {
+function attr(h_props: Hash, si_attr: string, s_attr_key: string) {
 	const sx_prop = h_props[si_attr] = `?_${si_attr}`;
 
-	if(!s_attr_key) debugger;
 	return /* syntax: sparql */ `
 		${sx_prop} a rdf:Property ;
 			rdfs:label ${terse_lit(s_attr_key)} .
@@ -51,71 +56,11 @@ const H_NATIVE_DNG_PATTERNS: Record<string, string> = {
 	`,
 };
 
-const H_NATIVE_DNG_PARAMS: Record<string, string> = {
-	id: /* syntax: sparql */ `
-		?artifact dct:identifier ?value .
-	`,
-	requirementName: /* syntax: sparql */ `
-		?artifact dct:title ?value .
-	`,
-};
-
 interface BuildConfig {
 	bgp?: SparqlString;
 }
 
-export async function build_dng_select_param_query(this: MmsSparqlQueryTable, k_param: QueryParam, s_seach_text?: string, gc_build?: BuildConfig): Promise<SparqlSelectQuery> {	
-	const a_bgp: string[] = [];
-
-	const a_selects = [
-		'?value',
-		'(count(?artifact) as ?count)',
-	];
-
-	// get format for native parameters
-	if(k_param.key in H_NATIVE_DNG_PARAMS) {
-		a_bgp.push(H_NATIVE_DNG_PARAMS[k_param.key]);
-	}
-	// use property formatting for parameter
-	else {
-		a_bgp.push(`?_attr a rdf:Property ;
-				rdfs:label ${Sparql.literal(k_param.value)} .
-			?artifact a oslc_rm:Requirement ;
-				?_attr [rdfs:label ?value] .
-		`);
-	}
-
-	// add filter for searching for parameters
-	if(s_seach_text) {
-		a_bgp.push(`
-			filter contains(lcase(?value),lcase("${s_seach_text}")) 
-		`);
-	}
-
-	const k_connection = await this.fetchConnection();
-
-	return new SparqlSelectQuery({
-		select: [...a_selects],
-		from: `<${k_connection.modelGraph}>`,
-		bgp: /* syntax: sparql */ `
-			?artifact a oslc_rm:Requirement ;
-				oslc:instanceShape [
-					dct:title "Requirement"^^rdf:XMLLiteral ;
-				] ;
-			.
-			# exclude requirements that are part of a requirement document
-			filter not exists {
-				?collection a oslc_rm:RequirementCollection ;
-					oslc_rm:uses ?artifact ;
-					.
-			}
-			${a_bgp.join('\n')}
-		`,
-		group: '?value order by desc(?count) limit 40',
-	});
-}
-
-export async function build_dng_select_query_from_params(this: MmsSparqlQueryTable, gc_build?: BuildConfig): Promise<SparqlSelectQuery> {	
+export async function build_dng_select_query_from_params(this: MmsSparqlQueryTable, gc_build?: BuildConfig): Promise<SparqlSelectQuery> {
 	const a_bgp: string[] = [];
 	const h_props = {};
 
@@ -140,9 +85,8 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 		if(!k_list?.size) continue;
 
 		// insert value filter
-		// skip formatting for native parameters
 		a_bgp.push(/* syntax: sparql */ `
-			${!(si_param in H_NATIVE_DNG_PATTERNS) ? attr(h_props, si_param, s_label) : ''}
+			${attr(h_props, si_param, s_label)}
 
 			values ?${si_param}Value {
 				${[...this.parameterValuesList(si_param)].map(k => terse_lit(k.value)).join(' ')}
@@ -180,7 +124,7 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 			// insert binding pattern fragment
 			a_bgp.push(/* syntax: sparql */ `
 				optional {
-					${attr(h_props, si_param, s_value, b_many)}
+					${attr(h_props, si_param, s_value)}
 				}
 			`);
 		}
@@ -219,6 +163,7 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 			}
 
 			${a_bgp.join('\n')}
+
 			${sq_bgp || ''}
 		`,
 		group: a_aggregates.length ? a_selects.join(' ') : null,
@@ -339,7 +284,7 @@ export function dng_searcher_query(this: MmsSparqlConnection, s_input: string, x
 	return new SparqlSelectQuery({
 		count: '?artifact',
 		select: [
-			...(b_multirank? ['?rank']: []),
+			...b_multirank? ['?rank']: [],
 			'?artifact',
 			'?idValue',
 			'?requirementNameValue',
@@ -383,7 +328,7 @@ export function dng_searcher_query(this: MmsSparqlConnection, s_input: string, x
 			`,
 
 		sort: [
-			...(b_multirank? ['asc(?rank)']: []),
+			...b_multirank? ['asc(?rank)']: [],
 			'asc(?score)',
 			'asc(?requirementNameValue)',
 		],
