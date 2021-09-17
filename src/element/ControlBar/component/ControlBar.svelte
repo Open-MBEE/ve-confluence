@@ -334,33 +334,6 @@
 		}
 	}
 
-	// const H_CONNECTION_TEMPLATE = {
-
-	// };
-
-	// const H_PRECONFIGURED_CONNECTIONS = {
-	// 	dng: {
-	// 		clipper: {
-	// 			endpoint: 'https://ced.jpl.nasa.gov/sparql',
-	// 			modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/data.europa-clipper',
-	// 			metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/metadata.clipper',
-	// 			contextPath: 'hardcoded#queryContext.sparql.dng.common',
-	// 		},
-	// 		msr: {
-	// 			endpoint: 'https://ced.jpl.nasa.gov/sparql',
-	// 			modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/data.msr',
-	// 			metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/metadata.msr',
-	// 			contextPath: 'hardcoded#queryContext.sparql.dng.common',
-	// 		},
-	// 		psyche: {
-	// 			endpoint: 'dngmdkneptuneinstance-xenorvo9hjet.czfuvclv0tgf.us-gov-west-1.neptune.amazonaws.com',
-	// 			modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/data.msr',
-	// 			metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/metadata.msr',
-	// 			contextPath: 'hardcoded#queryContext.sparql.dng.common',
-	// 		},
-	// 	},
-	// };
-
 	const H_PATHS_CLIPPER = {
 		connection: {
 			sparql: {
@@ -368,10 +341,12 @@
 					dng: {
 						type: 'MmsSparqlConnection',
 						label: 'DNG Requirements',
-						endpoint: 'https://ced.jpl.nasa.gov/sparql',
-						modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/data.europa-clipper',
+						endpoint: 'https://ced-uat.jpl.nasa.gov/sparql',
+						modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/Model.Europa.2021-08-25T23-31-04_375Z',
 						metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/Metadata.Europa',
 						contextPath: 'hardcoded#queryContext.sparql.dng.common',
+						searchPath: 'hardcoded#queryBuilder.sparql.dng.search.basic',
+						detailPath: 'hardcoded#queryBuilder.sparql.dng.detail.basic',
 					},
 				},
 			},
@@ -385,10 +360,12 @@
 					dng: {
 						type: 'MmsSparqlConnection',
 						label: 'DNG Requirements',
-						endpoint: 'https://ced.jpl.nasa.gov/sparql',
-						modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/data.msr',
-						metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/metadata.msr',
+						endpoint: 'https://ced-uat.jpl.nasa.gov/sparql',
+						modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/Model.MSR',
+						metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/Metadata.MSR',
 						contextPath: 'hardcoded#queryContext.sparql.dng.common',
+						searchPath: 'hardcoded#queryBuilder.sparql.dng.search.basic',
+						detailPath: 'hardcoded#queryBuilder.sparql.dng.detail.basic',
 					},
 				},
 			},

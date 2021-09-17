@@ -34,6 +34,9 @@
 	import {
 		Connection,
 		connectionHasVersioning,
+	} from '#/model/Connection';
+
+	import type {
 		ModelVersionDescriptor,
 	} from '#/model/Connection';
 
