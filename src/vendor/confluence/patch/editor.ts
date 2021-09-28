@@ -49,7 +49,7 @@ const timeout = (xt_wait: number) => new Promise((fk_resolve) => {
 });
 
 let d_doc_editor!: HTMLDocument;
-let kv_autocomplete!: SvelteComponent;
+let kv_autocomplete!: Autocomplete;
 
 function* child_list_mutations_added_nodes(a_mutations: MutationRecord[]): Generator<HTMLElement> {
 	// each mutation
@@ -172,14 +172,15 @@ function hide_editor_element(dm_node: HTMLElement) {
 	});
 }
 
-function adjust_page_element(dm_node: HTMLTableElement) {
+async function adjust_page_element(dm_node: HTMLTableElement) {
 	const dm_tr = qs(dm_node, 'tr') as HTMLTableRowElement;
 
-	// pre-loaded; do not re-add
-	if('none' === dm_tr.style.display) {
-		return;
-	}
-
+  /*
+  problem if a in progress mention is background saved by editor, user doesn't revert or save
+	next time the editor is opened up, the mention span is there with no contenteditable set to false, all data-mention
+	info is lost, confluence just screws us and the mention span becomes useless
+	use has to either save or revert to previuos published page for things to continue working
+	*/
 	// parse macro params
 	const h_params = dm_node.getAttribute('data-macro-parameters')!.split(/\|/g)
 		.map(s_pair => s_pair.split(/=/))
@@ -189,26 +190,42 @@ function adjust_page_element(dm_node: HTMLTableElement) {
 		}), {});
 
 
-	// hide actual table row
-	hide_editor_element(dm_tr);
-
 	// macro class
 	if('ve-mention' === h_params.class) {
-		// TODO: render Autocomplete component
-		const dm_ins = dd('tr', {
-			'data-adjusted': encode_attr({type:'display'} as Adjusted),
-		}, [
-			dd('td', {}, [
-				dd('h4', {}, ['Transclusion']),
-				dd('p', {}, [`TODO: replace this entire element with the Autocomplete component`]),
-			]),
-		]);
-
-		dm_ins.contentEditable = 'false';
-
-		dm_tr.parentNode!.appendChild(dm_ins);
+		let eid = h_params.id.split('.')[3];
+		const pagemeta = await k_page.fetchMetadataBundle();
+		const docmeta = await k_document?.fetchMetadataBundle();
+		let data = pagemeta.data.paths.elements.serialized.transclusion[eid];
+		let attr = {
+			"connection_path": data.connectionPath,
+			"connection": docmeta.data.paths.connection.sparql.mms.dng,
+			"item": data.item,
+			"display_attribute": data.displayAttribute
+		};
+		const existingMention = dd('span', {
+			'data-mention': encode_attr(attr),
+			'class': 've-mention',
+			'contentEditable': 'false'
+		}, ['@' + data.item.id,
+				dd('span', {'class': 'attribute', 'contentEditable': 'false'}, [
+					dd('span', {'class': 'content'}, [data.displayAttribute.label])
+				])
+				]
+		);
+		dm_node.replaceWith(existingMention);
+		// when saved again, this constructs a new transclusion id in page metadata since they're generated on save,
+		// should include generated id on creation and saved with the span so we can just reuse it?
+		kv_autocomplete.reconnect(existingMention);
+		// maybe move the entire thing into autocomplete, need some refactoring and surgery to handle both cases with session creation
+		// si_channel??
 	}
 	else {
+		// pre-loaded; do not re-add
+		if('none' === dm_tr.style.display) {
+			return;
+		}
+		// hide actual table row
+		hide_editor_element(dm_tr);
 		// append display-only row
 		const dm_ins = dd('tr', {
 			'data-adjusted': encode_attr({type:'display'} as Adjusted),
@@ -479,11 +496,11 @@ function tinymce_ready() {
 
 
 type Adjusted = {
-	type: 'visited';
+	type: 'visited'; //no change needed
 } | {
-	type: 'display';
+	type: 'display'; //hidden/unhidden
 } | {
-	type: 'modified';
+	type: 'modified'; //dom element changed, need to be reverted before saving
 	modifications: string[];
 };
 
@@ -614,7 +631,7 @@ async function publish_document() {
 			const g_mention = decode_attr(dm_mention.getAttribute('data-mention')!) as Record<string, unknown>;
 
 			// prep transclusion metadata
-			const si_transclusion = uuid_v4().replace(/_/g, '-');
+			const si_transclusion = uuid_v4().replace(/_/g, '-'); //should do during mention creation
 			const gc_transclusion = {
 				type: 'Transclusion',
 				connectionPath: g_mention.connection_path,
@@ -710,9 +727,10 @@ async function publish_document() {
 
 	// get commit message from DOM
 	const s_msg = (qs(document.body, '#versionComment') as HTMLInputElement).value;
+	const s_title = (qs(document.body, '#content-title') as HTMLInputElement).value;
 
 	// commit contents to page
-	const g_res = await k_page.postContent(k_contents, s_msg || '');
+	const g_res = await k_page.postContent(k_contents, s_msg || '', s_title);
 
 	// get view page URL
 	const pr_view = k_page.getDisplayUrlString();

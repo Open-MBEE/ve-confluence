@@ -27,6 +27,7 @@ export namespace Transclusion {
 		connectionPath: VeoPathTarget;
 		item: {
 			iri: string;
+			id: string;
 		};
 		displayAttribute: {
 			key: string;

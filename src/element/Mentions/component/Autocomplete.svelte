@@ -340,6 +340,7 @@
 				connection: g_channel.connection.toSerialized(),
 				item: {
 					iri: p_item,
+					id: si_item //???si_channel
 				},
 			}));
 		}
@@ -682,6 +683,10 @@
 		return escape_html(s_display).replace(new RegExp('('+escape_regex(s_search)+')', 'i'), '<b>$1</b>');
 	}
 
+	export function reconnect(node: Node) {
+
+		return; //for existing mentions remake new session? need to save and lookup si_channel?
+	}
 </script>
 
 <style lang="less">

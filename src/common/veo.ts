@@ -24,6 +24,7 @@ import type {
 import type {
 	Split,
 } from 'ts-toolbelt/out/String/_api';
+import type {Transclusion} from "#/element/Transclusion/model/Transclusion";
 
 export const NL_PATH_FRAGMENTS = 5;
 
@@ -44,6 +45,7 @@ export type VeoPathStruct = {
 		elements: {
 			serialized: {
 				queryTable: QueryTable.Serialized;
+				transclusion: Transclusion.Serialized;
 			};
 		};
 	};

@@ -43,6 +43,7 @@ import type {VeoPath} from '#/common/veo';
 import type {QueryTable} from '#/element/QueryTable/model/QueryTable';
 import { uuid_v4 } from '#/util/dom';
 import { oderac } from '#/util/belt';
+import {Transclusion} from "#/element/Transclusion/model/Transclusion";
 
 const P_API_DEFAULT = '/rest/api';
 
@@ -60,6 +61,7 @@ export interface PageMetadata extends JsonMetadataShape<'Page'> {
 		elements?: {
 			serialized?: {
 				queryTable?: QueryTable.Serialized;
+				transclusion?: Transclusion.Serialized;
 			};
 		};
 	};
@@ -553,7 +555,7 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 
 	private readonly _si_page!: ConfluenceApi.PageId;
 
-	private readonly _s_page_title!: string;
+	private _s_page_title!: string;
 
 	private _b_cached_content = false;
 
@@ -673,7 +675,7 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 		};
 	}
 
-	async postContent(k_contents: XhtmlDocument, s_message=''): Promise<Response<JsonObject>> {
+	async postContent(k_contents: XhtmlDocument, s_message='', s_title= this.pageTitle): Promise<Response<JsonObject>> {
 		const {
 			versionNumber: n_version,
 		} = await this.fetchContentAsXhtmlDocument();
@@ -715,11 +717,11 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 		const s_contents = k_contents.toString();
 
 
-		return await confluence_put_json(`/content/${this._si_page}`, {
+		const result = await confluence_put_json(`/content/${this._si_page}`, {
 			json: {
 				id: this.pageId,
 				type: 'page',
-				title: this.pageTitle,
+				title: s_title,
 				space: {
 					key: G_META.space_key,
 				},
@@ -735,6 +737,8 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 				},
 			},
 		});
+		this._s_page_title = s_title;
+		return result;
 	}
 
 	async initMetadata(n_version: ConfluenceApi.PageVersionNumber=1): Promise<PageMetadataBundle | null> {
