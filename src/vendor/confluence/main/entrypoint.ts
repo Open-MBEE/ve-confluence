@@ -252,14 +252,14 @@ function* correlate(gc_correlator: CorrelationDescriptor): Generator<ViewBundle>
 
 function render_component(g_bundle: ViewBundle, b_hide_anchor = false) {
 	const dm_anchor = g_bundle.anchor;
-	const dm_render = g_bundle.render;
+	const dm_render = g_bundle.render || dm_anchor;
 	const dm_parent = dm_render.parentElement!;
 
 	// re-stitch together inline paragraph
 	if(TransclusionComponent === g_bundle.component && (('P' === dm_parent.nodeName && !qsa(dm_parent, 'br').length) || ('SPAN' === dm_parent.nodeName && 'P' === dm_parent.parentElement?.nodeName && !qsa(dm_parent.parentElement, 'br').length))) {
 		dm_anchor.style.display = 'none';
 
-		const dm_parent_render = g_bundle.render.closest('p')!;
+		const dm_parent_render = dm_render.closest('p')!;
 		dm_parent_render.style.display = 'inline';
 		const dm_tag = dm_parent_render.nextElementSibling as HTMLElement;
 

@@ -49,7 +49,7 @@
 	/**
 	 * The QueryTable model
 	 */
-	export let k_model: QueryTable;
+	export let k_query_table: QueryTable;
 
 	/**
 	 * The HTML element to which this view element is anchored
@@ -67,7 +67,7 @@
 	 * Whether or not this table is already published
 	 */
 	export let b_published = false;
-	
+
 
 	// shows/hides the table results
 	let b_display_preview = !b_published;
@@ -88,12 +88,12 @@
 	let si_query_hash_previous = '';
 
 	// published query hash
-	let si_query_hash_published = b_published? k_model.hash(): '';
+	let si_query_hash_published = b_published? k_query_table.hash(): '';
 
 	// whether or not there are any filters applied
 	let b_filtered = false;
 
-	// 
+	//
 	// $: b_changed = '' !== si_query_hash_previous && (!b_published || b_changed_published_parameters);
 	$: b_changed = b_published? si_query_hash_previous !== si_query_hash_published: '' !== si_query_hash_previous;
 	// let b_not_changed = '' === si_query_hash_previous || (b_published && !b_changed_published_parameters)
@@ -101,7 +101,7 @@
 	// once the component mounts
 	onMount(async() => {
 		// get query table's connection
-		const k_connection_new = await k_model.fetchConnection();
+		const k_connection_new = await k_query_table.fetchConnection();
 
 		// new connection; refresh version
 		if(k_connection !== k_connection_new) {
@@ -173,7 +173,7 @@
 		b_busy_loading = false;
 
 		// redo query hash
-		si_query_hash_previous = k_model.hash();
+		si_query_hash_previous = k_query_table.hash();
 
 		s_status_info = 'PREVIEW (0 results)';
 		xc_info_mode = G_INFO_MODES.PREVIEW;
@@ -187,9 +187,9 @@
 		b_filtered = false;
 
 		// each parameter
-		for(const g_param of await k_model.queryType.fetchParameters()) {
+		for(const g_param of await k_query_table.queryType.fetchParameters()) {
 			// collect all values from list
-			const a_values = [...k_model.parameterValuesList(g_param.key)];
+			const a_values = [...k_query_table.parameterValuesList(g_param.key)];
 
 			// some values are present
 			if(a_values.length) {
@@ -201,7 +201,7 @@
 		}
 
 		// changed from published
-		let si_query_hash_current = k_model.hash();
+		let si_query_hash_current = k_query_table.hash();
 		b_changed_published_parameters = si_query_hash_current !== si_query_hash_published;
 
 		// no filters, clear preview
@@ -217,7 +217,7 @@
 			// set busy loading state
 			b_busy_loading = true;
 
-			const k_query = await k_model.fetchQueryBuilder();
+			const k_query = await k_query_table.fetchQueryBuilder();
 			const a_rows = await k_connection.execute(k_query.paginate(N_PREVIEW_ROWS+1));
 
 			if(N_PREVIEW_ROWS < a_rows.length) {
@@ -232,7 +232,7 @@
 					});
 			}
 
-			g_preview.rows = a_rows.map(QueryTable.cellRenderer(k_model));
+			g_preview.rows = a_rows.map(QueryTable.cellRenderer(k_query_table));
 
 			// no longer busy loading
 			b_busy_loading = false;
@@ -291,23 +291,23 @@
 		// get page content as xhtml document
 		const {
 			page: k_page,
-		} = k_model.getContext();
+		} = k_query_table.getContext();
 
 		// commit query table state
-		const g_payload = await k_model.save(`Auto-saved from user table publish`);
+		const g_payload = await k_query_table.save(`Auto-saved from user table publish`);
 
 		const {
 			rows: a_rows,
 			contents: k_contents,
-		} = await k_model.exportResultsToCxhtml(k_connection, yn_directive);
+		} = await k_query_table.exportResultsToCxhtml(k_connection, yn_directive);
 
 		// prepare commit message
 		let s_commit_message = '';
 		{
 			const a_where = [];
-			const a_params = await k_model.queryType.fetchParameters();
+			const a_params = await k_query_table.queryType.fetchParameters();
 			for(const gc_param of a_params) {
-				const k_list = k_model.parameterValuesList(gc_param.key);
+				const k_list = k_query_table.parameterValuesList(gc_param.key);
 				const a_values = [];
 				for(const g_data of k_list) {
 					a_values.push(g_data.label);
@@ -324,7 +324,7 @@
 
 			const nl_rows = a_rows.length;
 
-			s_commit_message = `Published query table with ${nl_rows} row${1 === nl_rows? '': 's'} using "${k_model.queryType.label}" ${a_where.length? `where\n(${a_where.join(') AND (')}`: ''})`
+			s_commit_message = `Published query table with ${nl_rows} row${1 === nl_rows? '': 's'} using "${k_query_table.queryType.label}" ${a_where.length? `where\n(${a_where.join(') AND (')}`: ''})`
 				+` from ${k_connection.label} on ${s_display_version}`;
 		}
 
@@ -358,7 +358,7 @@
 		clear_preview();
 
 		// restore from serialized
-		k_model = await k_model.restore();
+		k_query_table = await k_query_table.restore();
 
 		// preload query results for next time preview is shown
 		await render();
@@ -366,11 +366,11 @@
 
 	function select_query_type(dv_select: CustomEvent<ValuedLabeledObject>) {
 		// set query type on model
-		k_model.setQueryType(dv_select.detail);
+		k_query_table.setQueryType(dv_select.detail);
 
 		// clear parameters
-		for(const si_param in k_model.parameterValues) {
-			k_model.parameterValuesList(si_param).clear();
+		for(const si_param in k_query_table.parameterValues) {
+			k_query_table.parameterValuesList(si_param).clear();
 		}
 
 		// clear preview
@@ -380,7 +380,7 @@
 		b_filtered = false;
 
 		// trigger svelte update for query type change
-		k_model = k_model;
+		k_query_table = k_query_table;
 	}
 </script>
 
@@ -625,7 +625,7 @@
 	}
 </style>
 
-{#await k_model.ready()}
+{#await k_query_table.ready()}
 	<!-- loading -->
 {:then}
 	<div class="ve-query-table">
@@ -676,8 +676,8 @@
 					<span class="label">Query Type</span>
 					<span class="select">
 						<Select
-							value={k_model.queryType.toItem()}
-							items={Object.values(k_model.queryTypeOptions).map(k => k.toItem())}
+							value={k_query_table.queryType.toItem()}
+							items={Object.values(k_query_table.queryTypeOptions).map(k => k.toItem())}
 							showIndicator={true}
 							indicatorSvg={/* syntax: html */ `
 								<svg width="7" height="5" viewBox="0 0 7 5" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -694,9 +694,9 @@
 				<div class="form">
 					<span class="header">Parameter</span>
 					<span class="header">Value</span>
-					{#await k_model.queryType.fetchParameters() then a_params}
+					{#await k_query_table.queryType.fetchParameters() then a_params}
 						{#each a_params as k_param}
-							<QueryTableParam k_query_table={k_model} {k_param} on:change={render} />
+							<QueryTableParam k_query_table={k_query_table} {k_param} on:change={render} />
 						{/each}
 					{/await}
 				</div>
@@ -706,13 +706,13 @@
 					<!-- svelte-ignore a11y-resolved -->
 					<table class="wrapped confluenceTable tablesorter tablesorter-default stickyTableHeaders" role="grid" style="padding: 0px;" resolved="">
 						<colgroup>
-							{#each k_model.queryType.fields as k_field}
+							{#each k_query_table.queryType.fields as k_field}
 								<col />
 							{/each}
 						</colgroup>
 						<thead class="tableFloatingHeaderOriginal">
 							<tr role="row" class="tablesorter-headerRow">
-								{#each k_model.queryType.fields as k_field, i_field}
+								{#each k_query_table.queryType.fields as k_field, i_field}
 									<th class="confluenceTh tablesorter-header sortableHeader tablesorter-headerUnSorted" data-column={i_field} tabindex="0" scope="col" role="columnheader" aria-disabled="false" unselectable={true} aria-sort="none" aria-label="{k_field.label}: No sort applied, activate to apply an ascending sort" style="user-select: none;">
 										<div class="tablesorter-header-inner">
 											{k_field.label}
@@ -723,7 +723,7 @@
 						</thead>
 						<thead class="tableFloatingHeader" style="display: none;">
 							<tr role="row" class="tablesorter-headerRow">
-								{#each k_model.queryType.fields as k_field, i_header}
+								{#each k_query_table.queryType.fields as k_field, i_header}
 									<th class="confluenceTh tablesorter-header sortableHeader tablesorter-headerUnSorted" data-column={i_header} tabindex="0" scope="col" role="columnheader" aria-disabled="false" unselectable={true} aria-sort="none" aria-label="{k_field.label}: No sort applied, activate to apply an ascending sort" style="user-select: none;">
 										<div class="tablesorter-header-inner">
 											{k_field.label}
@@ -736,7 +736,7 @@
 							{#if !g_preview.rows.length}
 								{#each A_DUMMY_TABLE_ROWS as g_row}
 									<tr role="row">
-										{#each k_model.queryType.fields as k_field}
+										{#each k_query_table.queryType.fields as k_field}
 											<td class="confluenceTd">
 												<span class="ve-table-preview-cell-placeholder">&nbsp;</span>
 											</td>
