@@ -638,8 +638,12 @@
 				// accept item
 				case 'Accept':
 				case 'Enter': {
+					const dm_selected = qs(dm_content, '.item-selected');
+					if (!dm_selected) {
+						return;
+					}
 					d_event.preventDefault();
-					select_item();
+					select_row();
 					return;
 				}
 

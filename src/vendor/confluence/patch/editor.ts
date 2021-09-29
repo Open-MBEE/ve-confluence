@@ -194,11 +194,11 @@ async function adjust_page_element(dm_node: HTMLTableElement) {
 	if('ve-mention' === h_params.class) {
 		let eid = h_params.id.split('.')[3];
 		const pagemeta = await k_page.fetchMetadataBundle();
-		const docmeta = await k_document?.fetchMetadataBundle();
+		//const docmeta = await G_CONTEXT.document.fetchMetadataBundle();
 		let data = pagemeta.data.paths.elements.serialized.transclusion[eid];
 		let attr = {
 			"connection_path": data.connectionPath,
-			"connection": docmeta.data.paths.connection.sparql.mms.dng,
+			//"connection": docmeta.data.paths.connection.sparql.mms.dng,
 			"item": data.item,
 			"id": eid,
 			"display_attribute": data.displayAttribute
@@ -214,8 +214,6 @@ async function adjust_page_element(dm_node: HTMLTableElement) {
 				]
 		);
 		dm_node.replaceWith(existingMention);
-		// when saved again, this constructs a new transclusion id in page metadata since they're generated on save,
-		// should include generated id on creation and saved with the span so we can just reuse it?
 		kv_autocomplete.reconnect(existingMention);
 		// maybe move the entire thing into autocomplete, need some refactoring and surgery to handle both cases with session creation
 		// si_channel??
