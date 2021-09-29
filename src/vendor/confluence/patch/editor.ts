@@ -200,6 +200,7 @@ async function adjust_page_element(dm_node: HTMLTableElement) {
 			"connection_path": data.connectionPath,
 			"connection": docmeta.data.paths.connection.sparql.mms.dng,
 			"item": data.item,
+			"id": eid,
 			"display_attribute": data.displayAttribute
 		};
 		const existingMention = dd('span', {
@@ -255,10 +256,10 @@ function editor_initialized(a_nodes=qsa(d_doc_editor, 'body>*') as HTMLElement[]
 			const si_macro = h_params.id;
 			if(si_macro) {
 				if('ve4-script-tag' === si_macro) {
-					return hide_editor_element(dm_node);
+					hide_editor_element(dm_node);
 				}
 				else if(si_macro.startsWith('page#elements.serialized.')) {
-					return adjust_page_element(dm_node);
+					adjust_page_element(dm_node);
 				}
 			}
 		}
@@ -631,7 +632,7 @@ async function publish_document() {
 			const g_mention = decode_attr(dm_mention.getAttribute('data-mention')!) as Record<string, unknown>;
 
 			// prep transclusion metadata
-			const si_transclusion = uuid_v4().replace(/_/g, '-'); //should do during mention creation
+			const si_transclusion = g_mention.id;
 			const gc_transclusion = {
 				type: 'Transclusion',
 				connectionPath: g_mention.connection_path,

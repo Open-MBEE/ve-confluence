@@ -4,7 +4,7 @@
 		decode_attr,
 		encode_attr,
 		qs,
-		qsa,
+		qsa, uuid_v4,
 	} from '#/util/dom';
 
 	import type {PatchedEditor} from '#/common/meta';
@@ -338,6 +338,7 @@
 			dm_mention.setAttribute('data-mention', encode_attr({
 				connection_path: g_channel.connection_path,
 				connection: g_channel.connection.toSerialized(),
+				id: uuid_v4().replace(/_/g, '-'),
 				item: {
 					iri: p_item,
 					id: si_item //???si_channel

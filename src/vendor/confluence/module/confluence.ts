@@ -348,7 +348,7 @@ export abstract class ConfluenceEntity<MetadataType extends PageOrDocumentMetada
 	 */
 	async writeMetadataValue(w_value: JsonValue, a_frags: DotFragment[], s_message=''): Promise<JsonObject> {
 		// start at metadata object root
-		const g_bundle = await this.fetchMetadataBundle();
+		const g_bundle = await this.fetchMetadataBundle(true); //if multiple mentions are added during an edit, multiple metadata updates will get 409 without true
 
 		// no existing metadata object
 		if(!g_bundle) {
