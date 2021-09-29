@@ -197,7 +197,7 @@ const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 		return {
 			component: QueryTable,
 			props: {
-				k_query_table: new MmsSparqlQueryTable(si_key,
+				k_model: new MmsSparqlQueryTable(si_key,
 					{
 						type: 'MmsSparqlQueryTable',
 						key: si_key,
