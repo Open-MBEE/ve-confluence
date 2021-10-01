@@ -551,6 +551,8 @@ function replace_listeners() {
 	//ghetto fix close button
 	const dm_close = qs(document.body, '.cancel-button-container-shared-draft button');
 	dm_close.addEventListener('click', () => {
+		const y_editor = tinymce.get('wysiwygTextarea');
+		y_editor.isNotDirty = true;
 		const pr_view = k_page.getDisplayUrlString();
 		window.onbeforeunload = null;
 		location.href = pr_view;
