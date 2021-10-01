@@ -179,7 +179,7 @@ async function adjust_page_element(dm_node: HTMLTableElement) {
   problem if a in progress mention is background saved by editor, user doesn't revert or save
 	next time the editor is opened up, the mention span is there with no contenteditable set to false, all data-mention
 	info is lost, confluence just screws us and the mention span becomes useless
-	use has to either save or revert to previuos published page for things to continue working
+	user has to either save or revert to previous published page for things to work (before things get screwed)
 	*/
 	// parse macro params
 	const h_params = dm_node.getAttribute('data-macro-parameters')!.split(/\|/g)
@@ -546,6 +546,14 @@ function replace_listeners() {
 			// start async task
 			void publish_document();
 		}
+	});
+
+	//ghetto fix close button
+	const dm_close = qs(document.body, '.cancel-button-container-shared-draft button');
+	dm_close.addEventListener('click', () => {
+		const pr_view = k_page.getDisplayUrlString();
+		window.onbeforeunload = null;
+		location.href = pr_view;
 	});
 
 	// TODO: create ctrl+s handler
