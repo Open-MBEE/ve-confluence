@@ -172,6 +172,10 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					value: 'Maturity',
 					sortPath: null,
 				},
+				id: {
+					value: 'Identifier',
+					sortPath: null,
+				},
 			},
 		},
 	}),
@@ -186,7 +190,8 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 						'hardcoded#queryParameter.sparql.dng.maturity',
 					],
 					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basicWithChildren',
-					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.table.basicParamsL3',
+					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.basicParamsL3',
+					paramQueryBuilderPath: 'hardcoded#paramQueryBuilder.sparql.dng.default',
 				},
 				asr: {
 					label: 'Appendix Subsystem Requirements',
@@ -195,7 +200,17 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 						'hardcoded#queryParameter.sparql.dng.maturity',
 					],
 					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basic',
-					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.table.basicParamsL3ChildrenAndL4s',
+					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.basicParamsL3ChildrenAndL4s',
+					paramQueryBuilderPath: 'hardcoded#paramQueryBuilder.sparql.dng.default',
+				},
+				bid: {
+					label: 'By Requirement ID',
+					queryParametersPaths: [
+						'hardcoded#queryParameter.sparql.dng.id',
+					],
+					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.simple',
+					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.basicParams',
+					paramQueryBuilderPath: 'hardcoded#paramQueryBuilder.sparql.dng.default',
 				},
 			},
 		},
@@ -211,6 +226,13 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					queryFieldsPaths: [
 						...A_QUERY_FIELD_PATHS_BASIC,
 						'hardcoded#queryField.sparql.dng.children',
+					],
+				},
+				simple: {
+					queryFieldsPaths: [
+						'hardcoded#queryField.sparql.dng.id',
+						'hardcoded#queryField.sparql.dng.requirementName',
+						'hardcoded#queryField.sparql.dng.requirementText',
 					],
 				},
 			},
@@ -278,11 +300,11 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 		},
 	}),
 
-	queryContext: {
+	paramQueryBuilder: {
 		sparql: {
 			dng: {
-				common: {
-					prefixes: H_PREFIXES,
+				default: {
+					function: build_dng_select_param_query,
 				},
 			},
 		},
@@ -329,6 +351,16 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 							`,
 						});
 					},
+				},
+			},
+		},
+	},
+
+	queryContext: {
+		sparql: {
+			dng: {
+				common: {
+					prefixes: H_PREFIXES,
 				},
 			},
 		},

@@ -12,8 +12,6 @@
 	
 	import type {MmsSparqlConnection} from '#/model/Connection';
 	
-	import {Sparql} from '#/util/sparql-endpoint';
-
 	import type {ValuedLabeledObject} from '#/common/types';
 	
 	interface Option {
@@ -23,19 +21,20 @@
 	}
 	
 	const f_dispatch = createEventDispatcher();
-
 	export let k_param: QueryParam;
 	export let k_query_table: QueryTable;
 	
 	let k_values = k_query_table.parameterValuesList(k_param.key);
 	$: k_values = k_query_table.parameterValuesList(k_param.key);
-
+	
 	k_query_table.onRestore((k_new: typeof k_query_table): Promise<void> => {
 		k_query_table = k_new;
 		return Promise.resolve();
 	});
 
 	let a_options: Option[] = [];
+
+	let a_selected_options: Option[] = [];
 
 	let a_init_values = [...k_values];
 
@@ -50,20 +49,15 @@
 
 	let xc_load = XC_LOAD_NOT;
 
-	async function load_param(k_param_load: QueryParam) {
+	const get_option_label = (g_option: ValuedLabeledObject) => g_option.label;
+	
+	const get_selection_label = (g_option: ValuedLabeledObject) => g_option.value;
+
+	async function load_param(s_filter_text: string): Promise<ValuedLabeledObject[]> {
 		if(k_query_table.type.startsWith('MmsSparql')) {
 			const k_connection = (await k_query_table.fetchConnection()) as MmsSparqlConnection;
-
-			const a_rows = await k_connection.execute(/* syntax: sparql */ `
-				select ?value (count(?req) as ?count) from <${k_connection.modelGraph}> {
-					?_attr a rdf:Property ;
-						rdfs:label ${Sparql.literal(k_param_load.value)} .
-
-					?req a oslc_rm:Requirement ;
-						?_attr [rdfs:label ?value] .
-				}
-				group by ?value order by desc(?count)
-			`);
+			let k_query = await k_query_table.fetchParamQueryBuilder(k_param, s_filter_text);
+			const a_rows = await k_connection.execute(/* syntax: sparql */ k_query.stringify());
 
 			a_options = a_rows.map(({value:g_value, count:g_count}) => ({
 				count: +g_count.value,
@@ -73,18 +67,30 @@
 					value: g_value.value,
 				},
 			}));
-
 			if(k_param.sort) {
 				a_options = a_options.map(g_opt => g_opt.data).sort(k_param.sort).map(g_data => a_options.find(g_opt => g_opt.data.value === g_data.value)) as Option[];
 			}
+			return Promise.resolve(a_options.map(option => option.data));
+		}
+		else {
+			return [];
 		}
 	}
 
 	(async() => {
 		// if(!k_values.size) {
 		if(XC_LOAD_NOT === xc_load) {
+			// add initial selected values to Option array to track their state
+			a_selected_options = a_init_values.map(({value:g_value}) => ({
+				count: 1,
+				state: XC_STATE_HIDDEN,
+				data: {
+					label: g_value,
+					value: g_value,
+				},
+			}));
 			try {
-				await load_param(k_param);
+				await load_param('');
 			}
 			catch(_e_query) {
 				e_query = _e_query as Error;
@@ -92,26 +98,34 @@
 		}
 		xc_load = XC_LOAD_YES;
 	})();
-
+	
 	function format_param_value_label(g_opt: Option) {
 		const n_count = g_opt.count;
 		let s_label = g_opt.data.label;
-
 		if(1000 <= n_count) {
 			s_label += ` [>${Math.floor(n_count / 1000)}k]`;
 		}
 		else {
 			s_label += ` [${n_count}]`;
 		}
-
 		return s_label;
 	}
 
 	function select_value(dv_select: CustomEvent<ValuedLabeledObject[]>) {
 		if(dv_select.detail) {
 			for(const g_data of dv_select.detail) {
-				const g_opt = a_options.find(g_opt_find => g_opt_find.data.value === g_data.value) as Option;
-				if(XC_STATE_VISIBLE === g_opt.state) {
+				// check to see if param has been selected
+				let g_opt = a_selected_options.find(g_opt_find => g_opt_find.data.value === g_data.value) as Option;
+
+				// if it's not previously selected, it's in a_options
+				if(!g_opt) {
+					g_opt = a_options.find(g_opt_find => g_opt_find.data.value === g_data.value) as Option;
+				}
+				if(g_opt && XC_STATE_VISIBLE === g_opt.state) {
+					// add parameter to array to keep track of selected elements in the event that it is not in a_options
+					if(!a_selected_options.includes(g_opt)) {
+						a_selected_options.push(g_opt);
+					}
 					k_values.add(g_data);
 				}
 				else {
@@ -119,7 +133,6 @@
 				}
 			}
 		}
-
 		f_dispatch('change');
 	}
 
@@ -143,12 +156,6 @@
 		margin-bottom: 2px;
 	}
 
-	:global(.published:not(.changed)) {
-		.param-label {
-			color: var(--ve-color-dark-text);
-		}
-	}
-
 	.param-label {
 		color: var(--ve-color-light-text);
 		margin-right: 6em;
@@ -160,7 +167,6 @@
 		font-size: 13px;
 		padding: 1px 2px 1px 2px;
 
-		--height: 24px;
 		--indicatorTop: 2px;
 		--indicatorWidth: 7px;
 		--indicatorHeight: 5px;
@@ -171,7 +177,7 @@
 		--multiItemMargin: 2px;
 		--multiItemBG: var(--ve-color-medium-light-text);
 		--multiItemHeight: 22px;
-
+		
 		--multiClearTop: 3px;
 		--multiClearWidth: 12px;
 		--multiClearHeight: 12px;
@@ -185,7 +191,7 @@
 
 		--multiClearHoverBG: var(--ve-color-light-background);
 		--multiClearHoverFill: var(--ve-color-dark-text);
-
+		
 		--multiLabelMargin: 0;
 
 		--multiSelectPadding: 0 0 0 2px;
@@ -195,6 +201,8 @@
 		--clearSelectRight: 20px;
 		--clearSelectBottom: 5px;
 		--clearSelectWidth: 20px;
+		
+		--virtualListHeight: 500px;
 
 		:global(.indicator+div:nth-child(n+3)) {
 			margin-top: -5px;
@@ -211,6 +219,17 @@
 		:global(.multiSelectItem) {
 			margin: 3px 0 3px 4px;
 		}
+
+		:global(.select-input input) {
+			height: 24px;
+		}
+
+		:global(svelte-virtual-list-row .item) {
+			height: 25px;
+			line-height: 25px;
+			padding-top: 5px;
+			padding-bottom: 5px;
+		}
 	}
 </style>
 
@@ -226,10 +245,15 @@
 		<p style="color:red;">{lang.basic.loading_failed}</p>
 	{:else}
 		<Select
+			loadOptions={load_param}
 			items={a_options.map(g_opt => g_opt.data)}
 			value={a_init_values.length? a_init_values: null}
+			getSelectionLabel={get_selection_label}
+			getOptionLabel={get_option_label}
 			placeholder="Select Attribute Value(s)"
 			isMulti={true}
+			containerClasses={'select-input'}
+			isVirtualList={true}
 			isClearable={false}
 			showIndicator={true}
 			indicatorSvg={/* syntax: html */ `

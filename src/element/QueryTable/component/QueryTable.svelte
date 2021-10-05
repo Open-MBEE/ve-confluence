@@ -15,8 +15,9 @@
 		faCheckCircle,
 		faCircleNotch,
 		faHistory,
-		faPen,
-		faQuestionCircle,
+		faPencilAlt,
+		faAngleLeft,
+		faAngleRight,
 	} from '@fortawesome/free-solid-svg-icons';
 
 	import SelectItem from '#/ui/component/SelectItem.svelte';
@@ -364,7 +365,7 @@
 		await render();
 	}
 
-	function select_query_type(dv_select: CustomEvent<ValuedLabeledObject>) {
+	async function select_query_type(dv_select: CustomEvent<ValuedLabeledObject>) {
 		// set query type on model
 		k_model.setQueryType(dv_select.detail);
 
@@ -451,10 +452,6 @@
 					.version {
 						color: var(--ve-color-medium-text);
 					}
-				}
-				.info {
-					background-color: var(--ve-color-light-background);
-					color: var(--ve-color-dark-text);
 				}
 			}
 
@@ -594,12 +591,48 @@
 			}
 		}
 
+		.table-browse {
+			background-color: #F4F5F7;
+			border-right: 2px solid var(--ve-color-dark-background);
+			border-left:  2px solid var(--ve-color-dark-background);
+			border-top: 2px solid var(--ve-color-dark-background);
+			border-bottom: 1px solid #C1C7D0;
+
+			position: sticky;
+			top: 40px;
+			z-index: 1;
+
+			.control {
+				height: 30px;
+
+				.info {
+					color: var(--ve-color-dark-text);
+					margin-left: auto;
+					margin-top: 0;
+					font-size: 12px;
+					font-weight: 500;
+					letter-spacing: 0.5px;
+					align-self: center;
+					padding: 2pt 8pt;
+					line-height: 30px
+				}
+
+				.page-controls {
+					padding-left: 7px;
+					padding-right: 7px;
+				}
+			}
+		}
+
 		.table-wrap {
-			border: 2px solid var(--ve-color-dark-background);
+			border-right:  2px solid var(--ve-color-dark-background);
+			border-left:  2px solid var(--ve-color-dark-background);
+			border-bottom: 2px solid var(--ve-color-dark-background);
 			margin: 0;
 
 			font-size: 14px;
 			line-height: 20px;
+			overflow-x: unset !important;
 
 			table {
 				width: 100%;
@@ -612,6 +645,12 @@
 					width: 100%;
 					border-radius: 4px;
 				}
+
+				thead tr th {
+					position: sticky;
+					top: 72px;
+					z-index: 1;
+				}
 			}
 		}
 
@@ -623,6 +662,11 @@
 	.busy {
 		opacity: 0.5;
 	}
+
+	.confluenceTable {
+		overflow-x: unset !important;
+	}
+
 </style>
 
 {#await k_model.ready()}
@@ -632,7 +676,15 @@
 		<div class="controls">
 			<span class="label">
 				Connected Data Table {g_source ? `with ${g_source.label}` : ''}
-				<Fa icon={faQuestionCircle} />
+			</span>
+			<span class="info">
+				{#if b_display_preview || !b_published}
+					{#if G_INFO_MODES.PREVIEW === xc_info_mode}
+						{s_status_info}
+					{:else if G_INFO_MODES.LOADING === xc_info_mode}
+						<Fa icon={faCircleNotch} class="fa-spin" /> LOADING PREVIEW
+					{/if}
+				{/if}
 			</span>
 			<span class="buttons">
 				{#if b_published}
@@ -643,7 +695,7 @@
 				{/if}
 				{#if b_display_parameters}
 					<button class="ve-button-primary" on:click={publish_table} disabled={!b_changed || !b_filtered}>{b_published? 'Update': 'Publish'}</button>
-					<button class="ve-button-secondary" on:click={reset_table}>Cancel</button>
+					<button class="ve-button-secondary" on:click={reset_table}>Cancel Changes</button>
 				{/if}
 			</span>
 		</div>
@@ -652,22 +704,13 @@
 			<div class="config">
 				<span class="tabs">
 					<span class="parameters" on:click={toggle_parameters} class:active={b_display_parameters}>
-						<Fa icon={faPen} size="xs" />
+						<Fa icon={faPencilAlt} size="sm" />
 						Edit Query
 					</span>
 					<span class="version">
 						<Fa icon={faHistory} size="xs" />
 						Version: {s_display_version}
 					</span>
-				</span>
-				<span class="info">
-					{#if b_display_preview || !b_published}
-						{#if G_INFO_MODES.PREVIEW === xc_info_mode}
-							{s_status_info}
-						{:else if G_INFO_MODES.LOADING === xc_info_mode}
-							<Fa icon={faCircleNotch} class="fa-spin" /> LOADING PREVIEW
-						{/if}
-					{/if}
 				</span>
 			</div>
 
@@ -699,6 +742,17 @@
 							<QueryTableParam k_query_table={k_model} {k_param} on:change={render} />
 						{/each}
 					{/await}
+				</div>
+			</div>
+			<div class="table-browse">
+				<div class="control">
+					<span class="info">1-{N_PREVIEW_ROWS} of 325</span>
+					<span class="page-controls">
+						<Fa icon={faAngleLeft} size="xs" />
+					</span>
+					<span>
+						<Fa icon={faAngleRight} size="xs" />
+					</span>
 				</div>
 			</div>
 			{#if b_display_preview}

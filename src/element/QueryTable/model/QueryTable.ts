@@ -181,6 +181,30 @@ export class QueryFieldGroup extends VeOdm<QueryFieldGroup.Serialized> {
 
 export type TableQueryBuilder = (this: QueryTable) => Promise<ConnectionQuery>;
 
+export namespace QueryBuilder {
+	export interface Serialized extends TypedPrimitive<'QueryBuilder'> {
+		function: (this: QueryTable) => Promise<ConnectionQuery>;
+	}
+}
+
+export class QueryBuilder extends VeOdm<QueryBuilder.Serialized> {
+	get function(): (this: QueryTable) => Promise<ConnectionQuery> {
+		return this._gc_serialized.function;
+	}
+}
+
+export namespace ParamQueryBuilder {
+	export interface Serialized extends TypedPrimitive<'ParamQueryBuilder'> {
+		function: (this: QueryTable, k_param: QueryParam, s_search_text?: string) => Promise<ConnectionQuery>;
+	}
+}
+
+export class ParamQueryBuilder extends VeOdm<ParamQueryBuilder.Serialized> {
+	get function(): (this: QueryTable, k_param: QueryParam, s_search_text?: string) => Promise<ConnectionQuery> {
+		return this._gc_serialized.function;
+	}
+}
+
 export namespace QueryType {
 	export interface Serialized<
 		ConnectionType extends string=string,
@@ -195,6 +219,14 @@ export class QueryType<ConnectionType extends DotFragment=DotFragment> extends V
 	get queryBuilder(): TableQueryBuilder {
 		const sp_builder = this._gc_serialized.queryBuilderPath;
 		return this._k_store.resolveSync(sp_builder) as unknown as TableQueryBuilder;
+	}
+
+	get paramQueryBuilder(): ParamQueryBuilder {
+		const sp_builder = this._gc_serialized.paramQueryBuilderPath;
+		const gc_builder = this._k_store.resolveSync<ParamQueryBuilder.Serialized>(
+			this._gc_serialized.paramQueryBuilderPath
+		);
+		return new ParamQueryBuilder(sp_builder, gc_builder, this._g_context);
 	}
 
 	get value(): string {
@@ -287,7 +319,9 @@ export abstract class QueryTable<
 			// deep clone param values so list mutation does not affect original hash
 			const h_param_values = this._gc_serialized.parameterValues;
 			const h_param_values_lists = this._h_param_values_lists;
+
 			const a_params = await this.queryType.fetchParameters();
+
 			for(const k_param of a_params) {
 				const a_list = h_param_values[k_param.key] = h_param_values[k_param.key] || [];
 				h_param_values_lists[k_param.key] = new ParamValuesList(a_list);
@@ -319,6 +353,10 @@ export abstract class QueryTable<
 
 	fetchQueryBuilder(this: QueryTable): Promise<ConnectionQuery> {
 		return this.queryType.queryBuilder.call(this);
+	}
+
+	fetchParamQueryBuilder(k_param: QueryParam, s_search_text?: string): Promise<ConnectionQuery> {
+		return this.queryType.paramQueryBuilder.function.call(this, k_param, s_search_text);
 	}
 
 
@@ -464,14 +502,15 @@ export abstract class SparqlQueryTable<
 		const h_options = this._h_options;
 		for(const sp_test in h_options) {
 			const k_test = h_options[sp_test];
+
 			if(si_value === k_test.value && s_label === k_test.label) {
 				this._assign({
 					queryTypePath: sp_test,
 				});
+
 				return;
 			}
 		}
-
 		throw new Error(`Unable to set .queryType property on QueryTable instance since ${JSON.stringify(g_query_type)} did not match any known queryType options`);
 	}
 
