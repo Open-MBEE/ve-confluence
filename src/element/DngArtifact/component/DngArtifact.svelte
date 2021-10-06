@@ -104,6 +104,15 @@
 					s_label = s_title;
 					s_type = 'Requirement';
 					s_primary_text = s_primary_text_value;
+
+					// use requirement title in place of pasted link
+					if(p_href === ym_anchor.textContent) {
+						s_label = s_title;
+					}
+					// use narrative text if present
+					else {
+						s_label = ym_anchor.textContent || s_label;
+					}
 				}
 			}
 		}

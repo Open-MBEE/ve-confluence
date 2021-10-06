@@ -41,6 +41,7 @@ import {ObjectStore} from '#/model/ObjectStore';
 
 import {K_HARDCODED} from '#/common/hardcoded';
 import { Transclusion } from '#/element/Transclusion/model/Transclusion';
+import type Autocomplete__SvelteComponent_ from '#/element/Mentions/component/Autocomplete.svelte';
 
 const timeout = (xt_wait: number) => new Promise((fk_resolve) => {
 	setTimeout(() => {
@@ -49,7 +50,7 @@ const timeout = (xt_wait: number) => new Promise((fk_resolve) => {
 });
 
 let d_doc_editor!: HTMLDocument;
-let kv_autocomplete!: SvelteComponent;
+let kv_autocomplete!: Autocomplete;
 
 function* child_list_mutations_added_nodes(a_mutations: MutationRecord[]): Generator<HTMLElement> {
 	// each mutation
@@ -172,8 +173,14 @@ function hide_editor_element(dm_node: HTMLElement) {
 	});
 }
 
-function adjust_page_element(dm_node: HTMLTableElement) {
+async function adjust_page_element(dm_node: HTMLTableElement) {
 	const dm_tr = qs(dm_node, 'tr') as HTMLTableRowElement;
+	/*
+	problem if a in progress mention is background saved by editor, user doesn't revert or save
+	next time the editor is opened up, the mention span is there with no contenteditable set to false, all data-mention
+	info is lost, confluence just screws us and the mention span becomes useless
+	user has to either save or revert to previous published page for things to work (before things get screwed)
+	*/
 
 	// pre-loaded; do not re-add
 	if('none' === dm_tr.style.display) {
@@ -207,6 +214,32 @@ function adjust_page_element(dm_node: HTMLTableElement) {
 		dm_ins.contentEditable = 'false';
 
 		dm_tr.parentNode!.appendChild(dm_ins);
+
+		// const s_eid = h_params.id.split('.')[3];
+		// const pagemeta = await k_page.fetchMetadataBundle();
+		// //const docmeta = await G_CONTEXT.document.fetchMetadataBundle();
+		// let data = pagemeta.data.paths.elements.serialized.transclusion[s_eid];
+		// let attr = {
+		// 	"connection_path": data.connectionPath,
+		// 	//"connection": docmeta.data.paths.connection.sparql.mms.dng,
+		// 	"item": data.item,
+		// 	"id": s_eid,
+		// 	"display_attribute": data.displayAttribute
+		// };
+		// const existingMention = dd('span', {
+		// 	'data-mention': encode_attr(attr),
+		// 	'class': 've-mention',
+		// 	'contentEditable': 'false'
+		// }, ['@' + data.item.id,
+		// 		dd('span', {'class': 'attribute', 'contentEditable': 'false'}, [
+		// 			dd('span', {'class': 'content'}, [data.displayAttribute.label])
+		// 		])
+		// 		]
+		// );
+		// dm_node.replaceWith(existingMention);
+		// kv_autocomplete.reconnect(existingMention);
+		// maybe move the entire thing into autocomplete, need some refactoring and surgery to handle both cases with session creation
+		// si_channel??
 	}
 	else {
 		// append display-only row

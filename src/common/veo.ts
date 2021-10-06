@@ -22,6 +22,10 @@ import type {
 } from '#/model/Connection';
 
 import type {
+	Transclusion,
+} from '#/element/Transclusion/model/Transclusion';
+
+import type {
 	Split,
 } from 'ts-toolbelt/out/String/_api';
 
@@ -44,6 +48,7 @@ export type VeoPathStruct = {
 		elements: {
 			serialized: {
 				queryTable: QueryTable.Serialized;
+				transclusion: Transclusion.Serialized;
 			};
 		};
 	};

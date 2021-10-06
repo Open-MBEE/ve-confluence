@@ -17,28 +17,12 @@ export interface SparqlEndpointConfig {
 export type SparqlQuery = string | ((k_helper: SparqlQueryHelper) => string);
 
 export class SparqlQueryHelper {
-	_h_variables: Hash;
-
-	constructor(h_variables: Hash) {
-		this._h_variables = h_variables;
-	}
-
-	var(si_key: string, s_default: string | null = null): string {
-		if(!(si_key in this._h_variables)) {
-			if(null !== s_default) return s_default;
-			throw new Error(
-				`SPARQL substitution variable not defined: '${si_key}'`
-			);
-		}
-		return this._h_variables[si_key];
-	}
-
-	iri(p_iri: string): string {
+	static iri(p_iri: string): string {
 		// prevent injection attacks
 		return p_iri.replace(/\s+/g, '+').replace(/>/g, '_');
 	}
 
-	literal(s_value: string, s_lang_or_datatype?: string) {
+	static literal(s_value: string, s_lang_or_datatype?: string): string {
 		// post modifier
 		let s_post = '';
 		if(s_lang_or_datatype) {
@@ -54,6 +38,22 @@ export class SparqlQueryHelper {
 
 		// escape dirks
 		return `"""${s_value.replace(/"/g, '\\"')}"""${s_post}`;
+	}
+
+	_h_variables: Hash;
+
+	constructor(h_variables: Hash) {
+		this._h_variables = h_variables;
+	}
+
+	var(si_key: string, s_default: string | null = null): string {
+		if(!(si_key in this._h_variables)) {
+			if(null !== s_default) return s_default;
+			throw new Error(
+				`SPARQL substitution variable not defined: '${si_key}'`
+			);
+		}
+		return this._h_variables[si_key];
 	}
 }
 

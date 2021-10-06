@@ -32,6 +32,7 @@ import {
 } from '#/util/strings';
 
 import {
+	build_dng_select_param_query,
 	build_dng_select_query_from_params,
 	dng_detailer_query,
 	dng_searcher_query,
@@ -172,6 +173,10 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					value: 'Maturity',
 					sortPath: null,
 				},
+				id: {
+					value: 'Identifier',
+					sortPath: null,
+				},
 			},
 		},
 	}),
@@ -187,6 +192,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					],
 					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basicWithChildren',
 					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.table.basicParamsL3',
+					paramQueryBuilderPath: 'hardcoded#paramQueryBuilder.sparql.dng.default',
 				},
 				asr: {
 					label: 'Appendix Subsystem Requirements',
@@ -196,6 +202,16 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					],
 					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basic',
 					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.table.basicParamsL3ChildrenAndL4s',
+					paramQueryBuilderPath: 'hardcoded#paramQueryBuilder.sparql.dng.default',
+				},
+				bid: {
+					label: 'By Requirement ID',
+					queryParametersPaths: [
+						'hardcoded#queryParameter.sparql.dng.id',
+					],
+					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.simple',
+					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.table.basicParams',
+					paramQueryBuilderPath: 'hardcoded#paramQueryBuilder.sparql.dng.default',
 				},
 			},
 		},
@@ -211,6 +227,13 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					queryFieldsPaths: [
 						...A_QUERY_FIELD_PATHS_BASIC,
 						'hardcoded#queryField.sparql.dng.children',
+					],
+				},
+				simple: {
+					queryFieldsPaths: [
+						'hardcoded#queryField.sparql.dng.id',
+						'hardcoded#queryField.sparql.dng.requirementName',
+						'hardcoded#queryField.sparql.dng.requirementText',
 					],
 				},
 			},
@@ -277,6 +300,14 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 			},
 		},
 	}),
+
+	paramQueryBuilder: {
+		sparql: {
+			dng: {
+				default: build_dng_select_param_query,
+			},
+		},
+	},
 
 	queryContext: {
 		sparql: {

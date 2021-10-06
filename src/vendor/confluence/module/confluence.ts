@@ -43,6 +43,7 @@ import type {VeoPath} from '#/common/veo';
 import type {QueryTable} from '#/element/QueryTable/model/QueryTable';
 import { uuid_v4 } from '#/util/dom';
 import { oderac } from '#/util/belt';
+import type { Transclusion } from '#/element/Transclusion/model/Transclusion';
 
 const P_API_DEFAULT = '/rest/api';
 
@@ -60,6 +61,7 @@ export interface PageMetadata extends JsonMetadataShape<'Page'> {
 		elements?: {
 			serialized?: {
 				queryTable?: QueryTable.Serialized;
+				transclusion: Transclusion.Serialized;
 			};
 		};
 	};
@@ -553,7 +555,7 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 
 	private readonly _si_page!: ConfluenceApi.PageId;
 
-	private readonly _s_page_title!: string;
+	private _s_page_title!: string;
 
 	private _b_cached_content = false;
 
@@ -673,53 +675,18 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 		};
 	}
 
-	async postContent(k_contents: XhtmlDocument, s_message=''): Promise<Response<JsonObject>> {
+	async postContent(k_contents: XhtmlDocument, s_message='', s_title=this.pageTitle): Promise<Response<JsonObject>> {
 		const {
 			versionNumber: n_version,
 		} = await this.fetchContentAsXhtmlDocument();
 
-		// const f_builder = k_content.builder();
-
-		// const yn_wrapped = f_builder('ac:structured-macro', {
-		// 	'ac:name': 'html',
-		// 	'ac:macro-id': 've-table',
-		// }, [
-		// 	f_builder('ac:plain-text-body', {}, [
-		// 		k_content.createCDATA(s_content),
-		// 	]),
-		// ]);
-
-		// const yn_macros = f_builder('p', {
-		// 	class: 'auto-cursor-target',
-		// }, [
-		// 	f_builder('ac:link', {}, [
-		// 		f_builder('ri:page', {
-		// 			'ri:content-title': 'CAE CED Table Element',
-		// 		}),
-		// 	]),
-		// ]);
-
-		// const found_element = k_content.select<Element>('//ac:structured-macro');
-		// const init_element = k_content.select<Node>('//ac:link');
-
-		// if(init_element.length) {
-		// 	k_content.replaceChild(yn_macros, init_element[0]);
-		// 	k_content.appendChild(yn_wrapped);
-		// }
-		// else if(found_element.length) {
-		// 	k_content.replaceChild(yn_wrapped, found_element[0]);
-		// }
-
-		// if(k_contents.root.childNodes)
-
 		const s_contents = k_contents.toString();
 
-
-		return await confluence_put_json(`/content/${this._si_page}`, {
+		const d_res = await confluence_put_json(`/content/${this._si_page}`, {
 			json: {
 				id: this.pageId,
 				type: 'page',
-				title: this.pageTitle,
+				title: s_title,
 				space: {
 					key: G_META.space_key,
 				},
@@ -735,6 +702,10 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 				},
 			},
 		});
+
+		this._s_page_title = s_title;
+
+		return d_res;
 	}
 
 	async initMetadata(n_version: ConfluenceApi.PageVersionNumber=1): Promise<PageMetadataBundle | null> {

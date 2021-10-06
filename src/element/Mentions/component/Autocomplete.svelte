@@ -5,6 +5,7 @@
 		encode_attr,
 		qs,
 		qsa,
+		uuid_v4,
 	} from '#/util/dom';
 
 	import type {PatchedEditor} from '#/common/meta';
@@ -636,8 +637,13 @@
 				// accept item
 				case 'Accept':
 				case 'Enter': {
+					const dm_selected = qs(dm_content, '.item-selected');
+					if (!dm_selected) {
+						return;
+					}
+
 					d_event.preventDefault();
-					select_item();
+					select_row();
 					return;
 				}
 

@@ -26,7 +26,7 @@
 
 	export let k_param: QueryParam;
 	export let k_query_table: QueryTable;
-	
+
 	let k_values = k_query_table.parameterValuesList(k_param.key);
 	$: k_values = k_query_table.parameterValuesList(k_param.key);
 
@@ -36,6 +36,8 @@
 	});
 
 	let a_options: Option[] = [];
+
+	let a_selected_options: Option[] = [];
 
 	let a_init_values = [...k_values];
 
@@ -50,20 +52,24 @@
 
 	let xc_load = XC_LOAD_NOT;
 
-	async function load_param(k_param_load: QueryParam) {
+	async function load_param(s_filter_text: string): Promise<ValuedLabeledObject> {
 		if(k_query_table.type.startsWith('MmsSparql')) {
 			const k_connection = (await k_query_table.fetchConnection()) as MmsSparqlConnection;
 
-			const a_rows = await k_connection.execute(/* syntax: sparql */ `
-				select ?value (count(?req) as ?count) from <${k_connection.modelGraph}> {
-					?_attr a rdf:Property ;
-						rdfs:label ${Sparql.literal(k_param_load.value)} .
+			const k_query = await k_query_table.fetchParamQueryBuilder(k_param, s_filter_text);
 
-					?req a oslc_rm:Requirement ;
-						?_attr [rdfs:label ?value] .
-				}
-				group by ?value order by desc(?count)
-			`);
+			const a_rows = k_connection.execute(k_query.all());
+
+			// const a_rows = await k_connection.execute(/* syntax: sparql */ `
+			// 	select ?value (count(?req) as ?count) from <${k_connection.modelGraph}> {
+			// 		?_attr a rdf:Property ;
+			// 			rdfs:label ${Sparql.literal(s_filter_text)} .
+
+			// 		?req a oslc_rm:Requirement ;
+			// 			?_attr [rdfs:label ?value] .
+			// 	}
+			// 	group by ?value order by desc(?count)
+			// `);
 
 			a_options = a_rows.map(({value:g_value, count:g_count}) => ({
 				count: +g_count.value,
@@ -83,8 +89,18 @@
 	(async() => {
 		// if(!k_values.size) {
 		if(XC_LOAD_NOT === xc_load) {
+			// add initial selected values to Option array to track their state
+			a_selected_options = a_init_values.map(({value:g_value}) => ({
+				count: 1,
+				state: XC_STATE_HIDDEN,
+				data: {
+					label: g_value,
+					value: g_value,
+				},
+			}));
+
 			try {
-				await load_param(k_param);
+				await load_param(k_param.value);
 			}
 			catch(_e_query) {
 				e_query = _e_query as Error;
@@ -110,8 +126,18 @@
 	function select_value(dv_select: CustomEvent<ValuedLabeledObject[]>) {
 		if(dv_select.detail) {
 			for(const g_data of dv_select.detail) {
-				const g_opt = a_options.find(g_opt_find => g_opt_find.data.value === g_data.value) as Option;
-				if(XC_STATE_VISIBLE === g_opt.state) {
+				// check to see if param has been selected
+				let g_opt = a_selected_options.find(g_opt_find => g_opt_find.data.value === g_data.value) as Option;
+
+				// if it's not previously selected, it's in a_options
+				if(!g_opt) {
+					g_opt = a_options.find(g_opt_find => g_opt_find.data.value === g_data.value) as Option;
+				}
+				if(g_opt && XC_STATE_VISIBLE === g_opt.state) {
+					// add parameter to array to keep track of selected elements in the event that it is not in a_options
+					if(!a_selected_options.includes(g_opt)) {
+						a_selected_options.push(g_opt);
+					}
 					k_values.add(g_data);
 				}
 				else {
@@ -196,6 +222,8 @@
 		--clearSelectBottom: 5px;
 		--clearSelectWidth: 20px;
 
+		--virtualListHeight: 500px;
+
 		:global(.indicator+div:nth-child(n+3)) {
 			margin-top: -5px;
 		}
@@ -210,6 +238,16 @@
 
 		:global(.multiSelectItem) {
 			margin: 3px 0 3px 4px;
+		}
+
+		:global(.select-input input) {
+			height: 24px;
+		}
+		:global(svelte-virtual-list-row .item) {
+			height: 25px;
+			line-height: 25px;
+			padding-top: 5px;
+			padding-bottom: 5px;
 		}
 	}
 </style>
@@ -226,12 +264,17 @@
 		<p style="color:red;">{lang.basic.loading_failed}</p>
 	{:else}
 		<Select
+			loadOptions={load_param}
 			items={a_options.map(g_opt => g_opt.data)}
 			value={a_init_values.length? a_init_values: null}
 			placeholder="Select Attribute Value(s)"
+			getOptionLabel={g => g.label}
+			getSelectionLabel={g => g.value}
 			isMulti={true}
 			isClearable={false}
 			showIndicator={true}
+			containerClasses={'select-input'}
+			isVirtualList={true}
 			indicatorSvg={/* syntax: html */ `
 				<svg width="7" height="5" viewBox="0 0 7 5" fill="none" xmlns="http://www.w3.org/2000/svg">
 					<path d="M3.5 4.5L0.468911 0.75L6.53109 0.75L3.5 4.5Z" fill="#333333"/>

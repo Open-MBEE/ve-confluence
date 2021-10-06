@@ -181,6 +181,8 @@ export class QueryFieldGroup extends VeOdm<QueryFieldGroup.Serialized> {
 
 export type TableQueryBuilder = (this: QueryTable) => Promise<ConnectionQuery>;
 
+export type ParamQueryBuilder = (this: QueryTable, k_param: QueryParam, s_search_text?: string) => Promise<ConnectionQuery>;
+
 export namespace QueryType {
 	export interface Serialized<
 		ConnectionType extends string=string,
@@ -188,6 +190,7 @@ export namespace QueryType {
 		queryParametersPaths: VeoPathTarget[];
 		queryFieldGroupPath: VeoPathTarget;
 		queryBuilderPath: VeoPathTarget;
+		paramQueryBuilderPath: VeoPathTarget;
 	}
 }
 
@@ -195,6 +198,11 @@ export class QueryType<ConnectionType extends DotFragment=DotFragment> extends V
 	get queryBuilder(): TableQueryBuilder {
 		const sp_builder = this._gc_serialized.queryBuilderPath;
 		return this._k_store.resolveSync(sp_builder) as unknown as TableQueryBuilder;
+	}
+
+	get paramQueryBuilder(): ParamQueryBuilder {
+		const sp_builder = this._gc_serialized.paramQueryBuilderPath;
+		return this._k_store.resolveSync(sp_builder) as unknown as ParamQueryBuilder;
 	}
 
 	get value(): string {
@@ -321,6 +329,9 @@ export abstract class QueryTable<
 		return this.queryType.queryBuilder.call(this);
 	}
 
+	fetchParamQueryBuilder(k_param: QueryParam, s_search_text?: string): Promise<ConnectionQuery> {
+		return this.queryType.paramQueryBuilder.call(this, k_param, s_search_text);
+	}
 
 	async exportResultsToCxhtml(this: QueryTable, k_connection: Connection, yn_anchor: Node, k_contents=this.getContext().source): Promise<{rows: QueryRow[]; contents: XHTMLDocument}> {
 		// fetch query builder
