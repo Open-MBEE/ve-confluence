@@ -181,29 +181,7 @@ export class QueryFieldGroup extends VeOdm<QueryFieldGroup.Serialized> {
 
 export type TableQueryBuilder = (this: QueryTable) => Promise<ConnectionQuery>;
 
-export namespace QueryBuilder {
-	export interface Serialized extends TypedPrimitive<'QueryBuilder'> {
-		function: (this: QueryTable) => Promise<ConnectionQuery>;
-	}
-}
-
-export class QueryBuilder extends VeOdm<QueryBuilder.Serialized> {
-	get function(): (this: QueryTable) => Promise<ConnectionQuery> {
-		return this._gc_serialized.function;
-	}
-}
-
-export namespace ParamQueryBuilder {
-	export interface Serialized extends TypedPrimitive<'ParamQueryBuilder'> {
-		function: (this: QueryTable, k_param: QueryParam, s_search_text?: string) => Promise<ConnectionQuery>;
-	}
-}
-
-export class ParamQueryBuilder extends VeOdm<ParamQueryBuilder.Serialized> {
-	get function(): (this: QueryTable, k_param: QueryParam, s_search_text?: string) => Promise<ConnectionQuery> {
-		return this._gc_serialized.function;
-	}
-}
+export type ParamQueryBuilder = (this: QueryTable, k_param: QueryParam, s_search_text?: string) => Promise<ConnectionQuery>;
 
 export namespace QueryType {
 	export interface Serialized<
@@ -212,21 +190,20 @@ export namespace QueryType {
 		queryParametersPaths: VeoPathTarget[];
 		queryFieldGroupPath: VeoPathTarget;
 		queryBuilderPath: VeoPathTarget;
+		paramQueryBuilderPath: VeoPathTarget;
 	}
 }
 
 export class QueryType<ConnectionType extends DotFragment=DotFragment> extends VeOdmKeyedLabeled<QueryType.Serialized<ConnectionType>> {
 	get queryBuilder(): TableQueryBuilder {
+		debugger;
 		const sp_builder = this._gc_serialized.queryBuilderPath;
 		return this._k_store.resolveSync(sp_builder) as unknown as TableQueryBuilder;
 	}
 
 	get paramQueryBuilder(): ParamQueryBuilder {
 		const sp_builder = this._gc_serialized.paramQueryBuilderPath;
-		const gc_builder = this._k_store.resolveSync<ParamQueryBuilder.Serialized>(
-			this._gc_serialized.paramQueryBuilderPath
-		);
-		return new ParamQueryBuilder(sp_builder, gc_builder, this._g_context);
+		return this._k_store.resolveSync(sp_builder) as unknown as ParamQueryBuilder;
 	}
 
 	get value(): string {
@@ -352,11 +329,12 @@ export abstract class QueryTable<
 	}
 
 	fetchQueryBuilder(this: QueryTable): Promise<ConnectionQuery> {
+		debugger;
 		return this.queryType.queryBuilder.call(this);
 	}
 
 	fetchParamQueryBuilder(k_param: QueryParam, s_search_text?: string): Promise<ConnectionQuery> {
-		return this.queryType.paramQueryBuilder.function.call(this, k_param, s_search_text);
+		return this.queryType.paramQueryBuilder.call(this, k_param, s_search_text);
 	}
 
 

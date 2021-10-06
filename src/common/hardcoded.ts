@@ -33,6 +33,7 @@ import {
 
 import {
 	build_dng_select_query_from_params,
+	build_dng_select_param_query,
 	dng_detailer_query,
 	dng_searcher_query,
 } from './helper/sparql-code';
@@ -190,7 +191,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 						'hardcoded#queryParameter.sparql.dng.maturity',
 					],
 					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basicWithChildren',
-					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.basicParamsL3',
+					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.table.basicParamsL3',
 					paramQueryBuilderPath: 'hardcoded#paramQueryBuilder.sparql.dng.default',
 				},
 				asr: {
@@ -200,7 +201,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 						'hardcoded#queryParameter.sparql.dng.maturity',
 					],
 					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basic',
-					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.basicParamsL3ChildrenAndL4s',
+					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.table.basicParamsL3ChildrenAndL4s',
 					paramQueryBuilderPath: 'hardcoded#paramQueryBuilder.sparql.dng.default',
 				},
 				bid: {
@@ -209,7 +210,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 						'hardcoded#queryParameter.sparql.dng.id',
 					],
 					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.simple',
-					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.basicParams',
+					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.table..basicParams',
 					paramQueryBuilderPath: 'hardcoded#paramQueryBuilder.sparql.dng.default',
 				},
 			},
@@ -303,9 +304,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 	paramQueryBuilder: {
 		sparql: {
 			dng: {
-				default: {
-					function: build_dng_select_param_query,
-				},
+				default: build_dng_select_param_query,
 			},
 		},
 	},

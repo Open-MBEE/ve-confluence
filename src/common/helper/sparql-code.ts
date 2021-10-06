@@ -1,4 +1,7 @@
-import type {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
+import type {
+	QueryParam,
+	MmsSparqlQueryTable,
+} from '#/element/QueryTable/model/QueryTable';
 
 import type {MmsSparqlConnection} from '#/model/Connection';
 
@@ -6,11 +9,16 @@ import {
 	ode,
 } from '#/util/belt';
 
-import {NoOpSparqlSelectQuery,
-	SparqlSelectQuery} from '../../util/sparql-endpoint';
+import {
+	NoOpSparqlSelectQuery,
+	SparqlQueryHelper,
+	SparqlSelectQuery,
+} from '../../util/sparql-endpoint';
 
-import type {Hash,
-	SparqlString} from '../types';
+import type {
+	Hash,
+	SparqlString,
+} from '../types';
 
 const terse_lit = (s: string) => `"${s.replace(/[\r\n]+/g, '').replace(/"/g, '\\"')}"`;
 
@@ -69,7 +77,7 @@ interface BuildConfig {
 	bgp?: SparqlString;
 }
 
-export async function build_dng_select_param_query(this: MmsSparqlQueryTable, k_param: QueryParam, s_seach_text?: string, gc_build?: BuildConfig): Promise<SparqlSelectQuery> {	
+export async function build_dng_select_param_query(this: MmsSparqlQueryTable, k_param: QueryParam, s_seach_text?: string): Promise<SparqlSelectQuery> {
 	const a_bgp: string[] = [];
 
 	const a_selects = [
@@ -84,7 +92,7 @@ export async function build_dng_select_param_query(this: MmsSparqlQueryTable, k_
 	// use property formatting for parameter
 	else {
 		a_bgp.push(`?_attr a rdf:Property ;
-				rdfs:label ${Sparql.literal(k_param.value)} .
+				rdfs:label ${SparqlQueryHelper.literal(k_param.value)} .
 			?artifact a oslc_rm:Requirement ;
 				?_attr [rdfs:label ?value] .
 		`);
@@ -120,7 +128,7 @@ export async function build_dng_select_param_query(this: MmsSparqlQueryTable, k_
 	});
 }
 
-export async function build_dng_select_query_from_params(this: MmsSparqlQueryTable, gc_build?: BuildConfig): Promise<SparqlSelectQuery> {	
+export async function build_dng_select_query_from_params(this: MmsSparqlQueryTable, gc_build?: BuildConfig): Promise<SparqlSelectQuery> {
 	const a_bgp: string[] = [];
 	const h_props = {};
 
