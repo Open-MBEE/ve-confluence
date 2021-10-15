@@ -341,6 +341,7 @@
 					dng: {
 						type: 'MmsSparqlConnection',
 						label: 'DNG Requirements',
+						alias: 'DNG',
 						endpoint: 'https://ced-uat.jpl.nasa.gov/sparql',
 						modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/Model.Europa.2021-08-25T23-31-04_375Z',
 						metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/Metadata.Europa',
@@ -360,6 +361,7 @@
 					dng: {
 						type: 'MmsSparqlConnection',
 						label: 'DNG Requirements',
+						alias: 'DNG',
 						endpoint: 'https://ced-uat.jpl.nasa.gov/sparql',
 						modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/Model.MSR',
 						metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/Metadata.MSR',

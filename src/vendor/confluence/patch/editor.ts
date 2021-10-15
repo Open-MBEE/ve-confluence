@@ -27,21 +27,29 @@ import {
 	ConfluenceXhtmlDocument,
 	confluence_delete_json,
 	confluence_post_json,
+	SI_EDITOR_SYNC_KEY,
 } from '../module/confluence';
 
-import Autocomplete from '#/element/Mentions/component/Autocomplete.svelte';
-
-import type {SvelteComponent} from 'svelte/internal';
+import type MentionOverlay from '#/element/Mentions/component/MentionOverlay.svelte';
 
 import {static_css} from '#/common/static';
 
-import {Context, VeOdm} from '#/model/Serializable';
+import {
+	Context,
+	VeOdm,
+} from '#/model/Serializable';
 
 import {ObjectStore} from '#/model/ObjectStore';
 
 import {K_HARDCODED} from '#/common/hardcoded';
-import { Transclusion } from '#/element/Transclusion/model/Transclusion';
-import type Autocomplete__SvelteComponent_ from '#/element/Mentions/component/Autocomplete.svelte';
+
+import {Transclusion} from '#/element/Transclusion/model/Transclusion';
+
+import {
+	Mention,
+} from '#/element/Mentions/model/Mention';
+
+import {attach_editor_bindings} from '../module/editor-bindings';
 
 const timeout = (xt_wait: number) => new Promise((fk_resolve) => {
 	setTimeout(() => {
@@ -50,7 +58,7 @@ const timeout = (xt_wait: number) => new Promise((fk_resolve) => {
 });
 
 let d_doc_editor!: HTMLDocument;
-let kv_autocomplete!: Autocomplete;
+let kv_autocomplete!: MentionOverlay;
 
 function* child_list_mutations_added_nodes(a_mutations: MutationRecord[]): Generator<HTMLElement> {
 	// each mutation
@@ -188,7 +196,7 @@ async function adjust_page_element(dm_node: HTMLTableElement) {
 	}
 
 	// parse macro params
-	const h_params = dm_node.getAttribute('data-macro-parameters')!.split(/\|/g)
+	const h_params: Record<string, string> = dm_node.getAttribute('data-macro-parameters')!.split(/\|/g)
 		.map(s_pair => s_pair.split(/=/))
 		.reduce((h_out, [si_key, s_value]) => ({
 			...h_out,
@@ -201,25 +209,67 @@ async function adjust_page_element(dm_node: HTMLTableElement) {
 
 	// macro class
 	if('ve-mention' === h_params.class) {
-		// TODO: render Autocomplete component
-		const dm_ins = dd('tr', {
-			'data-adjusted': encode_attr({type:'display'} as Adjusted),
-		}, [
-			dd('td', {}, [
-				dd('h4', {}, ['Transclusion']),
-				dd('p', {}, [`TODO: replace this entire element with the Autocomplete component`]),
-			]),
-		]);
+		if(!G_CONTEXT.store) await dp_store_ready;
 
-		dm_ins.contentEditable = 'false';
+		// resolve transclusion from confluence storage
+		const gc_transclusion = await G_CONTEXT.store.resolve(h_params.id as 'page#elements.serialized.transclusion');
 
-		dm_tr.parentNode!.appendChild(dm_ins);
+		// create transclusion instance
+		const k_transclusion = await VeOdm.createFromSerialized(Transclusion, h_params.id, gc_transclusion, G_CONTEXT);
+
+		// 
+		debugger;
+
+		console.log(k_transclusion);
+		console.log(gc_transclusion);
+
+		// // create mention instance
+		// const k_mention = new Mention({
+		// 	g_context: G_CONTEXT,
+		// 	k_transclusion: k_transclusion,
+		// 	dm_anchor: dm_tr,
+		// });
+
+		// // TODO: render Autocomplete component
+		// dd('span', {
+		// 	'data-mention': encode_attr(),
+		// });
+
+		// new Autocomplete({
+		// 	target: dm_tr.parentElement!,
+		// 	anchor: dm_tr,
+		// 	props: {
+		// 		g_context: G_CONTEXT,
+		// 		y_editor: tinymce.activeEditor,
+		// 		k_session: new AutocompleteSession({
+		// 			g_context: G_CONTEXT,
+		// 			k_transclusion,
+		// 		}),
+		// 	},
+		// });
+
+		// const dm_ins = dd('tr', {
+		// 	'data-adjusted': encode_attr({type:'display'} as Adjusted),
+		// }, [
+		// 	dd('td', {}, [
+		// 		dd('h4', {}, ['Transclusion']),
+		// 		dd('p', {}, [`TODO: replace this entire element with the Autocomplete component`]),
+		// 	]),
+		// ]);
+
+		// dm_ins.contentEditable = 'false';
+
+		// dm_tr.parentNode!.appendChild(dm_ins);
 
 		// const s_eid = h_params.id.split('.')[3];
-		// const pagemeta = await k_page.fetchMetadataBundle();
+
+		// const g_bundle = await k_page.fetchMetadataBundle(true);
+
+		// if(!g_bundle) throw new Error(`No metadata bundle found for page`);
+
 		// //const docmeta = await G_CONTEXT.document.fetchMetadataBundle();
-		// let data = pagemeta.data.paths.elements.serialized.transclusion[s_eid];
-		// let attr = {
+		// const data = g_bundle.data.paths.elements.serialized.transclusion[s_eid];
+		// const attr = {
 		// 	"connection_path": data.connectionPath,
 		// 	//"connection": docmeta.data.paths.connection.sparql.mms.dng,
 		// 	"item": data.item,
@@ -258,9 +308,25 @@ async function adjust_page_element(dm_node: HTMLTableElement) {
 	}
 }
 
-function editor_initialized(a_nodes=qsa(d_doc_editor, 'body>*') as HTMLElement[]) {
+function editor_content_stable() {
+	// create overlay div
+	d_doc_editor.body.appendChild(dd('div', {
+		'id': 've-overlays',
+		'class': 'synchrony-exclude',
+		'style': `user-select:none;`,
+		'data-mce-bogus': 'true',
+		'content-editable': 'false',
+	}, [], d_doc_editor));
+}
+
+function editor_content_updated(a_nodes=qsa(d_doc_editor, 'body>*') as HTMLElement[]) {
 	for(const dm_node of a_nodes) {
-		if(is_unadjusted_macro(dm_node)) {
+		// synchrony container added
+		if('DIV' === dm_node?.nodeName && dm_node.classList.contains('synchrony-container')) {
+			editor_content_stable();
+		}
+		// unadjusted macro
+		else if(is_unadjusted_macro(dm_node)) {
 			const h_params: Record<string, string> = (dm_node.getAttribute('data-macro-parameters') || '').split('|')
 				.reduce((h_out, s_param) => ({
 					...h_out,
@@ -284,6 +350,11 @@ function editor_initialized(a_nodes=qsa(d_doc_editor, 'body>*') as HTMLElement[]
 let k_page: ConfluencePage;
 let k_document: ConfluenceDocument | null;
 const G_CONTEXT: Context = {} as Context;
+
+let fk_resolve_store: (w: any) => void;
+const dp_store_ready = new Promise((fk) => {
+	fk_resolve_store = fk;
+});
 
 async function init_meta(): Promise<boolean> {
 	// fro current page
@@ -312,6 +383,8 @@ async function init_meta(): Promise<boolean> {
 		document: k_document,
 		hardcoded: K_HARDCODED,
 	});
+
+	fk_resolve_store(void 0);
 
 	// set page
 	G_CONTEXT.page = k_page;
@@ -369,7 +442,7 @@ window.addEventListener('DOMContentLoaded', () => {
 			}
 
 			// editor initialized
-			editor_initialized();
+			void editor_content_updated(a_roots);
 		});
 
 		// observe childList mutations on editor body
@@ -379,7 +452,7 @@ window.addEventListener('DOMContentLoaded', () => {
 			attributes: true,
 		});
 
-		editor_initialized();
+		void editor_content_updated();
 	};
 
 	const dmt_rte = new MutationObserver((a_mutations) => {
@@ -391,13 +464,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
 				// grab ref to iframe's content document
 				d_doc_editor = (dm_node as HTMLIFrameElement).contentDocument!;
-
-				const dm_staging = dd('div', {
-					id: 'svelte-staging',
-					style: `display:none;`,
-				}, [], d_doc_editor);
-
-				d_doc_editor.body.appendChild(dm_staging);
 
 				// observe mutations to editor
 				observe_editor();
@@ -449,18 +515,12 @@ function init_overlays() {
 
 function init_autocomplete() {
 	// check for mentions
-	const a_mentions = qsa(d_doc_editor, '[data-mention]') as HTMLDivElement[];
+	const a_mentions = qsa(d_doc_editor, `.ve-mention[${SI_EDITOR_SYNC_KEY}]`) as HTMLDivElement[];
 	for(const dm_mention of a_mentions) {
 		dm_mention.contentEditable = 'false';
 	}
 
-	kv_autocomplete = new Autocomplete({
-		target: document.body,
-		props: {
-			y_editor: tinymce.activeEditor,
-			g_context: G_CONTEXT,
-		},
-	});
+	attach_editor_bindings(tinymce.activeEditor, G_CONTEXT, d_doc_editor);
 }
 
 function tinymce_ready() {
@@ -503,6 +563,25 @@ function tinymce_ready() {
 
 		.ve-mention>.attribute.active .content {
 			color: var(--ve-color-medium-light-text);
+		}
+
+		.precedes-inline {
+			display: inline;
+		}
+
+		body.wiki-content table.wysiwyg-macro.ve-inline-macro {
+			display: inline;
+			padding: 0;
+			width: 0;
+			border: none;
+			margin-top: 0;
+			border-spacing: 0;
+			background: none;
+			vertical-align: middle;
+		}
+
+		.ve-inline-macro+p {
+			display: inline;
 		}
 	`], d_doc_editor));
 
@@ -596,7 +675,7 @@ async function publish_document() {
 	// each element that matched
 	for(const dm_adjusted of a_adjusted) {
 		// decode attribute value
-		const g_adjusted: Adjusted = decode_attr(dm_adjusted.getAttribute('data-adjusted')!)!;  // eslint-disable-line @typescript-eslint/no-unsafe-assignment
+		const g_adjusted = decode_attr(dm_adjusted.getAttribute('data-adjusted')!)! as Adjusted;  // eslint-disable-line @typescript-eslint/no-unsafe-assignment
 
 		// remove attribute from element
 		dm_adjusted.removeAttribute('data-adjusted');
@@ -641,13 +720,13 @@ async function publish_document() {
 	const h_replacements: Record<string, (k: ConfluenceXhtmlDocument) => Node> = {};
 	// special handling for ve elements
 	{
-		const a_mentions = qsa(d_doc_content, '[data-mention]');
+		const a_mentions = qsa(d_doc_content, `.ve-mention[${SI_EDITOR_SYNC_KEY}]`);
 		for(const dm_mention of a_mentions) {
 			// parse mention metadata
-			const g_mention = decode_attr(dm_mention.getAttribute('data-mention')!) as Record<string, unknown>;
+			const g_mention = decode_attr(dm_mention.getAttribute(SI_EDITOR_SYNC_KEY)!) as Record<string, unknown>;
 
 			// prep transclusion metadata
-			const si_transclusion = uuid_v4().replace(/_/g, '-');
+			const si_transclusion = uuid_v4('-');
 			const gc_transclusion = {
 				type: 'Transclusion',
 				connectionPath: g_mention.connection_path,
@@ -663,6 +742,7 @@ async function publish_document() {
 			// save transclusion to page metadata
 			await k_transclusion.save();
 
+		
 
 			dm_mention.replaceWith(dd('table', {
 				'class': 'wysiwyg-macro',
@@ -778,3 +858,73 @@ async function publish_document() {
 	location.href = pr_view;
 }
 
+
+Synchrony.isWhitelisted = (d_wl, g_thing) => {
+	const dm_node = g_thing?.domNode || g_thing?.domParent;
+
+	if(dm_node?.closest && dm_node.closest('.synchrony-exclude')) {
+		return false;
+	}
+	else {
+		console.log(g_thing);
+	}
+}
+
+(() => {
+	let d_node = window;
+	let d_synchrony;
+
+	for(;;) {
+		d_synchrony = d_node.Synchrony;
+		if(d_synchrony) {
+			break;
+		}
+		else if(d_node === window.top) {
+			console.error(`Synchrony is not yet available`);
+			return;
+		}
+		else {
+			d_node = d_node.parent;
+		}
+	}
+
+	if(!d_synchrony.isVePatched) {
+		const f_whitelisted = d_synchrony.isWhitelisted;
+		d_synchrony.isWhitelisted = (g_whitelist, g_event) => {
+			if(f_whitelisted.call(d_synchrony, g_whitelist, g_event)) {
+				return true;
+			}
+			else {
+				const dm_node = g_event.domNode || g_event.domParent;
+
+				if(dm_node && dm_node.closest && dm_node.closest('.synchrony-exclude')) {
+					return false;
+				}
+				else {
+					// we are the source
+					if('read' === g_event.direction) {
+						return true;
+					}
+					// we are a receiver
+					else if('write' === g_event.direction) {
+						return true;
+					}
+
+					// default
+					return false;
+				}
+			}
+		};
+
+		d_synchrony.isVePatched = true;
+
+		console.log(`
+			======
+			Synchrony successfully patched
+			======
+		`.trim().split(/\n\s*/g).join('\n'));
+	}
+	else {
+		console.warn('Synchrony is already patched');
+	}
+})();

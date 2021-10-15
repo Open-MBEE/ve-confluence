@@ -27,6 +27,7 @@ export namespace Transclusion {
 		connectionPath: VeoPathTarget;
 		item: {
 			iri: string;
+			id: string;
 		};
 		displayAttribute: {
 			key: string;
@@ -51,6 +52,7 @@ export class Transclusion<
 
 	initSync(): void {
 		this._s_display = '';
+		return super.initSync();
 	}
 
 	async init(): Promise<void> {
@@ -78,8 +80,19 @@ export class Transclusion<
 		return this._k_connection;
 	}
 
+	setConnection(k_connection: Connection): void {
+		this._k_connection = k_connection;
+		this._assign({
+			connectionPath: k_connection.path,
+		});
+	}
+
 	get itemIri(): string {
 		return this._gc_serialized.item.iri;
+	}
+
+	get itemId(): string {
+		return this._gc_serialized.item.id;
 	}
 
 	async fetchDisplayText(): Promise<string> {

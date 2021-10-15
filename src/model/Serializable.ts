@@ -250,9 +250,9 @@ export class VeOdm<Serialized extends Serializable | Primitive=Serializable | Pr
 	/**
 	 * Create a clone of the instance's serialized object and modify some of its properties, then return that new instance
 	 */
-	async clone(gc_modify: Partial<Serializable>={}): Promise<VeOdm<Serializable>> {
+	async clone<InstanceType extends VeOdm<Serializable>=VeOdm<Serializable>>(gc_modify: Partial<Serializable>={}): Promise<InstanceType> {
 		const dc_model = this.constructor as VeOdmConstructor<Serializable, VeOdm<Serializable>>;
-		return await VeOdm.createFromSerialized(dc_model, this.path, {
+		return await VeOdm.createFromSerialized<Serializable, InstanceType>(dc_model as VeOdmConstructor<Serializable, InstanceType>, this.path, {
 			...this.toSerialized(),
 			...gc_modify,
 		} as Serializable, this._g_context);

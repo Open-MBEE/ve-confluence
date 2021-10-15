@@ -207,7 +207,7 @@ const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 						connectionPath: 'document#connection.sparql.mms.dng',
 						parameterValues: {},
 					},
-					G_CONTEXT
+					G_CONTEXT,
 				),
 			},
 		};
@@ -542,8 +542,39 @@ const H_HASH_TRIGGERS: Record<string, (de_hash_change?: HashChangeEvent) => Prom
 
 
 let p_original_edit_link = '';
+const S_VE_PATCHED = 'vePatched';
+type MutableHistory = History & {
+	[S_VE_PATCHED]: boolean;
+}
 
 function replace_edit_button() {
+	// history not yet patched
+	if(!(history as MutableHistory)[S_VE_PATCHED]) {
+		(history as MutableHistory)[S_VE_PATCHED] = true;
+		const f_push = history.pushState;
+		history.pushState = (w_state: unknown, s_title: string, p_url: string) => {
+			// edit mode
+			if(/^\/pages\/editpage\.action/.test(p_url)) {
+				const p_load_editor = location.pathname+'+++#editor';
+				queueMicrotask(() => {
+					location.href = p_load_editor;
+				});
+
+				setTimeout(() => {
+					location.href = p_load_editor;
+				}, 200);
+				return;
+			}
+
+			// default
+			f_push.call(history, w_state, s_title, p_url);
+		};
+
+		// window.addEventListener('beforeunload', () => {
+		// 	debugger;
+		// });
+	}
+
 	// already replaced
 	if(p_original_edit_link) return;
 

@@ -2,7 +2,6 @@ import type {
 	DotFragment,
 	JsonObject,
 	JsonValue,
-	PrimitiveObject,
 } from '#/common/types';
 
 import {
@@ -21,7 +20,7 @@ import {
 	Response,
 } from '#/util/fetch';
 
-import XhtmlDocument, { XHTMLDocument } from './xhtml-document';
+import XhtmlDocument, {XHTMLDocument} from './xhtml-document';
 
 import type {MmsSparqlConnection} from '#/model/Connection';
 
@@ -38,12 +37,17 @@ import {
 	WritableAsynchronousSerializationLocation,
 } from '#/model/Serializable';
 
-import type {VeoPath} from '#/common/veo';
+import type {VeoPathTarget} from '#/common/veo';
 
 import type {QueryTable} from '#/element/QueryTable/model/QueryTable';
-import { uuid_v4 } from '#/util/dom';
-import { oderac } from '#/util/belt';
-import type { Transclusion } from '#/element/Transclusion/model/Transclusion';
+
+import {dd, uuid_v4} from '#/util/dom';
+
+import {oderac} from '#/util/belt';
+
+import type {Transclusion} from '#/element/Transclusion/model/Transclusion';
+
+import {ObjectStore} from '#/model/ObjectStore';
 
 const P_API_DEFAULT = '/rest/api';
 
@@ -53,7 +57,7 @@ export type Cxhtml = `${string}`;
 
 export type MacroId = `${string}`;
 
-export type ElementMap = Record<MacroId, VeoPath.Full>;
+export type ElementMap = Record<MacroId, VeoPathTarget>;
 
 export interface PageMetadata extends JsonMetadataShape<'Page'> {
 	schema: '1.0';
@@ -66,6 +70,12 @@ export interface PageMetadata extends JsonMetadataShape<'Page'> {
 		};
 	};
 }
+
+/**
+ * Attribute key to use for synching across clients; inspect `Synchrony.whitelists` in editor globals for full list
+ * @see {@link https://developer.atlassian.com/cloud/confluence/collaborative-editing/|The Synchrony whitelist}
+ */
+export const SI_EDITOR_SYNC_KEY = 'data-type';
 
 const G_DEFAULT_PAGE_METADATA: PageMetadata = {
 	type: 'Page',
@@ -234,8 +244,8 @@ export type OdmMap<
 	Serialized extends Serializable=Serializable,
 	InstanceType extends VeOdm<Serialized>=VeOdm<Serialized>,
 > = Record<string, {
-	odm: InstanceType,
-	anchor: Node,
+	odm: InstanceType;
+	anchor: Node;
 }>;
 
 export type PageMap<
@@ -289,7 +299,7 @@ async function fetch_page_properties<
 	});
 
 	if(g_res.error) {
-		debugger;
+		// debugger;
 		console.error(`Unhandled HTTP error response: ${g_res.error.errors.join('\n')}`);
 		return null;
 	}
@@ -397,7 +407,7 @@ export interface MacroConfig {
 
 export function autoCursorMutate(yn_node: Node, k_contents: XhtmlDocument): void {
 	const a_add = autoCursor(yn_node, k_contents);
-	console.assert(a_add.length);
+	console.assert(!!a_add.length);
 
 	// no siblings added
 	if(a_add.length <= 1) return;
@@ -422,7 +432,7 @@ export function autoCursorMutate(yn_node: Node, k_contents: XhtmlDocument): void
 	}
 }
 
-export function autoCursorNode(f_builder: ReturnType<XhtmlDocument["builder"]>) {
+export function autoCursorNode(f_builder: ReturnType<XhtmlDocument['builder']>): Node {
 	return f_builder('p', {
 		class: 'auto-cursor-target',
 	}, [f_builder('br')]);
@@ -448,6 +458,64 @@ export function autoCursor(yn_node: Node, k_contents: XhtmlDocument): Node[] {
 	return a_nodes;
 }
 
+
+export interface EditorMacroConfig {
+	id?: string;
+	elementPath?: string;
+	parameters?: Hash;
+	document?: Document;
+	tableAttributes?: Hash;
+	contentAttributes?: Hash;
+	body?: Element[];
+	display?: Element[];
+	autoCursor?: boolean;
+}
+
+export function editorAutoCursor(d_doc: Document=document): HTMLElement {
+	return dd('p', {
+		class: 'auto-cursor-target',
+	}, [
+		dd('br', {}, [], d_doc),
+	], d_doc);
+}
+
+export function editorMacro(gc_macro: EditorMacroConfig): HTMLElement {
+	const d_doc = gc_macro.document || document;
+	const si_element = gc_macro.id || uuid_v4('-');
+	const sp_element = gc_macro.elementPath || `page#elements.serialized.unknown.${si_element}`;
+
+	const a_body = gc_macro.body || [];
+
+	return dd('table', {
+		'class': 'wysiwyg-macro',
+		'data-macro-name': 'span',
+		'data-macro-id': si_element,
+		'data-macro-parameters': oderac({
+			'atlassian-macro-output-type': 'INLINE',
+			'id': sp_element,
+			'class': 've-replace',
+			...gc_macro.parameters,
+		}, (si_key: string, s_value: string) => `${si_key}=${s_value}`).join('|'),
+		'data-macro-schema-version': '1',
+		'data-macro-body-type': 'RICH_TEXT',
+		...gc_macro.tableAttributes,
+	}, [
+		dd('tbody', {}, [
+			dd('tr', {
+				...gc_macro.contentAttributes,
+			}, [
+				dd('td', {
+					class: 'wysiwyg-macro-body',
+				}, a_body, d_doc),
+			], d_doc),
+			...(gc_macro.display || []).map(dm => dd('tr', {}, [
+				dd('td', {}, [dm], d_doc),
+			], d_doc)),
+		], d_doc),
+	], d_doc);
+}
+
+
 export function wrapCellInHtmlMacro(s_html: string, k_contents: XhtmlDocument): Node {
 	const f_builder = k_contents.builder();
 
@@ -469,8 +537,8 @@ export function wrapCellInHtmlMacro(s_html: string, k_contents: XhtmlDocument): 
 // page elements
 const SX_PARAMETER_ID_PAGE_ELEMENT = `ac:parameter[@ac:name="id"][starts-with(text(),"page#elements.")]`;
 
-// for excluding elements that are within active directives
-const SX_EXCLUDE_ACTIVE_ELEMENTS = /* syntax: xpath */ `[not(ancestor::ac:structured-macro[@ac:name="span"][child::${SX_PARAMETER_ID_PAGE_ELEMENT}])]`;
+// // for excluding elements that are within active directives
+// const SX_EXCLUDE_ACTIVE_ELEMENTS = /* syntax: xpath */ `[not(ancestor::ac:structured-macro[@ac:name="span"][child::${SX_PARAMETER_ID_PAGE_ELEMENT}])]`;
 
 
 export class ConfluenceXhtmlDocument extends XhtmlDocument {
@@ -734,6 +802,9 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 
 		await confluence_put_json(`/content/${this._si_page}/property/${G_VE4_METADATA_KEYS.CONFLUENCE_PAGE}`, g_payload);
 
+		// update local cache of metadata
+		await this.fetchMetadataBundle(true);
+
 		return g_payload;
 	}
 
@@ -866,7 +937,7 @@ export class ConfluenceDocument extends ConfluenceEntity<DocumentMetadata> {
 	async findPathTags<
 		Serialized extends Serializable=Serializable,
 		InstanceType extends VeOdm<Serialized>=VeOdm<Serialized>,
-	>(sr_path: VeoPath.Locatable, g_context: Context, dc_class: VeOdmConstructor<Serialized, InstanceType>=VeOdm as unknown as VeOdmConstructor<Serialized, InstanceType>): Promise<PageMap<Serialized, InstanceType>> {
+	>(sr_path: VeoPathTarget, g_context: Context, dc_class: VeOdmConstructor<Serialized, InstanceType>=VeOdm as unknown as VeOdmConstructor<Serialized, InstanceType>): Promise<PageMap<Serialized, InstanceType>> {
 		const g_response = await confluence_get_json(`/content/search`, {
 			search: {
 				cql: [
@@ -890,6 +961,14 @@ export class ConfluenceDocument extends ConfluenceEntity<DocumentMetadata> {
 		for(const g_page of g_search.results) {
 			const sx_page = g_page.body.storage.value;
 
+			// create new store for page if element belongs to child page
+			let k_store_page = g_context.store;
+			if(g_context.page.pageId !== g_page.id) {
+				k_store_page = new ObjectStore({
+					page: new ConfluencePage(g_page.id, g_page.title),
+				});
+			}
+
 			const k_doc = new XHTMLDocument(sx_page);
 			const sq_select = `//ac:parameter[@ac:name="id"][starts-with(text(),"${sr_path}")]`;
 			const a_parameters = k_doc.select(sq_select) as Node[];  // eslint-disable-line @typescript-eslint/no-unnecessary-type-assertion
@@ -899,12 +978,12 @@ export class ConfluenceDocument extends ConfluenceEntity<DocumentMetadata> {
 			h_hits.set(g_page, h_page);
 
 			for(const ym_param of a_parameters) {
-				const sp_element = ym_param.textContent as VeoPath.Full;
+				const sp_element = ym_param.textContent!;
 
-				const gc_serialized = await g_context.store.resolve<Serialized>(sp_element);
+				const gc_serialized = await ('page' === ObjectStore.locationPart(sp_element)? k_store_page: g_context.store).resolve(sp_element);
 
 				h_page[sp_element] = {
-					odm: await VeOdm.createFromSerialized<Serialized, InstanceType>(dc_class, sp_element, gc_serialized, g_context),
+					odm: await VeOdm.createFromSerialized<Serialized, InstanceType>(dc_class, sp_element, gc_serialized as unknown as Serialized, g_context),
 					anchor: ym_param.parentNode!,
 				};
 			}
@@ -922,6 +1001,7 @@ export class ConfluenceDocument extends ConfluenceEntity<DocumentMetadata> {
 		});
 
 		// destructure response data
+		const g_data = g_response_cover.data!;
 		const {
 			group: {
 				results: a_groups_cover,
@@ -929,7 +1009,7 @@ export class ConfluenceDocument extends ConfluenceEntity<DocumentMetadata> {
 			user: {
 				results: a_users_cover,
 			},
-		} = g_response_cover.data?.restrictions!;
+		} = g_data.restrictions;
 
 		// no restriction(s) exists
 		if(!a_groups_cover.length && !a_users_cover.length) {

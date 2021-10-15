@@ -1,4 +1,5 @@
 import type { JsonValue } from "#/common/types";
+import { oderac } from "./belt";
 
 type Hash = Record<string, string>;
 
@@ -94,10 +95,12 @@ export function dd<T extends HTMLElement = HTMLElement>(
 const S_UUID_V4 = 'xxxxxxxx_xxxx_4xxx_yxxx_xxxxxxxxxxxx';
 const R_UUID_V4 = /[xy]/g;
 
-export const uuid_v4 = (): string => {
+export const uuid_v4 = (s_delim='_'): string => {
 	let dt_now = Date.now();
 	if('undefined' !== typeof performance) dt_now += performance.now();
-	return S_UUID_V4.replace(R_UUID_V4, (s) => {
+	let s_uuid_v4 = S_UUID_V4;
+	if('_' !== s_delim) s_uuid_v4 = s_uuid_v4.replace(/_/g, s_delim);
+	return s_uuid_v4.replace(R_UUID_V4, (s) => {
 		const x_r = (dt_now + (Math.random()*16)) % 16 | 0;
 		dt_now = Math.floor(dt_now / 16);
 		return ('x' === s? x_r: ((x_r & 0x3) | 0x8)).toString(16);
