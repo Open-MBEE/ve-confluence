@@ -103,6 +103,23 @@ function init_bindings() {
 		console.log(z_param);
 	});
 
+	// hadle clicks
+	y_editor.on('click', (de_event: MouseEvent) => {
+		const dm_target = de_event.target as HTMLElement;
+
+		// mention is active
+		if(g_autocomplete_active) {
+			// click was to overlay or mention
+			if(dm_target && (dm_target.closest('#ve-overlays') || dm_target.closest('.ve-mention'))) {
+				return;
+			}
+			// otherwise; hide overlay
+			else {
+				g_autocomplete_active.mention.hideOverlay();
+			}
+		}
+	});
+
 	// bind tinymce input
 	y_editor.on('input', (y_event: InputEvent) => {
 		// single mention node
@@ -114,7 +131,7 @@ function init_bindings() {
 			const k_mention = g_autocomplete_active.mention;
 
 			// execute search
-			k_mention.search(k_mention.targetText.trim().toLocaleLowerCase());
+			k_mention.searchInput();
 
 			return;
 		}

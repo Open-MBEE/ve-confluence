@@ -138,8 +138,7 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 		}
 	}
 
-	function prompt_attribute_selector(dm_mention: HTMLDivElement) {
-		qs(dm_mention, '.attribute').classList.add('active');
+	function show_attribute_selector(dm_macro: HTMLElement) {
 		xc_mode = DisplayMode.ATTRIBUTE;
 		b_display = true;
 
@@ -149,7 +148,7 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 				const dm_row = dm_hover.closest('.row[data-attribute]');
 
 				if(dm_row) {
-					for(const dm_selected of qsa(dm_mention, SI_CLASS_ITEM_SELECTED) as HTMLElement[]) {
+					for(const dm_selected of qsa(dm_macro, `.${SI_CLASS_ITEM_SELECTED}`) as HTMLElement[]) {
 						dm_selected.classList.remove(SI_CLASS_ITEM_SELECTED);
 					}
 
@@ -176,34 +175,15 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 		//
 		const g_attr = decode_attr(dm_selected.getAttribute('data-attribute')!) as ValuedLabeledObject;
 
-		// mention data nodes
-		const {mentions:a_mentions} = get_mentions();
-
-		// each mention
-		for(const dm_mention of a_mentions) {
-			// selector no longer active
-			const dm_attribute = qs(dm_mention, '.attribute');
-			dm_attribute.classList.remove('active');
-
-			// parse mention metadata
-			const g_mention = decode_attr(dm_mention.getAttribute(SI_EDITOR_SYNC_KEY)!) as Record<string, unknown>;
-
-			// add display attribute and re-encode
-			dm_mention.setAttribute(SI_EDITOR_SYNC_KEY, encode_attr({
-				...g_mention,
-				display_attribute: g_attr,
-			}));
-
-			// replace text content with new attribute
-			qs(dm_attribute, '.content').textContent = g_attr.label;
-		}
+		// select attribute
+		void k_mention.selectAttribute(g_attr);
 
 		// hide autocomplete
 		b_display = false;
 	}
 
 	function mouseenter_row(d_event: MouseEvent) {
-		for(const dm_selected of qsa(dm_content, SI_CLASS_ITEM_SELECTED) as HTMLElement[]) {
+		for(const dm_selected of qsa((d_event.target as HTMLElement).closest('.filter-content')!, `.${SI_CLASS_ITEM_SELECTED}`) as HTMLElement[]) {
 			dm_selected.classList.remove(SI_CLASS_ITEM_SELECTED);
 		}
 
@@ -281,6 +261,7 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 		select_row,
 		select_item,
 		bump_selection,
+		show_attribute_selector,
 	});
 
 </script>

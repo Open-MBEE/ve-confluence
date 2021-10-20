@@ -2,7 +2,7 @@ import G_META, {
 	$PATCHED,
 } from '#/common/meta';
 
-import type {JsonValue} from '#/common/types';
+import type {Hash, JsonObject, JsonValue} from '#/common/types';
 
 import {
 	ode,
@@ -34,22 +34,26 @@ import type MentionOverlay from '#/element/Mentions/component/MentionOverlay.sve
 
 import {static_css} from '#/common/static';
 
-import {
-	Context,
-	VeOdm,
+import type {
+	Context, Serializable,
 } from '#/model/Serializable';
 
 import {ObjectStore} from '#/model/ObjectStore';
 
 import {K_HARDCODED} from '#/common/hardcoded';
 
-import {Transclusion} from '#/element/Transclusion/model/Transclusion';
-
-import {
-	Mention,
-} from '#/element/Mentions/model/Mention';
-
 import {attach_editor_bindings} from '../module/editor-bindings';
+import { Mention } from '#/element/Mentions/model/Mention';
+
+interface MacroComponent {
+	get displayNode(): HTMLElement;
+}
+
+const H_COMPONENTS = {
+	Transclusion: Mention,
+} as Record<string, {
+	fromMacro(dm_node: HTMLTableElement, gc_element: Serializable, g_context: Context): MacroComponent;
+}>;
 
 const timeout = (xt_wait: number) => new Promise((fk_resolve) => {
 	setTimeout(() => {
@@ -76,11 +80,46 @@ function* child_list_mutations_added_nodes(a_mutations: MutationRecord[]): Gener
 	}
 }
 
-function is_unadjusted_macro(dm_node: HTMLElement): dm_node is HTMLTableElement {
-	if('TABLE' === dm_node.tagName && 'span' === dm_node.getAttribute('data-macro-name')) {
-		if(null === dm_node.getAttribute('data-adjusted')) {
-			dm_node.setAttribute('data-adjusted', encode_attr({type:'visited'} as Adjusted));
-			return true;
+const decode_macro_parameters = (sx_params: string) => sx_params.split(/\|/g)
+	.map(s_pair => s_pair.split(/=/))
+	.reduce((h_out, [si_key, s_value]) => ({
+		...h_out,
+		[si_key]: s_value,
+	}), {}) as Hash;
+
+function adjust_virgin_macro(dm_node: HTMLElement) {
+	// macro element
+	if('TABLE' === dm_node.tagName && dm_node.hasAttribute('data-macro-name')) {
+		// get macro paramaeters attribute string
+		const sx_params = dm_node.getAttribute('data-macro-parameters');
+
+		// parameters exist
+		if(sx_params) {
+			// decode parameters
+			const h_params = decode_macro_parameters(sx_params);
+
+			// ve parameter present
+			if('ve' in h_params) {
+				// no sync attribute
+				if(!dm_node.hasAttribute(SI_EDITOR_SYNC_KEY)) {
+					// mark element as visited
+					dm_node.setAttribute(SI_EDITOR_SYNC_KEY, encode_attr({type:'visited'} as Adjusted));
+
+					// decode ve param
+					const gc_element = decode_attr(h_params.ve) as Serializable;
+
+					// macro has id param
+					const si_macro = h_params.id;
+
+					// ve4 script tag
+					if('ve4-script-tag' === si_macro) {
+						return hide_editor_element(dm_node);
+					}
+
+					// route macro viewer
+					void init_page_element(dm_node as HTMLTableElement, gc_element);
+				}
+			}
 		}
 	}
 	return false;
@@ -121,7 +160,7 @@ function modify_editor_dom(dm_src: HTMLElement, h_set: Rso) {
 	const a_acts = reduce_set_descriptor(dm_src as unknown as Uobject, h_set);
 	const a_mods = [];
 
-	const sx_adjusted = dm_src.getAttribute('data-adjusted');
+	const sx_adjusted = dm_src.getAttribute(SI_EDITOR_SYNC_KEY);
 	if(sx_adjusted) {
 		const g_adjusted = decode_attr(sx_adjusted) as Adjusted;
 
@@ -156,7 +195,7 @@ function modify_editor_dom(dm_src: HTMLElement, h_set: Rso) {
 
 	const a_mods_out = [...new Set(a_mods)];
 
-	dm_src.setAttribute('data-adjusted', encode_attr({
+	dm_src.setAttribute(SI_EDITOR_SYNC_KEY, encode_attr({
 		type: 'modified',
 		modifications: a_mods_out,
 	} as Adjusted));
@@ -181,47 +220,46 @@ function hide_editor_element(dm_node: HTMLElement) {
 	});
 }
 
-async function adjust_page_element(dm_node: HTMLTableElement) {
+async function init_page_element(dm_node: HTMLTableElement, gc_element: Serializable) {
 	const dm_tr = qs(dm_node, 'tr') as HTMLTableRowElement;
-	/*
-	problem if a in progress mention is background saved by editor, user doesn't revert or save
-	next time the editor is opened up, the mention span is there with no contenteditable set to false, all data-mention
-	info is lost, confluence just screws us and the mention span becomes useless
-	user has to either save or revert to previous published page for things to work (before things get screwed)
-	*/
 
 	// pre-loaded; do not re-add
-	if('none' === dm_tr.style.display) {
+	if(dm_tr.nextElementSibling) {
 		return;
 	}
 
-	// parse macro params
-	const h_params: Record<string, string> = dm_node.getAttribute('data-macro-parameters')!.split(/\|/g)
-		.map(s_pair => s_pair.split(/=/))
-		.reduce((h_out, [si_key, s_value]) => ({
-			...h_out,
-			[si_key]: s_value,
-		}), {});
-
-
 	// hide actual table row
-	hide_editor_element(dm_tr);
+	dm_tr.style.display = 'none';
+
+	// create component
+	const si_type = gc_element.type;
+	if(!(si_type in H_COMPONENTS)) {
+		console.error(`No such component type '${si_type}''`);
+	}
+
+	// instantiate
+	const k_thing = H_COMPONENTS[si_type].fromMacro(dm_node, gc_element, G_CONTEXT);
+
+	// add ui
+	dm_tr.parentElement?.append(k_thing.displayNode);
+
+	k_thing.
 
 	// macro class
 	if('ve-mention' === h_params.class) {
 		if(!G_CONTEXT.store) await dp_store_ready;
 
-		// resolve transclusion from confluence storage
-		const gc_transclusion = await G_CONTEXT.store.resolve(h_params.id as 'page#elements.serialized.transclusion');
+		// // resolve transclusion from confluence storage
+		// const gc_transclusion = await G_CONTEXT.store.resolve(h_params.id as 'page#elements.serialized.transclusion');
 
-		// create transclusion instance
-		const k_transclusion = await VeOdm.createFromSerialized(Transclusion, h_params.id, gc_transclusion, G_CONTEXT);
+		// // create transclusion instance
+		// const k_transclusion = await VeOdm.createFromSerialized(Transclusion, h_params.id, gc_transclusion, G_CONTEXT);
 
-		// 
-		debugger;
+		// // 
+		// debugger;
 
-		console.log(k_transclusion);
-		console.log(gc_transclusion);
+		// console.log(k_transclusion);
+		// console.log(gc_transclusion);
 
 		// // create mention instance
 		// const k_mention = new Mention({
@@ -249,7 +287,7 @@ async function adjust_page_element(dm_node: HTMLTableElement) {
 		// });
 
 		// const dm_ins = dd('tr', {
-		// 	'data-adjusted': encode_attr({type:'display'} as Adjusted),
+		// 	[SI_EDITOR_SYNC_KEY]: encode_attr({type:'display'} as Adjusted),
 		// }, [
 		// 	dd('td', {}, [
 		// 		dd('h4', {}, ['Transclusion']),
@@ -294,7 +332,7 @@ async function adjust_page_element(dm_node: HTMLTableElement) {
 	else {
 		// append display-only row
 		const dm_ins = dd('tr', {
-			'data-adjusted': encode_attr({type:'display'} as Adjusted),
+			[SI_EDITOR_SYNC_KEY]: encode_attr({type:'display'} as Adjusted),
 		}, [
 			dd('td', {}, [
 				dd('h4', {}, ['CED Query Table?']),
@@ -308,41 +346,28 @@ async function adjust_page_element(dm_node: HTMLTableElement) {
 	}
 }
 
-function editor_content_stable() {
-	// create overlay div
-	d_doc_editor.body.appendChild(dd('div', {
-		'id': 've-overlays',
-		'class': 'synchrony-exclude',
-		'style': `user-select:none;`,
-		'data-mce-bogus': 'true',
-		'content-editable': 'false',
-	}, [], d_doc_editor));
-}
+let b_initialized = false;
 
 function editor_content_updated(a_nodes=qsa(d_doc_editor, 'body>*') as HTMLElement[]) {
 	for(const dm_node of a_nodes) {
 		// synchrony container added
-		if('DIV' === dm_node?.nodeName && dm_node.classList.contains('synchrony-container')) {
-			editor_content_stable();
+		if('DIV' === dm_node?.nodeName && dm_node.classList.contains('synchrony-container') && !b_initialized) {
+			// now initialized
+			b_initialized = true;
+			
+			// create overlay div
+			d_doc_editor.body.appendChild(dd('div', {
+				'id': 've-overlays',
+				'class': 'synchrony-exclude',
+				'style': `user-select:none;`,
+				'data-mce-bogus': 'true',
+				'contenteditable': 'false',
+			}, [], d_doc_editor));
 		}
-		// unadjusted macro
-		else if(is_unadjusted_macro(dm_node)) {
-			const h_params: Record<string, string> = (dm_node.getAttribute('data-macro-parameters') || '').split('|')
-				.reduce((h_out, s_param) => ({
-					...h_out,
-					[s_param.split('=')[0]]: s_param.split('=')[1],
-				}), {});
-
-			// macro has id param
-			const si_macro = h_params.id;
-			if(si_macro) {
-				if('ve4-script-tag' === si_macro) {
-					return hide_editor_element(dm_node);
-				}
-				else if(si_macro.startsWith('page#elements.serialized.')) {
-					return adjust_page_element(dm_node);
-				}
-			}
+		// node is part of draft
+		else if(dm_node?.classList && !dm_node.classList.contains('synchrony-exclude')) {
+			// adjusted macros as necessary
+			adjust_virgin_macro(dm_node);
 		}
 	}
 }
@@ -669,16 +694,16 @@ async function publish_document() {
 	// parse as HTML
 	const d_doc_content = new DOMParser().parseFromString(sx_content, 'text/html');
 
-	// query for data-adjusted attributes
-	const a_adjusted = qsa(d_doc_content, '[data-adjusted]');
+	// query for adjusted attributes
+	const a_adjusted = qsa(d_doc_content, `[${SI_EDITOR_SYNC_KEY}]`);
 
 	// each element that matched
 	for(const dm_adjusted of a_adjusted) {
 		// decode attribute value
-		const g_adjusted = decode_attr(dm_adjusted.getAttribute('data-adjusted')!)! as Adjusted;  // eslint-disable-line @typescript-eslint/no-unsafe-assignment
+		const g_adjusted = decode_attr(dm_adjusted.getAttribute(SI_EDITOR_SYNC_KEY)!)! as Adjusted;  // eslint-disable-line @typescript-eslint/no-unsafe-assignment
 
 		// remove attribute from element
-		dm_adjusted.removeAttribute('data-adjusted');
+		dm_adjusted.removeAttribute(SI_EDITOR_SYNC_KEY);
 
 		// depending on value type
 		switch(g_adjusted.type) {
@@ -717,83 +742,6 @@ async function publish_document() {
 		}
 	}
 
-	const h_replacements: Record<string, (k: ConfluenceXhtmlDocument) => Node> = {};
-	// special handling for ve elements
-	{
-		const a_mentions = qsa(d_doc_content, `.ve-mention[${SI_EDITOR_SYNC_KEY}]`);
-		for(const dm_mention of a_mentions) {
-			// parse mention metadata
-			const g_mention = decode_attr(dm_mention.getAttribute(SI_EDITOR_SYNC_KEY)!) as Record<string, unknown>;
-
-			// prep transclusion metadata
-			const si_transclusion = uuid_v4('-');
-			const gc_transclusion = {
-				type: 'Transclusion',
-				connectionPath: g_mention.connection_path,
-				item: g_mention.item,
-				displayAttribute: g_mention.display_attribute,
-			};
-
-			// create transclusion instance
-			const sp_transclusion = `page#elements.serialized.transclusion.${si_transclusion}`;
-			// @ts-expect-error veo path typing
-			const k_transclusion = await VeOdm.createFromSerialized(Transclusion, sp_transclusion, gc_transclusion, G_CONTEXT);
-
-			// save transclusion to page metadata
-			await k_transclusion.save();
-
-		
-
-			dm_mention.replaceWith(dd('table', {
-				'class': 'wysiwyg-macro',
-				'data-macro-name': 'span',
-				'data-macro-id': si_transclusion,
-				'data-macro-parameters': `atlassian-macro-output-type=INLINE|id=${sp_transclusion}|class=ve-replace`,
-				'data-macro-schema-version': '1',
-				'data-macro-body-type': 'RICH_TEXT',
-			}, [
-				dd('tbody', {}, [
-					dd('tr', {}, [
-						dd('td', {
-							class: 'wysiwyg-macro-body',
-						}, [
-							dd('p', {
-								class: 'auto-cursor-target',
-							}, [
-								dd('br', {}, [], d_doc_content),
-							], d_doc_content),
-						], d_doc_content),
-					], d_doc_content),
-				], d_doc_content),
-			], d_doc_content));
-
-			h_replacements[si_transclusion] = (k_contents: ConfluenceXhtmlDocument) => {
-				const f_builder = k_contents.builder();
-
-				// replace with macro
-				return ConfluencePage.annotatedSpan({
-					params: {
-						class: 've-mention',
-						id: sp_transclusion,
-					},
-					body: [
-						ConfluencePage.annotatedSpan({
-							params: {
-								style: 'display:none',
-								class: 've-cql-search-tag',
-							},
-							body: f_builder('p', {}, [sp_transclusion]),
-						}, k_contents),
-						f_builder('p', {}, [
-							'Loading transclusion...',
-						]),
-					],
-					autoCursor: true,
-				}, k_contents);
-			};
-		}
-	}
-
 	// re-serialize the mutated dom body and take care of pre-flight HTML sequences
 	const sx_patched = new XMLSerializer()
 		.serializeToString(d_doc_content.body)
@@ -816,10 +764,10 @@ async function publish_document() {
 	// create confluence XHTML doc instance
 	const k_contents = new ConfluenceXhtmlDocument(sx_storage);
 
-	for(const [si_replacement, f_replace] of ode(h_replacements)) {
-		const yn_macro: Node = k_contents.select1(`//ac:structured-macro[@ac:macro-id="${si_replacement}"]`);
-		yn_macro.parentNode?.replaceChild(f_replace(k_contents), yn_macro);
-	}
+	// for(const [si_replacement, f_replace] of ode(h_replacements)) {
+	// 	const yn_macro: Node = k_contents.select1(`//ac:structured-macro[@ac:macro-id="${si_replacement}"]`);
+	// 	yn_macro.parentNode?.replaceChild(f_replace(k_contents), yn_macro);
+	// }
 
 	// get commit message from DOM
 	const s_msg = (qs(document.body, '#versionComment') as HTMLInputElement).value;
@@ -858,7 +806,7 @@ async function publish_document() {
 	location.href = pr_view;
 }
 
-
+// patch synchrony
 Synchrony.isWhitelisted = (d_wl, g_thing) => {
 	const dm_node = g_thing?.domNode || g_thing?.domParent;
 

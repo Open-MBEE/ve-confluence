@@ -464,6 +464,7 @@ export interface EditorMacroConfig {
 	elementPath?: string;
 	parameters?: Hash;
 	document?: Document;
+	macroName?: string;
 	tableAttributes?: Hash;
 	contentAttributes?: Hash;
 	body?: Element[];
@@ -482,13 +483,15 @@ export function editorAutoCursor(d_doc: Document=document): HTMLElement {
 export function editorMacro(gc_macro: EditorMacroConfig): HTMLElement {
 	const d_doc = gc_macro.document || document;
 	const si_element = gc_macro.id || uuid_v4('-');
-	const sp_element = gc_macro.elementPath || `page#elements.serialized.unknown.${si_element}`;
+	const sp_element = gc_macro.elementPath || `embedded#elements.serialized.unknown.${si_element}`;
 
 	const a_body = gc_macro.body || [];
 
+	const si_macro_name = gc_macro.macroName || 'span';
+
 	return dd('table', {
 		'class': 'wysiwyg-macro',
-		'data-macro-name': 'span',
+		'data-macro-name': si_macro_name,
 		'data-macro-id': si_element,
 		'data-macro-parameters': oderac({
 			'atlassian-macro-output-type': 'INLINE',
@@ -497,7 +500,7 @@ export function editorMacro(gc_macro: EditorMacroConfig): HTMLElement {
 			...gc_macro.parameters,
 		}, (si_key: string, s_value: string) => `${si_key}=${s_value}`).join('|'),
 		'data-macro-schema-version': '1',
-		'data-macro-body-type': 'RICH_TEXT',
+		'data-macro-body-type': 'html' === si_macro_name? 'PLAIN_TEXT': 'RICH_TEXT',
 		...gc_macro.tableAttributes,
 	}, [
 		dd('tbody', {}, [

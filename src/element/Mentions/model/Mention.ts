@@ -3,15 +3,12 @@ import {SearcherMask} from '#/common/helper/sparql-code';
 
 import type {
 	Hash,
-	JsonObject,
-	JsonValue,
 	QueryRow,
 	ValuedLabeledObject,
 } from '#/common/types';
 
 import type {VeoPathTarget} from '#/common/veo';
 
-import type {ConnectionQuery} from '#/element/QueryTable/model/QueryTable';
 
 import {
 	Connection,
@@ -21,10 +18,12 @@ import {
 import {
 	Context,
 	VeOdm,
-	VeOdmConstructor,
 } from '#/model/Serializable';
 
-import {ode, oderac} from '#/util/belt';
+import {
+	ode,
+	oderac,
+} from '#/util/belt';
 
 import {
 	faAngleDown,
@@ -42,7 +41,15 @@ import {
 
 import type {SvelteComponent} from 'svelte/internal';
 
-import {ChannelConfig, DisplayMode, GroupState, Row, RowGroup, Scenario, ShowConfig} from './Autocomplete';
+import {
+	ChannelConfig,
+	DisplayMode,
+	GroupState,
+	Row,
+	RowGroup,
+	Scenario,
+	ShowConfig,
+} from './Autocomplete';
 
 import type {Channel} from './Autocomplete';
 
@@ -51,12 +58,18 @@ import MentionOverlay from '#/element/Mentions/component/MentionOverlay.svelte';
 import {Transclusion} from '#/element/Transclusion/model/Transclusion';
 
 import {
-	autoCursorNode,
 	editorAutoCursor,
 	editorMacro,
 	SI_EDITOR_SYNC_KEY,
 } from '#/vendor/confluence/module/confluence';
+
 import AsyncLockPool from '#/util/async-lock-pool';
+
+import {
+	HtmlString,
+	PlainString,
+	TypedString,
+} from '#/util/strings';
 
 export interface MentionConfig {
 	g_context: Context;
@@ -119,7 +132,7 @@ export class Mention {
 		return H_PRECACHE;
 	}
 
-	static async initGlobalPrecache(g_context: Context) {
+	static async initGlobalPrecache(g_context: Context): Promise<void> {
 		const XC_FRESH = GroupState.FRESH;
 		const kl_precache = new AsyncLockPool(16);
 
@@ -128,7 +141,7 @@ export class Mention {
 
 			const h_groups_local: Record<string, RowGroup> = {};
 
-			let g_scenario: Scenario = H_PRECACHE[s_input] = {
+			const g_scenario: Scenario = H_PRECACHE[s_input] = {
 				input: s_input,
 				ready: false,
 				groups: h_groups_local,
@@ -206,6 +219,7 @@ export class Mention {
 				key: '',
 				label: '',
 				value: '',
+				format: '',
 			},
 			connectionPath: 'document#connection.sparql.mms.dng',
 			...gc_transclusion,
@@ -218,6 +232,16 @@ export class Mention {
 		return new Mention({
 			g_context,
 			d_doc_editor,
+			k_transclusion,
+		});
+	}
+
+	static fromMacro(dm_node: HTMLTableElement, gc_transclusion: Transclusion.Serialized, g_context: Context): Mention {
+		const k_transclusion = new Transclusion(`transient.transclusion.${uuid_v4('-')}`, gc_transclusion as unknown as Transclusion.Serialized, g_context);
+
+		return new Mention({
+			g_context,
+			d_doc_editor: dm_node.ownerDocument,
 			k_transclusion,
 		});
 	}
@@ -251,7 +275,7 @@ export class Mention {
 	protected _h_groups: Record<string, RowGroup> = {};
 	protected _h_precache: Record<string, Scenario>;
 	protected _fk_ready: VoidFunction | null = null;
-	protected _b_ready: boolean = false;
+	protected _b_ready = false;
 
 	constructor(gc_session: MentionConfig) {
 		const {
@@ -261,7 +285,7 @@ export class Mention {
 		} = gc_session;
 
 		const si_element = this._si_element = uuid_v4('-');
-		const sp_element = `page#elements.serialized.transclusion.${si_element}`;
+		const sp_element = `embedded#elements.serialized.transclusion.${si_element}`;
 		const si_dom = `ve-mention-macro-${si_element}`;
 		const sq_dom = this._sq_dom = `[data-macro-id="${si_dom}"]`;
 
@@ -276,6 +300,7 @@ export class Mention {
 		this._dm_shadow = editorMacro({
 			document: d_doc_editor,
 			id: si_dom,
+			elementPath: sp_element,
 			parameters: {
 				class: 've-mention',
 				id: sp_element,
@@ -284,8 +309,6 @@ export class Mention {
 			autoCursor: true,
 			tableAttributes: {
 				class: 'wysiwyg-macro ve-inline-macro',
-				// style: oderac({
-				// }, (si_key: string, w_value: string | number) => `${si_key}:${w_value};`).join(' '),
 			},
 			contentAttributes: {
 				style: 'display: none;',
@@ -293,6 +316,7 @@ export class Mention {
 			body: [
 				editorAutoCursor(),
 				editorMacro({
+					elementPath: `embedded#complements.tag.vql-search.${si_element}`,
 					parameters: {
 						class: 've-cql-search-tag',
 						style: 'display:none',
@@ -303,25 +327,19 @@ export class Mention {
 						]),
 					],
 				}),
-				dd('p', {
-					class: 've-macro-publish-anchor',
-					style: 'display:none',
-				}, []),
+				editorMacro({
+					macroName: 'html',
+					elementPath: `embedded#complements.body.html.${si_element}`,
+					body: [
+						dd('pre', {
+							class: 've-macro-publish-anchor',
+							style: 'display:none',
+						}, []),
+					],
+				}),
 			],
 			display: [
-				dd('span', {
-					class: 've-mention',
-				}, [
-					dd('span', {
-						class: 've-mention-at',
-					}, ['@']),
-					dd('span', {
-						class: 've-mention-target',
-					}, []),
-					dd('span', {
-						class: 've-mention-attr',
-					}, []),
-				]),
+				this.displayNode,
 			],
 		});
 
@@ -381,7 +399,7 @@ export class Mention {
 		}
 	}
 
-	protected _save_macro() {
+	protected _save_macro(): void {
 		// query for macro
 		const dm_macro = this._dm_macro;
 
@@ -399,42 +417,49 @@ export class Mention {
 			// reserialize
 			dm_macro.setAttribute('data-macro-parameters', macro_parameters_to_string(h_params));
 		}
-
-		// nodes to append to macro publish body
-		const a_publish_body: HTMLElement[] = [];
-
-		// create publish view
-		{
-			a_publish_body.push(...[
-				dd('span', {}, [
-					'Loading transclusion...',
-				]),
-			]);
-		}
-
-		// save view to macro
-		{
-			// query for anchor
-			const dm_publish_anchor = qs(dm_macro, 'p.ve-macro-publish-anchor');
-
-			// remove all next siblings
-			while(dm_publish_anchor.nextElementSibling) {
-				dm_publish_anchor.nextElementSibling.remove();
-			}
-
-			// append body
-			dm_publish_anchor.parentElement?.append(...a_publish_body);
-		}
 	}
 
-	get ready(): void | Promise<void> {
-		// ready to go
-		if(this._b_ready) return;
+	protected async _publish(a_display: Parameters<typeof dd>[2]|null=null): Promise<void> {
+		// nodes to append to macro publish body
+		const dm_publish_body = dd('div', {}, [
+			dd('a', {
+				href: this._k_transclusion.itemIri,
+				rel: 'external',
+				target: '_blank',
+			}, [
+				dd('span', {
+					class: 'fa fa-bolt',
+				}, []),
+				dd('span', {}, a_display || [
+					await this._k_transclusion.fetchDisplayText(),
+				]),
+			]),
+		]);
 
-		// have to wait
-		return new Promise((fk_ready) => {
-			this._fk_ready = fk_ready;
-		});
+		// query for anchor
+		const dm_publish_anchor = qs(this._dm_macro, 'pre.ve-macro-publish-anchor');
+
+		// replace content
+		dm_publish_anchor.textContent = new XMLSerializer()
+			.serializeToString(dm_publish_body)
+			.replace(/^<div[^>]*>|<\/div>$/, '');
+
+		// // remove all next siblings
+		// while(dm_publish_anchor.nextElementSibling) {
+		// 	dm_publish_anchor.nextElementSibling.remove();
+		// }
+
+		// // append body
+		// dm_publish_anchor.parentElement?.append(...a_publish_body);
+	}
+
+
+	protected _show_attribute_selector(): void {
+		qs(this._dm_macro, '.attribute').classList.add('active');
+
+		this.postMessage('show_attribute_selector', [
+			this._dm_macro,
+		]);
 	}
 
 	protected _add_channel(sp_connection: VeoPathTarget, k_connection: Connection, h_features: {types: SearcherMask; limit: number}): void {
@@ -451,8 +476,49 @@ export class Mention {
 		};
 	}
 
+	protected _update_text(): void {
+		remove_all_children(qs(this._dm_macro, '.ve-mention-static') as HTMLElement).append(...[
+			dd('span', {
+				class: 've-mention-at',
+			}, ['@']),
+			dd('span', {
+				class: 've-mention-target',
+			}, [this._k_transclusion.itemId]),
+			dd('span', {
+				class: 've-mention-attribute',
+			}, ['']),
+		]);
+
+		qs(this._dm_macro, '.ve-mention-input').textContent = '';
+	}
+
+
+	get ready(): void | Promise<void> {
+		// ready to go
+		if(this._b_ready) return;
+
+		// have to wait
+		return new Promise((fk_ready) => {
+			this._fk_ready = fk_ready;
+		});
+	}
+
 	get transclusion(): Transclusion {
 		return this._k_transclusion;
+	}
+
+	get displayNode(): HTMLElement {
+		return dd('span', {
+			class: 've-mention',
+		}, [
+			dd('span', {
+				class: 've-mention-static',
+				contentEditable: 'false',
+			}, []),
+			dd('span', {
+				class: 've-mention-input',
+			}, ['@']),
+		]);
 	}
 
 	async selectItem(si_channel: string, p_item: string, si_item: string): Promise<void> {
@@ -468,8 +534,16 @@ export class Mention {
 			},
 		});
 
+		// update text display
+		this._update_text();
+
 		// save macro
 		this._save_macro();
+
+		// publish
+		void this._publish([
+			si_item,
+		]);
 
 		// // make mention not editable
 		// dm_mention.contentEditable = 'false';
@@ -487,15 +561,16 @@ export class Mention {
 		// }));
 
 		// get item details
-		const g_item = (await this.fetchItemDetails(si_channel, p_item)) as Record<string, ValuedLabeledObject>;
+		const g_item = await this.fetchItemDetails(si_channel, p_item);
 
 		// update component states
 		this._y_component.$set({
 			// load attributes
-			a_attributes: oderac(g_item, (si_key, {label:s_label, value:s_value}) => ({
+			a_attributes: oderac(g_item, (si_key, {label:s_label, value:y_value}) => ({
 				label: s_label,
 				key: si_key,
-				value: s_value,
+				value: y_value.textContent,
+				format: y_value.contentType,
 			})),
 
 			// switch to attribute selector
@@ -503,17 +578,16 @@ export class Mention {
 		});
 
 		// query for rendered content
-		const dm_rendered = qs(this._d_doc_editor, this._sq_dom);
+		const dm_macro = this._dm_macro;
 
 		// create active attribute selector
-		remove_all_children(qs(dm_rendered, '.ve-mention-attr') as HTMLElement).appendChild(dd('span', {
+		remove_all_children(qs(dm_macro, '.ve-mention-attribute') as HTMLElement).appendChild(dd('span', {
 			class: 'attribute active',
-			contentEditable: 'false',
 		}, [
 			dd('span', {
 				class: 'content',
 			}, [
-				'|',  // cursor preview
+				' |',  // cursor preview
 			]),
 			dd('span', {
 				class: 'indicator',
@@ -521,28 +595,35 @@ export class Mention {
 		]));
 
 		// ref created span
-		const dm_attribute = qs(dm_rendered, '.attribute') as HTMLSpanElement;
-
-		// // set attributes so they can be xfered
-		// dm_attribute
+		const dm_attribute = qs(dm_macro, '.attribute') as HTMLSpanElement;
 
 		// bind event listeners
-		dm_attribute.addEventListener('click', () => {
-			prompt_attribute_selector(dm_mention);
-		});
-		dm_attribute.addEventListener('input', () => {
-			prompt_attribute_selector(dm_mention);
-		});
-		dm_attribute.addEventListener('keydown', (d_event) => {
-			d_event.preventDefault();
+		{
+			// attribute is clicked on
+			dm_attribute.addEventListener('click', (de_event: MouseEvent) => {
+				de_event.stopImmediatePropagation();
 
-			if('Backspace' === d_event.key) {
-				dm_attribute.textContent = '|';
-			}
+				this._show_attribute_selector();
+			});
 
-			prompt_attribute_selector(dm_mention);
-		});
+			// attribute is typed into
+			dm_attribute.addEventListener('input', () => {
+				this._show_attribute_selector();
+			});
 
+			// attribute is backspaces
+			dm_attribute.addEventListener('keydown', (d_event) => {
+				d_event.preventDefault();
+
+				if('Backspace' === d_event.key) {
+					dm_attribute.textContent = '|';
+				}
+
+				this._show_attribute_selector();
+			});
+		}
+
+		// insert dropdown indicator icon
 		new Fa({
 			target: qs(dm_attribute, '.indicator'),
 			props: {
@@ -551,17 +632,38 @@ export class Mention {
 		});
 	}
 
-	protected _update_text(): void {
-		this.targetText = `${this._k_transclusion.connection.alias}:${this._k_transclusion.itemId}`;
-		this._k_transclusion.clone
+	async selectAttribute(g_attr: ValuedLabeledObject): Promise<void> {
+		const dm_macro = this._dm_macro;
+
+		// ref created span
+		const dm_attribute = qs(dm_macro, '.attribute') as HTMLSpanElement;
+
+		// selector no longer active
+		dm_attribute.classList.remove('active');
+
+		// add display attribute and re-encode
+		this._k_transclusion = await this._k_transclusion.clone<Transclusion>({
+			displayAttribute: g_attr,
+		});
+
+		// save macro
+		this._save_macro();
+
+		// publish text
+		void this._publish();
+
+		// replace text content with new attribute
+		qs(dm_attribute, '.content').textContent = ` | ${g_attr.label}`;
 	}
 
-	get targetText(): string {
-		return (qs(this._dm_macro, '.ve-mention-at').textContent || '').replace(/^@/, '');
-	}
+	searchInput(): void {
+		const s_term = (qs(this._dm_macro, '.ve-mention-input')?.textContent || '').replace(/^@/, '').trim().toLocaleLowerCase();
 
-	set targetText(s_text: string) {
-		qs(this._dm_macro, '.ve-mention-at').textContent = '@'+s_text;
+		this._y_component.$set({
+			s_search: s_term,
+		});
+
+		return this.search(s_term);
 	}
 
 	get _dm_macro(): HTMLElement {
@@ -797,7 +899,7 @@ export class Mention {
 		return this._h_channels[si_channel];
 	}
 
-	async fetchItemDetails(si_channel: string, p_item: string): Promise<JsonObject> {
+	async fetchItemDetails(si_channel: string, p_item: string): Promise<Record<string, ValuedLabeledObject<TypedString>>> {
 		// get connection
 		const k_connection = this._h_channels[si_channel].connection;
 
@@ -807,24 +909,24 @@ export class Mention {
 		// execute query (should only be 1 row)
 		const a_rows = await k_connection.execute(k_query.paginate(2));
 
+		// ref first result
 		const g_item = a_rows[0];
 
+		// annotate value strings
 		return {
 			idValue: {
 				label: 'Requirement ID',
-				value: g_item.idValue.value,
+				value: new PlainString(g_item.idValue.value),
 			},
 			requirementNameValue: {
 				label: 'Requirement Name',
-				value: g_item.requirementNameValue.value,
+				value: new PlainString(g_item.requirementNameValue.value),
 			},
 			requirementTextValue: {
 				label: 'Requirement Text',
-				value: g_item.requirementTextValue.value,
+				value: new HtmlString(g_item.requirementTextValue.value),
 			},
 		};
-
-		// this._g_context.store.optionsSync('hardcoded#queryField.sparql.dng.**', this._g_context, QueryField);
 	}
 
 	abortAll(): number {

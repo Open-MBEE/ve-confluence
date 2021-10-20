@@ -33,6 +33,7 @@ export namespace Transclusion {
 			key: string;
 			label: string;
 			value: string;
+			format: string;
 		};
 	}
 }
@@ -109,13 +110,16 @@ export class Transclusion<
 			throw new Error(`Expected query to return exactly 1 row, however ${a_rows.length} rows were returned`);
 		}
 
-		const si_key = this._gc_serialized.displayAttribute.key;
-
+		// set attributes
 		this._h_attributes = oderom(a_rows[0], (si_attr, g_field) => ({
 			[si_attr]: [key_to_label(si_attr), new HtmlString(g_field.value)],
 		}));
 
-		return this._s_display = a_rows[0][si_key].value;
+		// ref key
+		const si_key = this._gc_serialized.displayAttribute.key;
+
+		// set & return display text
+		return this._s_display = TypedString.fromText(a_rows[0][si_key].value, this._gc_serialized.displayAttribute.format || 'text/plain').textContent;
 	}
 
 	get fallbackDisplayText(): string {
