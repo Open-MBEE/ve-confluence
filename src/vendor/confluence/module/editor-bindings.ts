@@ -11,6 +11,7 @@ import type {Context} from '#/model/Serializable';
 import {ode} from '#/util/belt';
 
 import {
+	dd,
 	qs,
 	qsa,
 } from '#/util/dom';
@@ -58,42 +59,8 @@ let y_editor: PatchedEditor;
 let g_context: Context;
 let d_doc_editor: Document;
 
+const S_NBSP = '\xa0';
 
-function get_mentions(): {anchor: HTMLElement|null; mentions: HTMLElement[]} {
-	// element struct
-	const g_elements = {
-		anchor: null,
-		mentions: [],
-	};
-
-	// get selection
-	let g_sel;
-	try {
-		g_sel = y_editor.selection.getSel();
-	}
-	catch(e_sel) {
-		return g_elements;
-	}
-
-	// no selection; abort
-	if(!g_sel) return g_elements;
-
-	// @ts-expect-error anchorNode not defined in typings
-	const dm_anchor = g_elements.anchor = g_sel.anchorNode as HTMLElement;
-
-	// text node; traverse up
-	const dm_focus = ('#text' === dm_anchor.nodeName? dm_anchor.parentNode: dm_anchor) as HTMLElement;
-
-	let a_mentions = dm_focus.hasAttribute(SI_EDITOR_SYNC_KEY)? [dm_focus]: qsa(dm_focus, `.ve-mention[${SI_EDITOR_SYNC_KEY}]`) as HTMLElement[];
-
-	if(!a_mentions.length) {
-		const a_mentions_all = qsa(document, `.ve-mention[${SI_EDITOR_SYNC_KEY}]`) as HTMLElement[];
-		if(1 === a_mentions_all.length) a_mentions = a_mentions_all;
-	}
-
-	// find mention data
-	return {anchor:dm_anchor, mentions:a_mentions};
-}
 
 
 function init_bindings() {
@@ -142,7 +109,7 @@ function init_bindings() {
 		// none active
 		if(!g_autocomplete_active) {
 			// new mention
-			if('@' === d_event.key) {
+			if('#' === d_event.key) {
 				d_event.stopImmediatePropagation();
 				d_event.preventDefault();
 
@@ -179,7 +146,7 @@ function init_bindings() {
 				});
 
 				// insert new mention
-				y_editor.execCommand('mceInsertContent', false, k_mention.renderHtml());
+				y_editor.execCommand('mceInsertContent', false, k_mention.renderMacroHtml());
 
 				// find element
 				const dm_inserted = qs(d_doc_editor, k_mention.domSelector);
@@ -189,13 +156,27 @@ function init_bindings() {
 					throw new Error('Failed to insert mention content into confluence editor');
 				}
 
-				// fetch preceding element
+				// select preceding element
 				const dm_prev = dm_inserted.previousElementSibling;
 				if(dm_prev) {
 					// paragraph; add precedes inline class
 					if('P' === dm_prev.tagName) {
 						dm_prev.classList.add('precedes-inline');
 					}
+				}
+
+				const dm_span = dd('span', {}, [S_NBSP]);
+
+				// select following element
+				const dm_next = dm_inserted.nextElementSibling;
+				if(dm_next && 'P' === dm_next.tagName && 'SPAN' === dm_next.firstElementChild?.tagName) {
+					dm_next.prepend(dm_span);
+					if(!dm_next.textContent) {
+						dm_next.textContent = S_NBSP;
+					}
+				}
+				else {
+					dm_inserted.insertAdjacentElement('afterend', dd('p', {}, [dm_span]));
 				}
 			}
 			// anything else

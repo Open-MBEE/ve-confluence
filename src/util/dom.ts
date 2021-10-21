@@ -107,9 +107,16 @@ export const uuid_v4 = (s_delim='_'): string => {
 	});
 };
 
-export const encode_attr = (h: Record<string, unknown>) => btoa(JSON.stringify(h));
+export const encode_attr = (h: Record<string, unknown>): string => btoa(JSON.stringify(h));
 
-export const decode_attr = (sx: string) => sx? JSON.parse(atob(sx)) as JsonValue: null;
+export const decode_attr = (sx: string): JsonValue | null => sx? JSON.parse(atob(sx)) as JsonValue: null;
+
+export const parse_html = (sx_html: string): Document => new DOMParser().parseFromString(sx_html, 'text/html');
+
+export const serialize_dom = (d_doc: Document): string => new XMLSerializer()
+	.serializeToString(d_doc.body).trim()
+	.replace(/^<body[^>]*>|<\/body>$/g, '').trim()
+	.replace(/\xa0/g, '&nbsp;');
 
 
 // main page
@@ -123,3 +130,4 @@ export const dm_main_header = document.getElementById('main-header') as HTMLDivE
 
 // // sidebar
 // export const dm_sidebar = document.getElementsByClassName('ia-fixed-sidebar').item(0) as HTMLDivElement;
+

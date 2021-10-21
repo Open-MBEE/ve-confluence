@@ -126,6 +126,10 @@ export class Transclusion<
 		return this._gc_serialized.displayAttribute.value;
 	}
 
+	get attributeLabel(): string {
+		return this._gc_serialized.displayAttribute.label;
+	}
+
 	get attributes(): Record<string, [string, TypedString]> {
 		if(!this._h_attributes) throw new Error('Attributes not yet initialized');
 

@@ -41,13 +41,14 @@ import type {VeoPathTarget} from '#/common/veo';
 
 import type {QueryTable} from '#/element/QueryTable/model/QueryTable';
 
-import {dd, uuid_v4} from '#/util/dom';
+import {dd, encode_attr, qs, uuid_v4} from '#/util/dom';
 
 import {oderac} from '#/util/belt';
 
 import type {Transclusion} from '#/element/Transclusion/model/Transclusion';
 
 import {ObjectStore} from '#/model/ObjectStore';
+import { decode_macro_parameters } from '../patch/editor';
 
 const P_API_DEFAULT = '/rest/api';
 
@@ -76,6 +77,10 @@ export interface PageMetadata extends JsonMetadataShape<'Page'> {
  * @see {@link https://developer.atlassian.com/cloud/confluence/collaborative-editing/|The Synchrony whitelist}
  */
 export const SI_EDITOR_SYNC_KEY = 'data-type';
+
+export const is_retro_fitted = (dm_macro: HTMLElement): boolean => (qs(dm_macro, 'tr') as HTMLTableRowElement).parentElement!.childNodes.length > 1;
+
+export const retro_fit = (dm_macro: HTMLElement): void => dm_macro.setAttribute(SI_EDITOR_SYNC_KEY, encode_attr({type:'visited'}));
 
 const G_DEFAULT_PAGE_METADATA: PageMetadata = {
 	type: 'Page',
@@ -702,7 +707,16 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 	}
 
 	getDisplayUrlString(): string {
-		return `/display/${G_META.space_key}/${this._s_page_title.replace(/ /g, '+')}`;
+		const s_title = this._s_page_title;
+
+		// name is safe
+		if(encodeURIComponent(s_title).replace(/%20/g, ' ') === s_title) {
+			return `/display/${G_META.space_key}/${s_title.replace(/ /g, '+')}`;
+		}
+		// name is not safe
+		else {
+			return `/pages/viewpage.action?pageId=${this.pageId}`;
+		}
 	}
 
 	async fetchAncestry(b_force=false): Promise<ConfluenceApi.BasicPage[]> {
