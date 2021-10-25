@@ -37,6 +37,7 @@ import {
 	encode_attr,
 	parse_html,
 	qs,
+	remove_all_children,
 	serialize_dom,
 	uuid_v4,
 } from '#/util/dom';
@@ -123,14 +124,6 @@ function* range(s_from: string, s_to: string) {
 	for(let i_char=s_from.codePointAt(0)!, i_to=s_to.codePointAt(0)!; i_char<i_to; i_char++) {
 		yield String.fromCodePoint(i_char);
 	}
-}
-
-function remove_all_children(dm_parent: HTMLElement): HTMLElement {
-	while(dm_parent.firstChild) {
-		dm_parent.removeChild(dm_parent.firstChild);
-	}
-
-	return dm_parent;
 }
 
 export class Mention {

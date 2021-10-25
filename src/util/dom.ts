@@ -119,6 +119,14 @@ export const serialize_dom = (d_doc: Document): string => new XMLSerializer()
 	.replace(/\xa0/g, '&nbsp;');
 
 
+export function remove_all_children(dm_parent: HTMLElement): HTMLElement {
+	while(dm_parent.firstChild) {
+		dm_parent.removeChild(dm_parent.firstChild);
+	}
+
+	return dm_parent;
+}
+
 // main page
 export const dm_main = document.getElementById('main') as HTMLDivElement;
 

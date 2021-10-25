@@ -26,6 +26,8 @@ import {
 	uuid_v4,
 	dm_main,
 	dd,
+	parse_html,
+	remove_all_children,
 } from '#/util/dom';
 
 import type {SvelteComponent} from 'svelte';
@@ -116,7 +118,7 @@ interface ViewBundle extends Correlation {
 	/**
 	 * anchor point to insert component before
 	 */
-	anchor: HTMLElement;
+	anchor?: HTMLElement;
 
 	/**
 	 * directive's corresponding XML node in the Wiki page's storage XHTML document
@@ -156,12 +158,14 @@ const P_DNG_WEB_PREFIX = process.env.DOORS_NG_PREFIX;
 
 // for excluding elements that are within active directives
 const SX_PARAMETER_ID_PAGE_ELEMENT = `ac:parameter[@ac:name="id"][starts-with(text(),"page#elements.")]`;
-const SX_EXCLUDE_ACTIVE_ELEMENTS = /* syntax: xpath */ `[not(ancestor::ac:structured-macro[@ac:name="span"][child::${SX_PARAMETER_ID_PAGE_ELEMENT}])]`;
+const SX_PARAMETER_ID_EMBEDDED_ELEMENT = `ac:parameter[@ac:name="id"][starts-with(text(),"embedded#elements.")]`;
+const SX_EXCLUDE_ACTIVE_PAGE_ELEMENTS = /* syntax: xpath */ `[not(ancestor::ac:structured-macro[@ac:name="span"][child::${SX_PARAMETER_ID_PAGE_ELEMENT}])]`;
+const SX_EXCLUDE_ACTIVE_EMBEDDED_ELEMENTS = /* syntax: xpath */ `[not(ancestor::ac:structured-macro[@ac:name="span"][child::${SX_PARAMETER_ID_EMBEDDED_ELEMENT}])]`;
 
 const A_DIRECTIVE_CORRELATIONS: CorrelationDescriptor[] = [
 	// dng web link
 	{
-		storage: /* syntax: xpath */ `.//a[starts-with(@href,"${P_DNG_WEB_PREFIX}")]${SX_EXCLUDE_ACTIVE_ELEMENTS}`,
+		storage: /* syntax: xpath */ `.//a[starts-with(@href,"${P_DNG_WEB_PREFIX}")]${SX_EXCLUDE_ACTIVE_PAGE_ELEMENTS}`,
 		live: `a[href^="${P_DNG_WEB_PREFIX}"]:not([data-ve4])`,
 		directive: ([ym_anchor, g_link]) => ({
 			component: DngArtifact,
@@ -257,7 +261,7 @@ function render_component(g_bundle: ViewBundle, b_hide_anchor = false) {
 
 	// re-stitch together inline paragraph
 	if(TransclusionComponent === g_bundle.component && (('P' === dm_parent.nodeName && !qsa(dm_parent, 'br').length) || ('SPAN' === dm_parent.nodeName && 'P' === dm_parent.parentElement?.nodeName && !qsa(dm_parent.parentElement, 'br').length))) {
-		dm_anchor.style.display = 'none';
+		// dm_anchor.style.display = 'none';
 
 		const dm_parent_render = dm_render.closest('p')!;
 		dm_parent_render.style.display = 'inline';
@@ -281,13 +285,21 @@ function render_component(g_bundle: ViewBundle, b_hide_anchor = false) {
 	}
 	// hide anchor
 	else if(b_hide_anchor) {
-		(g_bundle.render || dm_anchor).style.display = 'none';
+		if(dm_anchor) {
+			(g_bundle.render || dm_anchor).style.display = 'none';
+		}
 	}
 
 	// render component
 	new g_bundle.component({
-		target: dm_anchor.parentNode as HTMLElement,
-		anchor: dm_anchor,
+		...(dm_anchor
+			? {
+				target: dm_anchor.parentNode as HTMLElement,
+				anchor: dm_anchor,
+			}
+			: {
+				target: dm_render,
+			}),
 		props: {
 			...g_bundle.props || {},
 			yn_directive: g_bundle.node,
@@ -410,6 +422,85 @@ export async function main(): Promise<void> {
 		//
 		for(const g_bundle of dg_directives) {
 			render_component(g_bundle, true);
+		}
+	}
+
+	// interpret published elements
+	{
+		// xpath query for rendered elements
+		const a_macros = k_source.select<Node>(`//ac:structured-macro[@ac:name="html"][child::${SX_PARAMETER_ID_EMBEDDED_ELEMENT}]`);
+
+		// translate into ve paths
+		const a_paths = a_macros.map(yn => [xpathSelect1<Text>(`./ac:parameter[@ac:name="id"]/text()`, yn).data, yn] as [VeoPath.Full, Node]);
+
+		// resolve serialized element
+		for(const [sp_element, yn_directive] of a_paths) {
+			// correlate to live DOM element
+			const a_candidates = qsa(dm_main, `.ve-output-publish-anchor[id="${sp_element}"]`);
+
+			// incorrect match
+			if(1 !== a_candidates.length) {
+				throw new Error(`Expected exactly 1 element on page with id="${sp_element}" but found ${a_candidates.length}`);
+			}
+
+			const dm_anchor = a_candidates[0] as HTMLElement;
+
+			// select previous element
+			// const dm_script = qs(dm_anchor.parentElement, `script#ve-metadata-${}[type="application/json"]`);
+			const dm_script = dm_anchor.previousElementSibling;
+			if(!dm_script || 'SCRIPT' !== dm_script.tagName) {
+				throw new Error(`Embedded element is missing script metadata`);
+			}
+
+			// parse element metadata
+			const gc_element = JSON.parse(dm_script.textContent || '{}') as Serializable;
+
+			// model and component class
+			let dc_model!: VeOdmConstructor<Serializable, VeOdm<Serializable>>;
+			// let dc_component: {new(o: Record<string, unknown>): SvelteComponent};
+			let dc_component!: typeof SvelteComponentDev;
+
+			// deserialize
+			switch(gc_element.type) {
+				// query table
+				case 'MmsSparqlQueryTable': {
+					// @ts-expect-error safu
+					dc_model = MmsSparqlQueryTable;
+					dc_component = QueryTable;
+					break;
+				}
+
+				// transclusion
+				case 'Transclusion': {
+					// debugger;
+					// @ts-expect-error safu
+					dc_model = Transclusion;
+					dc_component = TransclusionComponent;
+					break;
+				}
+
+				default: {
+					debugger;
+					break;
+				}
+			}
+
+			if(dc_model) {
+				// construct model instance
+				const k_model = await VeOdm.createFromSerialized(dc_model, sp_element, gc_element, G_CONTEXT);
+
+				// inject component
+				render_component({
+					component: dc_component,
+					render: remove_all_children(dm_anchor),
+					anchor: dm_script,
+					node: yn_directive,
+					props: {
+						k_model,
+						b_published: true,
+					},
+				}, true);
+			}
 		}
 	}
 
