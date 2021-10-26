@@ -51,7 +51,7 @@ import { Mention } from '#/element/Mentions/model/Mention';
 interface MacroComponent {
 	get displayNode(): HTMLElement;
 	updateDisplay(): void;
-	bindEventListeners(): void;
+	bindEventListeners(b_init: boolean): void;
 	get macroDom(): HTMLElement;
 }
 
@@ -105,10 +105,10 @@ function adjust_virgin_macro(dm_node: HTMLElement) {
 		// output body exists
 		if(dm_pre) {
 			// parse publish content
-			const dm_publish = parse_html(dm_pre.textContent || '');
+			const dm_publish = parse_html(`<body>${dm_pre.textContent || ''}</body>`).body;
 
 			// query for serialized element tag
-			const dm_script = qs(dm_publish, 'script.ve-element-serialized');
+			const dm_script = qs(dm_publish, 'script[data-ve-type="element-metadata"]');
 
 			// element exists
 			if(dm_script) {
@@ -291,8 +291,8 @@ function init_page_element(dm_node: HTMLTableElement, gc_element: Serializable) 
 
 		// wait a tick
 		queueMicrotask(() => {
-			// bind event listeners
-			k_thing.bindEventListeners();
+			// bind event listener3s
+			k_thing.bindEventListeners(true);
 		});
 	});
 }

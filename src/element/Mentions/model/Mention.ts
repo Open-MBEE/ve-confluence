@@ -315,10 +315,10 @@ export class Mention {
 		this._dm_publish = parse_html(`
 			<body>
 				<!-- cql-search-tag:${sp_element} -->
-				<script type="application/json" class="ve-element-serialized">
+				<script type="application/json" data-ve-eid="${si_element}" data-ve-type="element-metadata">
 					${JSON.stringify(this._k_transclusion.toSerialized(), null, '\t')}
 				</script>
-				<span class="ve-output-publish-anchor"></span>
+				<span class="ve-output-publish-anchor" data-ve-eid="${si_element}" data-ve-type="element-dom" id="${sp_element}"></span>
 			</body>
 		`.replace(/(^|\n)[ \t]+</g, '$1<'));
 
@@ -421,14 +421,14 @@ export class Mention {
 		const dm_macro = this.macroDom;
 
 		// query for pre element
-		const dm_pre = qs(dm_macro, '.wysiwyg-macro-body>pre.ve-macro-publish-anchor');
+		const dm_pre = qs(dm_macro, '.wysiwyg-macro-body>pre');
 		if(!dm_pre) {
 			debugger;
 			throw new Error(`Failed to select macro body`);
 		}
 
 		// query for script tag
-		let dm_script = qs(this._dm_publish, 'script.ve-element-serialized') as HTMLScriptElement;
+		let dm_script = qs(this._dm_publish, 'script[data-ve-type="element-metadata"]') as HTMLScriptElement;
 
 		// serialize transclusion
 		const sx_ve = JSON.stringify(this._k_transclusion.toSerialized(), null, '\t');
@@ -454,12 +454,13 @@ export class Mention {
 
 	protected async _publish(a_display: Parameters<typeof dd>[2]|null=null): Promise<void> {
 		// nodes to append to macro publish body
-		remove_all_children(qs(this._dm_publish, '.ve-output-publish-anchor') as HTMLElement).append(...[
+		remove_all_children(qs(this._dm_publish, '[data-ve-type="element-dom"]') as HTMLElement).append(...[
 			dd('a', {
 				class: 've-transclusion',
 				href: this._k_transclusion.itemIri,
 				rel: 'external',
 				target: '_blank',
+				'data-ve-type': 'element-live',
 			}, [
 				dd('span', {
 					class: 've-transclusion-icon fa fa-bolt',
@@ -578,22 +579,11 @@ export class Mention {
 			si_item,
 		]);
 
-		// get item details
-		const g_item = await this.fetchItemDetails(si_channel, p_item);
+		// bind event listeners
+		this.bindEventListeners();
 
-		// update component states
-		this._y_component.$set({
-			// load attributes
-			a_attributes: oderac(g_item, (si_key, {label:s_label, value:y_value}) => ({
-				label: s_label,
-				key: si_key,
-				value: y_value.textContent,
-				format: y_value.contentType,
-			})),
-
-			// switch to attribute selector
-			xc_mode: DisplayMode.ATTRIBUTE,
-		});
+		// 
+		await this._enter_attribute_selector(p_item);
 
 		// query for rendered content
 		const dm_macro = this.macroDom;
@@ -615,12 +605,31 @@ export class Mention {
 
 		// create active attribute selector
 		dm_attr.classList.add('active');
-
-		// bind event listeners
-		this.bindEventListeners();
 	}
 
-	bindEventListeners(): void {
+	async _enter_attribute_selector(p_item: string): Promise<void> {
+		// await for transclusion to be ready
+		await this._k_transclusion.ready();
+
+		// get item details
+		const g_item = await this.fetchItemDetails(this._k_transclusion.connection, p_item);
+
+		// update component states
+		this._y_component.$set({
+			// load attributes
+			a_attributes: oderac(g_item, (si_key, {label:s_label, value:y_value}) => ({
+				label: s_label,
+				key: si_key,
+				value: y_value.textContent,
+				format: y_value.contentType,
+			})),
+
+			// switch to attribute selector
+			xc_mode: DisplayMode.ATTRIBUTE,
+		});
+	}
+
+	async bindEventListeners(b_init=false): Promise<void> {
 		// ref created span
 		const dm_attribute = qs(this.macroDom, '.ve-mention-attribute') as HTMLSpanElement;
 
@@ -667,6 +676,33 @@ export class Mention {
 				icon: faAngleDown,
 			},
 		});
+
+		// also perform init
+		if(b_init) {
+			// get cursor offset
+			const g_rect = this.macroDom.getBoundingClientRect();
+
+			// unable to get bounding rect
+			if(!g_rect) {
+				debugger;
+				throw new Error(`y_editor.selection has no bounding client rect`);
+			}
+
+			// destructure rect
+			const {
+				left: x_left,
+				top: x_top,
+			} = g_rect;
+
+			// set widget display and offset
+			this._y_component.$set({
+				sx_offset_x: `${x_left}px`,
+				sx_offset_y: `calc(${x_top}px + 1.5em)`,
+			});
+
+			// enter attribute selector
+			void this._enter_attribute_selector(this._k_transclusion.itemIri);
+		}
 	}
 
 	async selectAttribute(g_attr: ValuedLabeledObject): Promise<void> {
@@ -933,10 +969,8 @@ export class Mention {
 		return this._h_channels[si_channel];
 	}
 
-	async fetchItemDetails(si_channel: string, p_item: string): Promise<Record<string, ValuedLabeledObject<TypedString>>> {
-		// get connection
-		const k_connection = this._h_channels[si_channel].connection;
-
+	// eslint-disable-next-line class-methods-use-this
+	async fetchItemDetails(k_connection: Connection, p_item: string): Promise<Record<string, ValuedLabeledObject<TypedString>>> {
 		// build detailer query
 		const k_query = k_connection.detail(p_item);
 

@@ -610,7 +610,8 @@
 				{/if}
 				<span class="icon-help">
 					<!-- help icon -->
-					<Fa icon={faQuestionCircle} size="2x"></Fa>
+					<!-- <Fa icon={faQuestionCircle} size="2x"></Fa> -->
+					<i class="fas fa-2x fa-question-circle" />
 				</span>
 				<span class="version">
 					v{s_app_version}
@@ -682,7 +683,7 @@
 									</div>
 								</section>
 								<section>
-									<h3>Page</h3>
+									<h3>Page <a href="/pages/editpage.action?pageId={k_page?.pageId}">(edit page natively)</a></h3>
 									<div>
 										<h4>
 											Edit page metadata:

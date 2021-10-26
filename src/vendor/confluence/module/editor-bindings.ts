@@ -83,6 +83,9 @@ function init_bindings() {
 			// otherwise; hide overlay
 			else {
 				g_autocomplete_active.mention.hideOverlay();
+
+				// autocomplete no longer active
+				g_autocomplete_active = null;
 			}
 		}
 	});
@@ -232,7 +235,11 @@ function init_bindings() {
 
 			// key closes mentions
 			if(A_CANCEL_KEY.includes(d_event.key)) {
+				// hide overlay
 				k_mention.hideOverlay();
+
+				// autocomplete no longer active
+				g_autocomplete_active = null;
 			}
 
 			// abort pending requests

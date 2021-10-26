@@ -1,14 +1,14 @@
 <script lang="ts">
 	import type {Transclusion} from '../model/Transclusion';
+	
+	import {onMount} from 'svelte';
+	
+	import Fa from 'svelte-fa';
 
 	import {
 		faBolt,
 		faHistory,
 	} from '@fortawesome/free-solid-svg-icons';
-
-	import {onMount} from 'svelte';
-
-	import Fa from 'svelte-fa';
 
 	import type {MmsSparqlConnection} from '#/model/Connection';
 
@@ -231,7 +231,8 @@
 					{k_model.connection.label}
 			</span>
 			<span class="date">
-					<Fa icon={faHistory} />
+					<!-- <Fa icon={faHistory} /> -->
+					<i class="fas fa-history" />
 					{s_display_version}
 			</span>
 		</div>
@@ -244,7 +245,7 @@
 						</div>
 						<div class="value">
 							{#if 'text/html' === k_display.contentType}
-								{@html k_display.toString()}
+								{k_display.textContent}
 							{:else}
 								{k_display.toString()}
 							{/if}
@@ -258,7 +259,8 @@
 
 <a href={k_model.itemIri} class="transclusion" on:mouseenter={enable_hover} on:mouseleave={disable_hover} bind:this={dm_link}>
 	<span>
-		<Fa icon={faBolt} />
+		<!-- <Fa icon={faBolt} /> -->
+		<i class="fas fa-bolt" />
 	</span>
 	<span>
 		{s_display || k_model.fallbackDisplayText}

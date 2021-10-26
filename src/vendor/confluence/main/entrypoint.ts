@@ -159,14 +159,14 @@ const P_DNG_WEB_PREFIX = process.env.DOORS_NG_PREFIX;
 // for excluding elements that are within active directives
 const SX_PARAMETER_ID_PAGE_ELEMENT = `ac:parameter[@ac:name="id"][starts-with(text(),"page#elements.")]`;
 const SX_PARAMETER_ID_EMBEDDED_ELEMENT = `ac:parameter[@ac:name="id"][starts-with(text(),"embedded#elements.")]`;
-const SX_EXCLUDE_ACTIVE_PAGE_ELEMENTS = /* syntax: xpath */ `[not(ancestor::ac:structured-macro[@ac:name="span"][child::${SX_PARAMETER_ID_PAGE_ELEMENT}])]`;
-const SX_EXCLUDE_ACTIVE_EMBEDDED_ELEMENTS = /* syntax: xpath */ `[not(ancestor::ac:structured-macro[@ac:name="span"][child::${SX_PARAMETER_ID_EMBEDDED_ELEMENT}])]`;
+const SX_EXCLUDE_ACTIVE_PAGE_ELEMENTS = /* syntax: xpath */ `[not(ancestor::ac:structured-macro[@ac:name="html"][child::${SX_PARAMETER_ID_EMBEDDED_ELEMENT}])]`;
+const SX_EXCLUDE_ACTIVE_EMBEDDED_ELEMENTS = /* syntax: xpath */ `[not(ancestor::ac:structured-macro[@ac:name="html"][child::${SX_PARAMETER_ID_EMBEDDED_ELEMENT}])]`;
 
 const A_DIRECTIVE_CORRELATIONS: CorrelationDescriptor[] = [
 	// dng web link
 	{
 		storage: /* syntax: xpath */ `.//a[starts-with(@href,"${P_DNG_WEB_PREFIX}")]${SX_EXCLUDE_ACTIVE_PAGE_ELEMENTS}`,
-		live: `a[href^="${P_DNG_WEB_PREFIX}"]:not([data-ve4])`,
+		live: `a[href^="${P_DNG_WEB_PREFIX}"]:not([data-ve-type])`,
 		directive: ([ym_anchor, g_link]) => ({
 			component: DngArtifact,
 			props: {
