@@ -36,6 +36,7 @@
 	});
 
 	let a_options: Option[] = [];
+	let a_select_items: ValuedLabeledObject[] = [];
 
 	let a_selected_options: Option[] = [];
 
@@ -52,13 +53,13 @@
 
 	let xc_load = XC_LOAD_NOT;
 
-	async function load_param(s_filter_text: string): Promise<ValuedLabeledObject> {
+	async function load_param(s_filter_text: string): Promise<ValuedLabeledObject[]> {
 		if(k_query_table.type.startsWith('MmsSparql')) {
 			const k_connection = (await k_query_table.fetchConnection()) as MmsSparqlConnection;
 
 			const k_query = await k_query_table.fetchParamQueryBuilder(k_param, s_filter_text);
 
-			const a_rows = k_connection.execute(k_query.all());
+			const a_rows = await k_connection.execute(k_query.all());
 
 			// const a_rows = await k_connection.execute(/* syntax: sparql */ `
 			// 	select ?value (count(?req) as ?count) from <${k_connection.modelGraph}> {
@@ -83,6 +84,11 @@
 			if(k_param.sort) {
 				a_options = a_options.map(g_opt => g_opt.data).sort(k_param.sort).map(g_data => a_options.find(g_opt => g_opt.data.value === g_data.value)) as Option[];
 			}
+
+			return a_select_items = a_options.map(g => g.data);
+		}
+		else {
+			return [];
 		}
 	}
 
@@ -265,7 +271,7 @@
 	{:else}
 		<Select
 			loadOptions={load_param}
-			items={a_options.map(g_opt => g_opt.data)}
+			items={a_select_items}
 			value={a_init_values.length? a_init_values: null}
 			placeholder="Select Attribute Value(s)"
 			getOptionLabel={g => g.label}

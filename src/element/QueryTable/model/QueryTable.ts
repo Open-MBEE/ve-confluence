@@ -312,7 +312,9 @@ export abstract class QueryTable<
 
 		// no such param
 		if(!this.queryType.queryParametersPaths.map(sp => this._k_store.idPartSync(sp).join('.')).includes(si_param)) {
-			throw new Error(`No such parameter has the id '${si_param}'`);
+			// return blank list
+			return new ParamValuesList([]);
+			// throw new Error(`No such parameter has the id '${si_param}'`);
 		}
 
 		// param not found in values
@@ -421,7 +423,7 @@ export abstract class QueryTable<
 		else {
 			throw new Error(`No directive node was given`);
 		}
-		debugger;
+
 		return {
 			rows: a_rows,
 			contents: k_contents,

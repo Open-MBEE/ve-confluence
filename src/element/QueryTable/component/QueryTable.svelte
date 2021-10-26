@@ -678,21 +678,24 @@
 		<div class="controls">
 			<span class="label">
 				Connected Data Table {g_source ? `with ${g_source.label}` : ''}
-				<Fa icon={faQuestionCircle} />
+				<!-- <Fa icon={faQuestionCircle} /> -->
+				<i class="fas fa-question-circle" />
 			</span>
 			<span class="info">
 				{#if b_display_preview || !b_published}
 					{#if G_INFO_MODES.PREVIEW === xc_info_mode}
 						{s_status_info}
 					{:else if G_INFO_MODES.LOADING === xc_info_mode}
-						<Fa icon={faCircleNotch} class="fa-spin" /> LOADING PREVIEW
+						<!-- <Fa icon={faCircleNotch} class="fa-spin" /> LOADING PREVIEW -->
+						<i class="fas fa-spin fa-circle-notch" /> LOADING PREVIEW
 					{/if}
 				{/if}
 			</span>
 			<span class="buttons">
 				{#if b_published}
 					<span class="ve-pill">
-						<Fa icon={faCheckCircle} size="sm" />
+						<!-- <Fa icon={faCheckCircle} size="sm" /> -->
+						<i class="fas fa-sm fa-check-circle" />
 						Published
 					</span>
 				{/if}
@@ -707,11 +710,13 @@
 			<div class="config">
 				<span class="tabs">
 					<span class="parameters" on:click={toggle_parameters} class:active={b_display_parameters}>
-						<Fa icon={faPencilAlt} size="sm" />
+						<!-- <Fa icon={faPencilAlt} size="sm" /> -->
+						<i class="fas fa-sm fa-pencil-alt" />
 						Edit Query
 					</span>
 					<span class="version">
-						<Fa icon={faHistory} size="xs" />
+						<!-- <Fa icon={faHistory} size="xs" /> -->
+						<i class="fas fa-xs fa-history" />
 						Version: {s_display_version}
 					</span>
 				</span>
@@ -751,10 +756,12 @@
 				<div class="control">
 					<span class="info">1-{N_PREVIEW_ROWS} of 325</span>
 					<span class="page-controls">
-						<Fa icon={faAngleLeft} size="xs" />
+						<!-- <Fa icon={faAngleLeft} size="xs" /> -->
+						<i class="fas fa-xs fa-angle-left" />
 					</span>
 					<span>
-						<Fa icon={faAngleRight} size="xs" />
+						<!-- <Fa icon={faAngleRight} size="xs" /> -->
+						<i class="fas fa-xs fa-angle-right" />
 					</span>
 				</div>
 			</div>
