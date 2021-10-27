@@ -53,24 +53,20 @@
 
 	let xc_load = XC_LOAD_NOT;
 
-	async function load_param(s_filter_text: string): Promise<ValuedLabeledObject[]> {
+	async function load_param(k_param_load: QueryParam): Promise<ValuedLabeledObject[]> {
 		if(k_query_table.type.startsWith('MmsSparql')) {
 			const k_connection = (await k_query_table.fetchConnection()) as MmsSparqlConnection;
 
-			const k_query = await k_query_table.fetchParamQueryBuilder(k_param, s_filter_text);
-
-			const a_rows = await k_connection.execute(k_query.all());
-
-			// const a_rows = await k_connection.execute(/* syntax: sparql */ `
-			// 	select ?value (count(?req) as ?count) from <${k_connection.modelGraph}> {
-			// 		?_attr a rdf:Property ;
-			// 			rdfs:label ${Sparql.literal(s_filter_text)} .
-
-			// 		?req a oslc_rm:Requirement ;
-			// 			?_attr [rdfs:label ?value] .
-			// 	}
-			// 	group by ?value order by desc(?count)
-			// `);
+			const a_rows = await k_connection.execute(/* syntax: sparql */ `
+				select ?value (count(?req) as ?count) from <${k_connection.modelGraph}> {
+					?_attr a rdf:Property ;
+						rdfs:label ${Sparql.literal(k_param_load.value)} .
+	
+					?req a oslc_rm:Requirement ;
+						?_attr [rdfs:label ?value] .
+				}
+				group by ?value order by desc(?count)
+			`);
 
 			a_options = a_rows.map(({value:g_value, count:g_count}) => ({
 				count: +g_count.value,
@@ -106,7 +102,7 @@
 			}));
 
 			try {
-				await load_param(k_param.value);
+				await load_param(k_param);
 			}
 			catch(_e_query) {
 				e_query = _e_query as Error;
@@ -270,17 +266,14 @@
 		<p style="color:red;">{lang.basic.loading_failed}</p>
 	{:else}
 		<Select
-			loadOptions={load_param}
-			items={a_select_items}
+			items={a_options.map(g => g.data)}
 			value={a_init_values.length? a_init_values: null}
 			placeholder="Select Attribute Value(s)"
-			getOptionLabel={g => g.label}
-			getSelectionLabel={g => g.value}
 			isMulti={true}
 			isClearable={false}
 			showIndicator={true}
 			containerClasses={'select-input'}
-			isVirtualList={true}
+
 			indicatorSvg={/* syntax: html */ `
 				<svg width="7" height="5" viewBox="0 0 7 5" fill="none" xmlns="http://www.w3.org/2000/svg">
 					<path d="M3.5 4.5L0.468911 0.75L6.53109 0.75L3.5 4.5Z" fill="#333333"/>

@@ -57,6 +57,7 @@
     "svelte-select": "4.4.3",
     "svelte-simple-modal": "^1.0.3",
     "svelte-tabs": "^1.1.0",
+    "svelte-virtual-scroll-list": "^1.0.8",
     "xmldom": "^0.6.0",
     "xpath": "0.0.32"
   },

@@ -101,7 +101,7 @@ export async function build_dng_select_param_query(this: MmsSparqlQueryTable, k_
 	// add filter for searching for parameters
 	if(s_seach_text) {
 		a_bgp.push(`
-			filter contains(lcase(?value),lcase("${s_seach_text}")) 
+			filter contains(lcase(?value),"${s_seach_text.toLowerCase().replace(/"/g, '\\"').replace(/\n/g, '')}") 
 		`);
 	}
 
@@ -124,7 +124,7 @@ export async function build_dng_select_param_query(this: MmsSparqlQueryTable, k_
 			}
 			${a_bgp.join('\n')}
 		`,
-		group: '?value order by desc(?count) limit 40',
+		group: '?value order by desc(?count)',
 	});
 }
 

@@ -233,6 +233,7 @@ function* correlate(gc_correlator: CorrelationDescriptor): Generator<ViewBundle>
 
 	// mismatch
 	if(a_elmts.length !== nl_nodes) {
+		debugger;
 		// `XPath selection found ${nl_nodes} matches but DOM query selection found ${a_elmts.length} matches`);
 		throw new Error(format(lang.error.xpath_dom_mismatch, {
 			node_count: nl_nodes,

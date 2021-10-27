@@ -256,7 +256,7 @@ function sanitize_false_directives(sx_html: string): string {
 	const d_parser = new DOMParser();
 	const d_doc = d_parser.parseFromString(sx_html, 'text/html');
 	const a_links = d_doc.querySelectorAll(`a[href^="${process.env.DOORS_NG_PREFIX || ''}"]`);
-	a_links.forEach(yn_link => yn_link.setAttribute('data-ve4', '{}'));
+	a_links.forEach(yn_link => yn_link.setAttribute('data-ve-type', 'element-live'));
 	return d_doc.body.innerHTML;
 }
 

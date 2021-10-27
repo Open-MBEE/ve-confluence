@@ -9,6 +9,8 @@
 
 	import Select from 'svelte-select';
 
+	import VirtualScroll from 'svelte-virtual-scroll-list';
+
 	import Fa from 'svelte-fa';
 
 	import {
@@ -172,6 +174,15 @@
 	const SX_STATUS_INFO_INIT = 'PREVIEW (0 results)';
 	let s_status_info = SX_STATUS_INFO_INIT;
 
+	// offset for pagination
+	let n_offset = 1;
+
+	// length of results array
+	let nl_rows_total = 0;
+
+	// virtual list component
+	let yc_virtual_scroll: VirtualScroll;
+
 	function clear_preview(): void {
 		b_busy_loading = false;
 
@@ -179,6 +190,8 @@
 		si_query_hash_previous = k_model.hash();
 
 		s_status_info = 'PREVIEW (0 results)';
+		n_offset = 0;
+		nl_rows_total = 0;
 		xc_info_mode = G_INFO_MODES.PREVIEW;
 		g_preview.rows = [];
 	}
@@ -227,13 +240,18 @@
 				// start counting all rows
 				k_connection.execute(k_query.count())
 					.then((a_counts) => {
-						const nl_rows_total = +a_counts[0].count.value;
+						nl_rows_total = +a_counts[0].count.value;
 						s_status_info = `PREVIEW (${N_PREVIEW_ROWS < nl_rows_total? N_PREVIEW_ROWS: nl_rows_total} / ${nl_rows_total} result${1 === nl_rows_total ? '' : 's'})`;
 					})
 					.catch(() => {
 						console.error('Failed to count rows for query');
 					});
 			}
+			else {
+				nl_rows_total = a_rows.length;
+			}
+
+			n_offset = 0;
 
 			g_preview.rows = a_rows.map(QueryTable.cellRenderer(k_model));
 
@@ -384,6 +402,48 @@
 
 		// trigger svelte update for query type change
 		k_model = k_model;
+	}
+
+	function update_page_offset(right=true) {
+		if(b_filtered && nl_rows_total > N_PREVIEW_ROWS && !b_busy_loading) {
+			if(right) {
+				if(nl_rows_total < n_offset + (2 * N_PREVIEW_ROWS)) {
+					if(n_offset + N_PREVIEW_ROWS < nl_rows_total) {
+						n_offset += N_PREVIEW_ROWS;
+					}
+					s_status_info = `${n_offset}-${nl_rows_total} of ${nl_rows_total}`;
+				}
+				else {
+					n_offset += N_PREVIEW_ROWS;
+					s_status_info = `${n_offset}-${n_offset+N_PREVIEW_ROWS} of ${nl_rows_total}`;
+				}
+			}
+			else {
+				if(0 >= n_offset - N_PREVIEW_ROWS) {
+					n_offset = 1;
+				}
+				else {
+					n_offset -= N_PREVIEW_ROWS;
+				}
+				s_status_info = `${n_offset}-${n_offset+N_PREVIEW_ROWS} of ${nl_rows_total}`;
+			}
+			yc_virtual_scroll.scrollToIndex(n_offset);
+		}
+	}
+	async function paginate_preview() {
+		// if filters are selected and there's more results to show
+		if(b_filtered && g_preview.rows.length < nl_rows_total) {
+			// set busy loading state
+			b_busy_loading = true;
+			// update page offset info
+			update_page_offset();
+			const k_query = await k_query_table.fetchQueryBuilder();
+			const a_rows = await k_connection.execute(k_query.paginate(N_PREVIEW_ROWS+1, n_offset));
+			// add next set of results to preview
+			g_preview.rows = g_preview.rows.concat(a_rows.map(QueryTable.cellRenderer(k_query_table)));
+			// set busy loading state
+			b_busy_loading = false;
+		}
 	}
 </script>
 
@@ -754,12 +814,12 @@
 			</div>
 			<div class="table-browse">
 				<div class="control">
-					<span class="info">1-{N_PREVIEW_ROWS} of 325</span>
-					<span class="page-controls">
+					<span class="info">{b_display_preview? s_status_info: `${nl_rows_total} row${1 === nl_rows_total? '': 's'}`}</span>
+					<span class="page-controls" class:nav-arrow={1 < n_offset} on:click={() => update_page_offset(false)}>
 						<!-- <Fa icon={faAngleLeft} size="xs" /> -->
 						<i class="fas fa-xs fa-angle-left" />
 					</span>
-					<span>
+					<span class="page-controls" class:nav-arrow={n_offset + N_PREVIEW_ROWS < nl_rows_total} on:click={() => update_page_offset()}>
 						<!-- <Fa icon={faAngleRight} size="xs" /> -->
 						<i class="fas fa-xs fa-angle-right" />
 					</span>
@@ -808,13 +868,28 @@
 									</tr>
 								{/each}
 							{:else}
+								<div class="vs" style={'height: 500px'}>
+									<VirtualScroll 
+										bind:this={yc_virtual_scroll}
+										data={g_preview.rows} 
+										let:data
+										keeps={N_PREVIEW_ROWS}
+										on:bottom={paginate_preview}>
+										<tr role="row">
+											{#each Object.values(data) as ksx_cell}
+												<td class="confluenceTd">{@html ksx_cell.toString()}</td>
+											{/each}
+										</tr>
+									</VirtualScroll>
+								</div>
+<!-- 
 								{#each g_preview.rows as h_row}
 									<tr role="row">
 										{#each Object.values(h_row) as ksx_cell}
 											<td class="confluenceTd">{@html ksx_cell.toString()}</td>
 										{/each}
 									</tr>
-								{/each}
+								{/each} -->
 							{/if}
 						</tbody>
 					</table>
