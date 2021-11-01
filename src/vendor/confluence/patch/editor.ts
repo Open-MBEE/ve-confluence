@@ -2,7 +2,7 @@ import G_META, {
 	$PATCHED,
 } from '#/common/meta';
 
-import type {JsonValue} from '#/common/types';
+import type {Hash, JsonObject, JsonValue} from '#/common/types';
 
 import {
 	ode,
@@ -14,6 +14,7 @@ import {
 	dd,
 	decode_attr,
 	encode_attr,
+	parse_html,
 	qs,
 	qsa,
 	uuid_v4,
@@ -27,20 +28,38 @@ import {
 	ConfluenceXhtmlDocument,
 	confluence_delete_json,
 	confluence_post_json,
+	is_retro_fitted,
+	retro_fit,
+	SI_EDITOR_SYNC_KEY,
 } from '../module/confluence';
 
-import Autocomplete from '#/element/Mentions/component/Autocomplete.svelte';
-
-import type {SvelteComponent} from 'svelte/internal';
+import type MentionOverlay from '#/element/Mentions/component/MentionOverlay.svelte';
 
 import {static_css} from '#/common/static';
 
-import {Context, VeOdm} from '#/model/Serializable';
+import type {
+	Context, Serializable,
+} from '#/model/Serializable';
 
 import {ObjectStore} from '#/model/ObjectStore';
 
 import {K_HARDCODED} from '#/common/hardcoded';
-import { Transclusion } from '#/element/Transclusion/model/Transclusion';
+
+import {attach_editor_bindings} from '../module/editor-bindings';
+import { Mention } from '#/element/Mentions/model/Mention';
+
+interface MacroComponent {
+	get displayNode(): HTMLElement;
+	updateDisplay(): void;
+	bindEventListeners(b_init: boolean): void;
+	get macroDom(): HTMLElement;
+}
+
+const H_COMPONENTS = {
+	Transclusion: Mention,
+} as Record<string, {
+	fromMacro(dm_node: HTMLTableElement, gc_element: Serializable, g_context: Context): MacroComponent;
+}>;
 
 const timeout = (xt_wait: number) => new Promise((fk_resolve) => {
 	setTimeout(() => {
@@ -49,7 +68,7 @@ const timeout = (xt_wait: number) => new Promise((fk_resolve) => {
 });
 
 let d_doc_editor!: HTMLDocument;
-let kv_autocomplete!: SvelteComponent;
+let kv_autocomplete!: MentionOverlay;
 
 function* child_list_mutations_added_nodes(a_mutations: MutationRecord[]): Generator<HTMLElement> {
 	// each mutation
@@ -67,11 +86,67 @@ function* child_list_mutations_added_nodes(a_mutations: MutationRecord[]): Gener
 	}
 }
 
-function is_unadjusted_macro(dm_node: HTMLElement): dm_node is HTMLTableElement {
-	if('TABLE' === dm_node.tagName && 'span' === dm_node.getAttribute('data-macro-name')) {
-		if(null === dm_node.getAttribute('data-adjusted')) {
-			dm_node.setAttribute('data-adjusted', encode_attr({type:'visited'} as Adjusted));
-			return true;
+export const decode_macro_parameters = (sx_params: string) => sx_params.split(/\|/g)
+	.map(s_pair => s_pair.split(/=/))
+	.reduce((h_out, [si_key, s_value]) => ({
+		...h_out,
+		[si_key]: s_value,
+	}), {}) as Hash;
+
+function adjust_virgin_macro(dm_node: HTMLElement) {
+	// get macro id attribute
+	const si_macro = dm_node.getAttribute('data-macro-id');
+
+	// macro element
+	if('TABLE' === dm_node.tagName && 'html' === dm_node.getAttribute('data-macro-name') && si_macro?.startsWith('ve-')) {
+		// query for output body
+		const dm_pre = qs(dm_node, 'pre') as HTMLPreElement;
+
+		// output body exists
+		if(dm_pre) {
+			// parse publish content
+			const dm_publish = parse_html(`<body>${dm_pre.textContent || ''}</body>`).body;
+
+			// query for serialized element tag
+			const dm_script = qs(dm_publish, 'script[data-ve-type="element-metadata"]');
+
+			// element exists
+			if(dm_script) {
+				// macro element has not yet been adjusted in editor
+				if(!is_retro_fitted(dm_node)) {
+					// decode serialized element
+					const gc_element = JSON.parse(dm_script.textContent || '{}') as Serializable;
+
+					// decode macro id
+					const si_params = decode_macro_parameters(dm_node.getAttribute('data-macro-parameters')!).id;
+
+					// // ve4 script tag
+					// if('ve4-script-tag' === si_macro) {
+					// 	return hide_editor_element(dm_node);
+					// }
+
+					// element initialization
+					const f_init = () => {
+						// select node
+						const dm_node_live = qs(d_doc_editor, `table[data-macro-id="${si_macro}"]`) as HTMLTableElement;
+
+						// macro is still not retrofitted
+						if(dm_node_live && !is_retro_fitted(dm_node_live)) {
+							// route macro viewer
+							init_page_element(dm_node as HTMLTableElement, gc_element);
+						}
+					};
+
+					// ve-overlays not yet exist; defer initialization
+					if(!G_CONTEXT.store || !b_initialized) {
+						h_deferred[si_params] = f_init;
+					}
+					// ve-overlays exists; initialize now
+					else {
+						f_init();
+					}
+				}
+			}
 		}
 	}
 	return false;
@@ -112,7 +187,7 @@ function modify_editor_dom(dm_src: HTMLElement, h_set: Rso) {
 	const a_acts = reduce_set_descriptor(dm_src as unknown as Uobject, h_set);
 	const a_mods = [];
 
-	const sx_adjusted = dm_src.getAttribute('data-adjusted');
+	const sx_adjusted = dm_src.getAttribute(SI_EDITOR_SYNC_KEY);
 	if(sx_adjusted) {
 		const g_adjusted = decode_attr(sx_adjusted) as Adjusted;
 
@@ -147,7 +222,7 @@ function modify_editor_dom(dm_src: HTMLElement, h_set: Rso) {
 
 	const a_mods_out = [...new Set(a_mods)];
 
-	dm_src.setAttribute('data-adjusted', encode_attr({
+	dm_src.setAttribute(SI_EDITOR_SYNC_KEY, encode_attr({
 		type: 'modified',
 		modifications: a_mods_out,
 	} as Adjusted));
@@ -172,78 +247,91 @@ function hide_editor_element(dm_node: HTMLElement) {
 	});
 }
 
-function adjust_page_element(dm_node: HTMLTableElement) {
-	const dm_tr = qs(dm_node, 'tr') as HTMLTableRowElement;
+function init_page_element(dm_node: HTMLTableElement, gc_element: Serializable) {
+	// set macro class
+	dm_node.classList.add('ve-inline-macro');
 
-	// pre-loaded; do not re-add
-	if('none' === dm_tr.style.display) {
-		return;
+	// scope table row var
+	{
+		// query for macro body tr
+		const dm_tr = qs(dm_node, 'tr') as HTMLTableRowElement;
+
+		// pre-loaded; do not re-add
+		if(dm_tr.nextElementSibling) {
+			return;
+		}
+
+		// hide actual table row
+		dm_tr.style.display = 'none';
 	}
 
-	// parse macro params
-	const h_params = dm_node.getAttribute('data-macro-parameters')!.split(/\|/g)
-		.map(s_pair => s_pair.split(/=/))
-		.reduce((h_out, [si_key, s_value]) => ({
-			...h_out,
-			[si_key]: s_value,
-		}), {});
-
-
-	// hide actual table row
-	hide_editor_element(dm_tr);
-
-	// macro class
-	if('ve-mention' === h_params.class) {
-		// TODO: render Autocomplete component
-		const dm_ins = dd('tr', {
-			'data-adjusted': encode_attr({type:'display'} as Adjusted),
-		}, [
-			dd('td', {}, [
-				dd('h4', {}, ['Transclusion']),
-				dd('p', {}, [`TODO: replace this entire element with the Autocomplete component`]),
-			]),
-		]);
-
-		dm_ins.contentEditable = 'false';
-
-		dm_tr.parentNode!.appendChild(dm_ins);
+	// create component
+	const si_type = gc_element.type;
+	if(!(si_type in H_COMPONENTS)) {
+		console.error(`No such component type '${si_type}''`);
 	}
-	else {
-		// append display-only row
-		const dm_ins = dd('tr', {
-			'data-adjusted': encode_attr({type:'display'} as Adjusted),
-		}, [
+
+	// instantiate
+	const k_thing = H_COMPONENTS[si_type].fromMacro(dm_node, gc_element, G_CONTEXT);
+
+	// update dom next tick
+	queueMicrotask(() => {
+		// query for same tr in case synchrony replaced dom
+		const dm_tr = qs(k_thing.macroDom, 'tr') as HTMLTableRowElement;
+
+		// add ui dom
+		dm_tr.parentElement?.append(dd('tr', {}, [
 			dd('td', {}, [
-				dd('h4', {}, ['CED Query Table?']),
-				dd('p', {}, [`You can remove this query table here, but editing its parameters must be done from the viewing page`]),
+				k_thing.displayNode,
 			]),
-		]);
+		]));
 
-		dm_ins.contentEditable = 'false';
+		// update display
+		k_thing.updateDisplay();
 
-		dm_tr.parentNode!.appendChild(dm_ins);
+		// wait a tick
+		queueMicrotask(() => {
+			// bind event listener3s
+			k_thing.bindEventListeners(true);
+		});
+	});
+}
+
+let b_initialized = false;
+const h_deferred: Record<string, VoidFunction> = {};
+
+function init_deferred() {
+	if(b_initialized && G_CONTEXT.store) {
+		ode(h_deferred).forEach(([si_macro, f_init]) => {
+			f_init();
+			delete h_deferred[si_macro];
+		});
 	}
 }
 
-function editor_initialized(a_nodes=qsa(d_doc_editor, 'body>*') as HTMLElement[]) {
+function editor_content_updated(a_nodes=qsa(d_doc_editor, 'body>*') as HTMLElement[]) {
 	for(const dm_node of a_nodes) {
-		if(is_unadjusted_macro(dm_node)) {
-			const h_params: Record<string, string> = (dm_node.getAttribute('data-macro-parameters') || '').split('|')
-				.reduce((h_out, s_param) => ({
-					...h_out,
-					[s_param.split('=')[0]]: s_param.split('=')[1],
-				}), {});
+		// synchrony container added
+		if('DIV' === dm_node?.nodeName && dm_node.classList.contains('synchrony-container') && !b_initialized) {
+			// now initialized
+			b_initialized = true;
 
-			// macro has id param
-			const si_macro = h_params.id;
-			if(si_macro) {
-				if('ve4-script-tag' === si_macro) {
-					return hide_editor_element(dm_node);
-				}
-				else if(si_macro.startsWith('page#elements.serialized.')) {
-					return adjust_page_element(dm_node);
-				}
-			}
+			// create overlay div
+			d_doc_editor.body.appendChild(dd('div', {
+				'id': 've-overlays',
+				'class': 'synchrony-exclude',
+				'style': `user-select:none;`,
+				'data-mce-bogus': 'true',
+				'contenteditable': 'false',
+			}, [], d_doc_editor));
+
+			// init deferred
+			init_deferred();
+		}
+		// node is part of draft
+		else if(dm_node?.classList && !dm_node.classList.contains('synchrony-exclude')) {
+			// adjusted macros as necessary
+			adjust_virgin_macro(dm_node);
 		}
 	}
 }
@@ -251,6 +339,11 @@ function editor_initialized(a_nodes=qsa(d_doc_editor, 'body>*') as HTMLElement[]
 let k_page: ConfluencePage;
 let k_document: ConfluenceDocument | null;
 const G_CONTEXT: Context = {} as Context;
+
+let fk_resolve_store: (w: any) => void;
+const dp_store_ready = new Promise((fk) => {
+	fk_resolve_store = fk;
+});
 
 async function init_meta(): Promise<boolean> {
 	// fro current page
@@ -280,6 +373,8 @@ async function init_meta(): Promise<boolean> {
 		hardcoded: K_HARDCODED,
 	});
 
+	fk_resolve_store(void 0);
+
 	// set page
 	G_CONTEXT.page = k_page;
 
@@ -297,6 +392,9 @@ async function init_meta(): Promise<boolean> {
 
 	if(b_editor_ready) {
 		init_autocomplete();
+
+		// init deferred
+		init_deferred();
 	}
 
 	b_store_ready = true;
@@ -336,7 +434,7 @@ window.addEventListener('DOMContentLoaded', () => {
 			}
 
 			// editor initialized
-			editor_initialized();
+			void editor_content_updated(a_roots);
 		});
 
 		// observe childList mutations on editor body
@@ -346,7 +444,7 @@ window.addEventListener('DOMContentLoaded', () => {
 			attributes: true,
 		});
 
-		editor_initialized();
+		void editor_content_updated();
 	};
 
 	const dmt_rte = new MutationObserver((a_mutations) => {
@@ -358,13 +456,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
 				// grab ref to iframe's content document
 				d_doc_editor = (dm_node as HTMLIFrameElement).contentDocument!;
-
-				const dm_staging = dd('div', {
-					id: 'svelte-staging',
-					style: `display:none;`,
-				}, [], d_doc_editor);
-
-				d_doc_editor.body.appendChild(dm_staging);
 
 				// observe mutations to editor
 				observe_editor();
@@ -416,18 +507,12 @@ function init_overlays() {
 
 function init_autocomplete() {
 	// check for mentions
-	const a_mentions = qsa(d_doc_editor, '[data-mention]') as HTMLDivElement[];
+	const a_mentions = qsa(d_doc_editor, `.ve-mention[${SI_EDITOR_SYNC_KEY}]`) as HTMLDivElement[];
 	for(const dm_mention of a_mentions) {
 		dm_mention.contentEditable = 'false';
 	}
 
-	kv_autocomplete = new Autocomplete({
-		target: document.body,
-		props: {
-			y_editor: tinymce.activeEditor,
-			g_context: G_CONTEXT,
-		},
-	});
+	attach_editor_bindings(tinymce.activeEditor, G_CONTEXT, d_doc_editor);
 }
 
 function tinymce_ready() {
@@ -443,7 +528,7 @@ function tinymce_ready() {
 			font-weight: 600;
 		}
 
-		.ve-mention>.attribute {
+		.ve-mention-attribute {
 			display: inline-flex;
 			min-width: 120px;
 			border: 1px solid var(--ve-color-medium-light-text);
@@ -463,13 +548,32 @@ function tinymce_ready() {
 			transform: scale(0.75);
 		}
 
-		.ve-mention>.attribute.active {
+		.ve-mention-attribute.active {
 			border-color: var(--ve-color-accent-light);
 			background-color: transparent;
 		}
 
-		.ve-mention>.attribute.active .content {
+		.ve-mention-attribute.active .content {
 			color: var(--ve-color-medium-light-text);
+		}
+
+		.precedes-inline {
+			display: inline;
+		}
+
+		body.wiki-content table.wysiwyg-macro.ve-inline-macro {
+			display: inline;
+			padding: 0;
+			width: 0;
+			border: none;
+			margin-top: 0;
+			border-spacing: 0;
+			background: none;
+			vertical-align: middle;
+		}
+
+		.ve-inline-macro+p {
+			display: inline;
 		}
 	`], d_doc_editor));
 
@@ -488,6 +592,8 @@ type Adjusted = {
 };
 
 function replace_listeners() {
+	return;
+
 	const dm_update_old = qs(document.body, '.save-button-container button');
 
 	if(dm_update_old.getAttribute('data-ve')) {
@@ -533,6 +639,17 @@ function replace_listeners() {
 	});
 
 	// TODO: create ctrl+s handler
+
+
+	// // add new click listener
+	// dm_update_old.addEventListener('click', (d_evt: Event) => {
+	// 	if(y_ceui.isButtonEnabled(jQuery(y_ceui.saveButton))) {
+	// 	// stop Synchrony and pretend to be editor ;)
+	// 		AJS.trigger('synchrony.stop', {
+	// 			id: 'confluence.editor.publish',
+	// 		});
+	// 	}
+	// });
 }
 
 /* eslint-disable @typescript-eslint/unbound-method, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
@@ -557,16 +674,16 @@ async function publish_document() {
 	// parse as HTML
 	const d_doc_content = new DOMParser().parseFromString(sx_content, 'text/html');
 
-	// query for data-adjusted attributes
-	const a_adjusted = qsa(d_doc_content, '[data-adjusted]');
+	// query for adjusted attributes
+	const a_adjusted = qsa(d_doc_content, `[${SI_EDITOR_SYNC_KEY}]`);
 
 	// each element that matched
 	for(const dm_adjusted of a_adjusted) {
 		// decode attribute value
-		const g_adjusted: Adjusted = decode_attr(dm_adjusted.getAttribute('data-adjusted')!)!;  // eslint-disable-line @typescript-eslint/no-unsafe-assignment
+		const g_adjusted = decode_attr(dm_adjusted.getAttribute(SI_EDITOR_SYNC_KEY)!)! as Adjusted;  // eslint-disable-line @typescript-eslint/no-unsafe-assignment
 
 		// remove attribute from element
-		dm_adjusted.removeAttribute('data-adjusted');
+		dm_adjusted.removeAttribute(SI_EDITOR_SYNC_KEY);
 
 		// depending on value type
 		switch(g_adjusted.type) {
@@ -605,82 +722,6 @@ async function publish_document() {
 		}
 	}
 
-	const h_replacements: Record<string, (k: ConfluenceXhtmlDocument) => Node> = {};
-	// special handling for ve elements
-	{
-		const a_mentions = qsa(d_doc_content, '[data-mention]');
-		for(const dm_mention of a_mentions) {
-			// parse mention metadata
-			const g_mention = decode_attr(dm_mention.getAttribute('data-mention')!) as Record<string, unknown>;
-
-			// prep transclusion metadata
-			const si_transclusion = uuid_v4().replace(/_/g, '-');
-			const gc_transclusion = {
-				type: 'Transclusion',
-				connectionPath: g_mention.connection_path,
-				item: g_mention.item,
-				displayAttribute: g_mention.display_attribute,
-			};
-
-			// create transclusion instance
-			const sp_transclusion = `page#elements.serialized.transclusion.${si_transclusion}`;
-			// @ts-expect-error veo path typing
-			const k_transclusion = await VeOdm.createFromSerialized(Transclusion, sp_transclusion, gc_transclusion, G_CONTEXT);
-
-			// save transclusion to page metadata
-			await k_transclusion.save();
-
-
-			dm_mention.replaceWith(dd('table', {
-				'class': 'wysiwyg-macro',
-				'data-macro-name': 'span',
-				'data-macro-id': si_transclusion,
-				'data-macro-parameters': `atlassian-macro-output-type=INLINE|id=${sp_transclusion}|class=ve-replace`,
-				'data-macro-schema-version': '1',
-				'data-macro-body-type': 'RICH_TEXT',
-			}, [
-				dd('tbody', {}, [
-					dd('tr', {}, [
-						dd('td', {
-							class: 'wysiwyg-macro-body',
-						}, [
-							dd('p', {
-								class: 'auto-cursor-target',
-							}, [
-								dd('br', {}, [], d_doc_content),
-							], d_doc_content),
-						], d_doc_content),
-					], d_doc_content),
-				], d_doc_content),
-			], d_doc_content));
-
-			h_replacements[si_transclusion] = (k_contents: ConfluenceXhtmlDocument) => {
-				const f_builder = k_contents.builder();
-
-				// replace with macro
-				return ConfluencePage.annotatedSpan({
-					params: {
-						class: 've-mention',
-						id: sp_transclusion,
-					},
-					body: [
-						ConfluencePage.annotatedSpan({
-							params: {
-								style: 'display:none',
-								class: 've-cql-search-tag',
-							},
-							body: f_builder('p', {}, [sp_transclusion]),
-						}, k_contents),
-						f_builder('p', {}, [
-							'Loading transclusion...',
-						]),
-					],
-					autoCursor: true,
-				}, k_contents);
-			};
-		}
-	}
-
 	// re-serialize the mutated dom body and take care of pre-flight HTML sequences
 	const sx_patched = new XMLSerializer()
 		.serializeToString(d_doc_content.body)
@@ -703,16 +744,19 @@ async function publish_document() {
 	// create confluence XHTML doc instance
 	const k_contents = new ConfluenceXhtmlDocument(sx_storage);
 
-	for(const [si_replacement, f_replace] of ode(h_replacements)) {
-		const yn_macro: Node = k_contents.select1(`//ac:structured-macro[@ac:macro-id="${si_replacement}"]`);
-		yn_macro.parentNode?.replaceChild(f_replace(k_contents), yn_macro);
-	}
+	// for(const [si_replacement, f_replace] of ode(h_replacements)) {
+	// 	const yn_macro: Node = k_contents.select1(`//ac:structured-macro[@ac:macro-id="${si_replacement}"]`);
+	// 	yn_macro.parentNode?.replaceChild(f_replace(k_contents), yn_macro);
+	// }
 
 	// get commit message from DOM
 	const s_msg = (qs(document.body, '#versionComment') as HTMLInputElement).value;
 
+	// get page title from DOM
+	const s_title = (qs(document.body, '#content-title') as HTMLInputElement).value;
+
 	// commit contents to page
-	const g_res = await k_page.postContent(k_contents, s_msg || '');
+	const g_res = await k_page.postContent(k_contents, s_msg || '', s_title);
 
 	// get view page URL
 	const pr_view = k_page.getDisplayUrlString();
@@ -745,3 +789,86 @@ async function publish_document() {
 	location.href = pr_view;
 }
 
+// patch synchrony
+const init_synchrony = () => {
+	Synchrony.isWhitelisted = (d_wl, g_thing) => {
+		const dm_node = g_thing?.domNode || g_thing?.domParent;
+
+		if(dm_node?.closest && dm_node.closest('.synchrony-exclude')) {
+			return false;
+		}
+		else {
+			console.log(g_thing);
+		}
+	}
+
+	(() => {
+		let d_node = window;
+		let d_synchrony;
+
+		for(;;) {
+			d_synchrony = d_node.Synchrony;
+			if(d_synchrony) {
+				break;
+			}
+			else if(d_node === window.top) {
+				console.error(`Synchrony is not yet available`);
+				return;
+			}
+			else {
+				d_node = d_node.parent;
+			}
+		}
+
+		if(!d_synchrony.isVePatched) {
+			const f_whitelisted = d_synchrony.isWhitelisted;
+			d_synchrony.isWhitelisted = (g_whitelist, g_event) => {
+				if(f_whitelisted.call(d_synchrony, g_whitelist, g_event)) {
+					return true;
+				}
+				else {
+					const dm_node = g_event.domNode || g_event.domParent;
+
+					if(dm_node && dm_node.closest && dm_node.closest('.synchrony-exclude')) {
+						return false;
+					}
+					else {
+						// we are the source
+						if('read' === g_event.direction) {
+							return true;
+						}
+						// we are a receiver
+						else if('write' === g_event.direction) {
+							return true;
+						}
+
+						// default
+						return false;
+					}
+				}
+			};
+
+			d_synchrony.isVePatched = true;
+
+			console.log(`
+				======
+				Synchrony successfully patched
+				======
+			`.trim().split(/\n\s*/g).join('\n'));
+		}
+		else {
+			console.warn('Synchrony is already patched');
+		}
+	})();
+};
+
+(function try_init() {
+	try {
+		init_synchrony();
+	}
+	catch(e_init) {
+		setTimeout(() => {
+			try_init();
+		}, 100);
+	}
+})();

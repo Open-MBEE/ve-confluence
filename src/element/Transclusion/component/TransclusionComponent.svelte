@@ -1,14 +1,14 @@
 <script lang="ts">
 	import type {Transclusion} from '../model/Transclusion';
+	
+	import {onMount} from 'svelte';
+	
+	import Fa from 'svelte-fa';
 
 	import {
 		faBolt,
 		faHistory,
 	} from '@fortawesome/free-solid-svg-icons';
-
-	import {onMount} from 'svelte';
-
-	import Fa from 'svelte-fa';
 
 	import type {MmsSparqlConnection} from '#/model/Connection';
 
@@ -244,7 +244,7 @@
 						</div>
 						<div class="value">
 							{#if 'text/html' === k_display.contentType}
-								{@html k_display.toString()}
+								{k_display.textContent}
 							{:else}
 								{k_display.toString()}
 							{/if}

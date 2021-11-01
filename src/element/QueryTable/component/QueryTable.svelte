@@ -9,7 +9,8 @@
 
 	import Select from 'svelte-select';
 
-	import Fa from 'svelte-fa';
+	// import Fa from 'svelte-fa';
+	import Fa from 'svelte-fa/src/fa';
 
 	import {
 		faCheckCircle,

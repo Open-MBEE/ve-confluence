@@ -220,6 +220,9 @@ export class ObjectStore {
 		return [si_storage, a_frags, k_location as SynchronousSerializationLocation];
 	}
 
+	static locationPart(sp_path: string): string {
+		return sp_path.split('#')[0];
+	}
 
 	// eslint-disable-next-line class-methods-use-this
 	idPartSync(sp_path: string): string[] {

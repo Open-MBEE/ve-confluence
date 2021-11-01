@@ -47,6 +47,18 @@ static_css += /* syntax: css */ `
 		font-weight: 500;
 		vertical-align: middle;
 	}
+
+	p.precedes-inline {
+		display: inline;
+	}
+
+	p.precedes-inline+p {
+		display: inline;
+	}
+
+	.ve-transclusion-display {
+		padding-left: 3px;
+	}
 `;
 
 export const static_js = '';

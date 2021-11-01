@@ -27,11 +27,13 @@ export namespace Transclusion {
 		connectionPath: VeoPathTarget;
 		item: {
 			iri: string;
+			id: string;
 		};
 		displayAttribute: {
 			key: string;
 			label: string;
 			value: string;
+			format: string;
 		};
 	}
 }
@@ -51,6 +53,7 @@ export class Transclusion<
 
 	initSync(): void {
 		this._s_display = '';
+		return super.initSync();
 	}
 
 	async init(): Promise<void> {
@@ -78,8 +81,19 @@ export class Transclusion<
 		return this._k_connection;
 	}
 
+	setConnection(k_connection: Connection): void {
+		this._k_connection = k_connection;
+		this._assign({
+			connectionPath: k_connection.path,
+		});
+	}
+
 	get itemIri(): string {
 		return this._gc_serialized.item.iri;
+	}
+
+	get itemId(): string {
+		return this._gc_serialized.item.id;
 	}
 
 	async fetchDisplayText(): Promise<string> {
@@ -96,17 +110,24 @@ export class Transclusion<
 			throw new Error(`Expected query to return exactly 1 row, however ${a_rows.length} rows were returned`);
 		}
 
-		const si_key = this._gc_serialized.displayAttribute.key;
-
+		// set attributes
 		this._h_attributes = oderom(a_rows[0], (si_attr, g_field) => ({
 			[si_attr]: [key_to_label(si_attr), new HtmlString(g_field.value)],
 		}));
 
-		return this._s_display = a_rows[0][si_key].value;
+		// ref key
+		const si_key = this._gc_serialized.displayAttribute.key;
+
+		// set & return display text
+		return this._s_display = TypedString.fromText(a_rows[0][si_key].value, this._gc_serialized.displayAttribute.format || 'text/plain').textContent;
 	}
 
 	get fallbackDisplayText(): string {
 		return this._gc_serialized.displayAttribute.value;
+	}
+
+	get attributeLabel(): string {
+		return this._gc_serialized.displayAttribute.label;
 	}
 
 	get attributes(): Record<string, [string, TypedString]> {

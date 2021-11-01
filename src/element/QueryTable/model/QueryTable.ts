@@ -410,7 +410,7 @@ export abstract class QueryTable<
 		else {
 			throw new Error(`No directive node was given`);
 		}
-		debugger;
+
 		return {
 			rows: a_rows,
 			contents: k_contents,

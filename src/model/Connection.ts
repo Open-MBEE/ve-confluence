@@ -37,6 +37,7 @@ export namespace Connection {
 
 	export interface Serialized<TypeString extends DefaultType=DefaultType> extends TypedLabeledObject<TypeString> {
 		endpoint: UrlString;
+		alias?: string;
 	}
 }
 
@@ -45,6 +46,10 @@ export abstract class Connection<
 > extends VeOdmLabeled<Serialized> {
 	get endpoint(): UrlString {
 		return this._gc_serialized.endpoint;
+	}
+
+	get alias(): string {
+		return this._gc_serialized.alias || this.label;
 	}
 
 	abstract execute(sq_query: string, fk_controller?: (d_controller: AbortController) => void): Promise<QueryRow[]>;
@@ -101,6 +106,8 @@ export abstract class SparqlConnection<
 
 		this._f_searcher = this._k_store.resolveSync(this._gc_serialized.searchPath) as unknown as SparqlSearcher;
 		this._f_detailer = this._k_store.resolveSync(this._gc_serialized.detailPath) as unknown as SparqlDetailer;
+
+		return super.initSync();
 	}
 
 	get context(): SparqlQueryContext {

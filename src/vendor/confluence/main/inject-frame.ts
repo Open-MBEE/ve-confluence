@@ -17,8 +17,8 @@ export const SR_HASH_VE_PAGE_EDIT_MODE = '#editor';
 
 // export const P_SRC_WYSIWYG_EDITOR = 'https://ced-cdn-test.s3-us-gov-west-1.amazonaws.com/confluence-ui/injected-editor.js';
 
-export const P_SRC_WYSIWYG_EDITOR = process.env.PRODUCTION? 'https://ced-cdn-test.s3-us-gov-west-1.amazonaws.com/confluence-ui/confluence-editor.dev.js': 'http://localhost:3001/public/build/confluence-editor.dev.js';
-export const P_SRC_EDITOR_SUPPLEMENT = process.env.PRODUCTION? 'https://ced-cdn-test.s3-us-gov-west-1.amazonaws.com/confluence-ui/editor.dev.js': 'http://localhost:3001/public/build/editor.dev.js';
+export const P_SRC_WYSIWYG_EDITOR = process.env.PRODUCTION? 'https://ced-uat.jpl.nasa.gov/cdn/confluence-editor.min.js': 'http://localhost:3001/public/build/confluence-editor.dev.js';
+export const P_SRC_EDITOR_SUPPLEMENT = process.env.PRODUCTION? 'https://ced-uat.jpl.nasa.gov/cdn/editor.min.js': 'http://localhost:3001/public/build/editor.dev.js';
 
 const B_AWAIT_PRELOAD = false;
 
@@ -129,23 +129,23 @@ export async function inject_frame(p_href: string): Promise<void> {
 		b_script_loaded = true;
 	};
 
-	// initiate script load
-	if(B_AWAIT_PRELOAD) {
-		// create script element
-		const dm_load = dd('script', {
-			type: 'text/javascript',
-			charset: 'utf-8',
-			defer: true,
-			async: true,
-			src: P_SRC_WYSIWYG_EDITOR,
-		});
+	// // initiate script load
+	// if(B_AWAIT_PRELOAD) {
+	// 	// create script element
+	// 	const dm_load = dd('script', {
+	// 		type: 'text/javascript',
+	// 		charset: 'utf-8',
+	// 		defer: true,
+	// 		async: true,
+	// 		src: P_SRC_WYSIWYG_EDITOR,
+	// 	});
 
-		// set onload handler
-		dm_load.onload = fk_script_loaded;
+	// 	// set onload handler
+	// 	dm_load.onload = fk_script_loaded;
 
-		// append to dom
-		document.head.appendChild(dm_load);
-	}
+	// 	// append to dom
+	// 	document.head.appendChild(dm_load);
+	// }
 
 	// initiate request for actual edit page
 	const d_res = await fetch(p_href, {
@@ -162,32 +162,32 @@ export async function inject_frame(p_href: string): Promise<void> {
 	const d_parser = new DOMParser();
 	const d_doc = d_parser.parseFromString(sx_doc, 'text/html');
 
-	// replace editor script src
-	{
-		const dm_script = qs(d_doc, 'script[data-wrm-key^="editor-v4"]') as HTMLScriptElement;
-		if(!dm_script) {
-			debugger;
-			console.dir(d_doc);
-		}
-		dm_script.src = P_SRC_WYSIWYG_EDITOR;
-	}
+	// // replace editor script src
+	// {
+	// 	const dm_script = qs(d_doc, 'script[data-wrm-key^="editor-v4"]') as HTMLScriptElement;
+	// 	if(!dm_script) {
+	// 		debugger;
+	// 		console.dir(d_doc);
+	// 	}
+	// 	dm_script.src = P_SRC_WYSIWYG_EDITOR;
+	// }
 
-	// manually ensure user-locale is set
-	{
-		const dm_script = qs(d_doc, 'script[data-wrm-key="_super"]') as HTMLScriptElement;
-		if(!dm_script) {
-			debugger;
-			console.dir(d_doc);
-		}
+	// // manually ensure user-locale is set
+	// {
+	// 	const dm_script = qs(d_doc, 'script[data-wrm-key="_super"]') as HTMLScriptElement;
+	// 	if(!dm_script) {
+	// 		debugger;
+	// 		console.dir(d_doc);
+	// 	}
 
-		const dm_test = dd('script', {
-			type: 'text/javascript',
-		}, [`
-			AJS.Meta.set('user-locale', 'en-US');
-		`], d_doc);
+	// 	const dm_test = dd('script', {
+	// 		type: 'text/javascript',
+	// 	}, [`
+	// 		AJS.Meta.set('user-locale', 'en-US');
+	// 	`], d_doc);
 
-		dm_test.insertAdjacentElement('afterend', dm_script);
-	}
+	// 	dm_test.insertAdjacentElement('afterend', dm_script);
+	// }
 
 	// let i_script = 0;
 	// for(const dm_script of qsa(d_doc, 'script')) {
