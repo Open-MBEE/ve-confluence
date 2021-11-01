@@ -17,28 +17,12 @@ export interface SparqlEndpointConfig {
 export type SparqlQuery = string | ((k_helper: SparqlQueryHelper) => string);
 
 export class SparqlQueryHelper {
-	_h_variables: Hash;
-
-	constructor(h_variables: Hash) {
-		this._h_variables = h_variables;
-	}
-
-	var(si_key: string, s_default: string | null = null): string {
-		if(!(si_key in this._h_variables)) {
-			if(null !== s_default) return s_default;
-			throw new Error(
-				`SPARQL substitution variable not defined: '${si_key}'`
-			);
-		}
-		return this._h_variables[si_key];
-	}
-
-	iri(p_iri: string): string {
+	static iri(p_iri: string): string {
 		// prevent injection attacks
 		return p_iri.replace(/\s+/g, '+').replace(/>/g, '_');
 	}
 
-	literal(s_value: string, s_lang_or_datatype?: string) {
+	static literal(s_value: string, s_lang_or_datatype?: string): string {
 		// post modifier
 		let s_post = '';
 		if(s_lang_or_datatype) {
@@ -54,6 +38,22 @@ export class SparqlQueryHelper {
 
 		// escape dirks
 		return `"""${s_value.replace(/"/g, '\\"')}"""${s_post}`;
+	}
+
+	_h_variables: Hash;
+
+	constructor(h_variables: Hash) {
+		this._h_variables = h_variables;
+	}
+
+	var(si_key: string, s_default: string | null = null): string {
+		if(!(si_key in this._h_variables)) {
+			if(null !== s_default) return s_default;
+			throw new Error(
+				`SPARQL substitution variable not defined: '${si_key}'`
+			);
+		}
+		return this._h_variables[si_key];
 	}
 }
 
@@ -91,7 +91,7 @@ export class SparqlEndpoint {
 	}
 
 	// submit SPARQL SELECT query
-	async select(z_select: string | SparqlQuery): Promise<SparqlBindings> {
+	async select(z_select: string | SparqlQuery, fk_controller?: (d_controller: AbortController) => void): Promise<SparqlBindings> {
 		let sq_select = z_select as string;
 
 		// apply helper
@@ -102,16 +102,34 @@ export class SparqlEndpoint {
 		// acquire async lock
 		const f_release = await this._kl_fetch.acquire();
 
+		// new abort controller
+		const d_controller = new AbortController();
+		const w_abort_signal = d_controller.signal;
+
+		// controller callback
+		if(fk_controller) fk_controller(d_controller);
+
 		// submit HTTP POST request
-		const d_res = await fetch(this._p_endpoint, {
-			method: 'POST',
-			mode: 'cors',
-			headers: {
-				'Content-Type': 'application/x-www-form-urlencoded',
-				'Accept': 'application/sparql-results+json',
-			},
-			body: new URLSearchParams({query:`${this._sq_prefixes}\n${sq_select}`}),
-		});
+		let d_res!: Response;
+		try {
+			d_res = await fetch(this._p_endpoint, {
+				method: 'POST',
+				mode: 'cors',
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded',
+					'Accept': 'application/sparql-results+json',
+				},
+				body: new URLSearchParams({query:`${this._sq_prefixes}\n${sq_select}`}),
+				signal: w_abort_signal,
+			});
+		}
+		catch(e_fetch: unknown) {
+			// release lock
+			f_release();
+
+			// throw out
+			throw e_fetch;
+		}
 
 		// response not ok
 		if(!d_res.ok) {
@@ -185,6 +203,26 @@ export class SparqlSelectQuery implements ConnectionQuery {
 	all(): string {
 		return stringify_select_query_descriptor(this._gc_query);
 	}
+}
+
+export class NoOpSparqlSelectQuery extends SparqlSelectQuery {
+	/* eslint-disable class-methods-use-this */
+	constructor() {
+		super({} as SelectQueryDescriptor);
+	}
+
+	paginate(): string {
+		return '';
+	}
+
+	count(): string {
+		return '';
+	}
+
+	all(): string {
+		return '';
+	}
+	/* eslint-enable class-methods-use-this */
 }
 
 export namespace Sparql {

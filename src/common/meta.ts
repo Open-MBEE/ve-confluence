@@ -1,4 +1,12 @@
+import {oderom} from '#/util/belt';
+
 import type jQuery from 'jquery';
+
+import type tinymce from 'tinymce';
+
+import type {JsonValue} from './types';
+
+export const $PATCHED = Symbol('patched');
 
 interface MetaMap {
 	access_mode: 'READ_WRITE' | 'READ_ONLY';
@@ -95,11 +103,35 @@ interface MetaMap {
 	version_number: `${number}.${number}.${number}`;
 }
 
+export type PatchedEditor = tinymce.Editor & {
+	[$PATCHED]?: true;
+	isNotDirty: boolean;
+	selection: Selection & Range;
+};
+
+type AjsTriggerOptions = {
+	id: string;
+	maxWaitTimeToRestart?: number;
+	name?: string;
+};
+
 declare global {
 	const AJS: {
+		Editor: {
+			UI: {
+				saveButton: HTMLElement;
+				isButtonEnabled(yj_button: JQuery<HTMLElement>): boolean;
+				toggleSavebarBusy(b_busy: boolean): void;
+			};
+			isPublishing(xc_state: 0 | 1): void;
+			removeAllSaveHandlers(): VoidFunction;
+			addSaveHandler(fk_save: (d_event: Event) => void): void;
+		};
 		Meta: {
 			getAllAsMap(): Record<string, string>;
 		};
+		trigger(si_event: `synchrony.${'start' | 'stop'}`, gc_call: AjsTriggerOptions): void;
+		trigger(si_event: string, gc_call?: JsonValue): void;
 	};
 
 	interface Window {
@@ -110,18 +142,19 @@ declare global {
 	interface JQuery {
 		tipsy(): any;
 	}
+
+	const tinymce: {
+		activeEditor: PatchedEditor;
+		get(si_editor: string): PatchedEditor;
+	};
 }
 
 /**
  * Confluence-provided 'Meta' object
  */
-export const G_META: MetaMap = Object.entries(AJS.Meta.getAllAsMap()).reduce(
-	(h_out, [si_key, s_value]) => ({
-		...h_out,
-		[si_key]: s_value,
-		[si_key.replace(/-/g, '_')]: s_value,
-	}),
-	{},
-) as MetaMap;
+export const G_META: MetaMap = oderom(AJS.Meta.getAllAsMap(), (si_key, s_value) => ({
+	[si_key]: s_value,
+	[si_key.replace(/-/g, '_')]: s_value,
+})) as unknown as MetaMap;
 
 export default G_META;

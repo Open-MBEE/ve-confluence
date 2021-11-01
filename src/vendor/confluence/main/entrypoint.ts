@@ -3,6 +3,10 @@ import {
 	ConfluenceDocument,
 } from '#/vendor/confluence/module/confluence';
 
+import type {
+	ConfluenceXhtmlDocument,
+} from '#/vendor/confluence/module/confluence';
+
 import G_META from '#/common/meta';
 
 import {
@@ -18,10 +22,12 @@ import {
 	qs,
 	qsa,
 	dm_content,
-	dm_sidebar,
 	dm_main_header,
 	uuid_v4,
 	dm_main,
+	dd,
+	parse_html,
+	remove_all_children,
 } from '#/util/dom';
 
 import type {SvelteComponent} from 'svelte';
@@ -32,20 +38,43 @@ import DngArtifact from '#/element/DngArtifact/component/DngArtifact.svelte';
 
 import QueryTable from '#/element/QueryTable/component/QueryTable.svelte';
 
-import type XhtmlDocument from '#/vendor/confluence/module/xhtml-document';
 
 import {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
 
 
-import {H_HARDCODED_OBJECTS, K_HARDCODED} from '#/common/hardcoded';
+import {
+	K_HARDCODED,
+} from '#/common/hardcoded';
 
-import {Context, VeOdm} from '#/model/Serializable';
+import {
+	Context,
+	Serializable,
+	VeOdm,
+	VeOdmConstructor,
+} from '#/model/Serializable';
 
 import {ObjectStore} from '#/model/ObjectStore';
-import { xpathEvaluate, xpathSelect, xpathSelect1 } from '#/vendor/confluence/module/xhtml-document';
-import type { VeoPath } from '#/common/veo';
-import type { TypedKeyedUuidedObject, TypedObject, TypedPrimitive } from '#/common/types';
-import { inject_frame, SR_HASH_VE_PAGE_EDIT_MODE } from './inject-frame';
+
+import {
+	xpathSelect1,
+} from '#/vendor/confluence/module/xhtml-document';
+
+import type {VeoPath} from '#/common/veo';
+
+import type {
+	TypedKeyedUuidedObject,
+} from '#/common/types';
+
+import {
+	inject_frame,
+	P_SRC_WYSIWYG_EDITOR,
+} from './inject-frame';
+
+import {Transclusion} from '#/element/Transclusion/model/Transclusion';
+
+import TransclusionComponent from '#/element/Transclusion/component/TransclusionComponent.svelte';
+
+import type {SvelteComponentDev} from 'svelte/internal';
 
 
 // write static css
@@ -66,7 +95,7 @@ import { inject_frame, SR_HASH_VE_PAGE_EDIT_MODE } from './inject-frame';
 /**
  * tuple of a node's corresponding HTML element and a struct with properties to be used later
  */
-type Handle = [HTMLElement, Record<string, any>];
+type Handle = [HTMLElement, Record<string, unknown>];
 
 interface Correlation {
 	/**
@@ -77,14 +106,19 @@ interface Correlation {
 	/**
 	 * svelte props to pass to the component's constructor
 	 */
-	props?: Record<string, any>;
+	props?: Record<string, unknown>;
 }
 
 interface ViewBundle extends Correlation {
 	/**
 	 * directive's HTML element in the current DOM
 	 */
-	anchor: HTMLElement;
+	render: HTMLElement;
+
+	/**
+	 * anchor point to insert component before
+	 */
+	anchor?: HTMLElement;
 
 	/**
 	 * directive's corresponding XML node in the Wiki page's storage XHTML document
@@ -124,13 +158,15 @@ const P_DNG_WEB_PREFIX = process.env.DOORS_NG_PREFIX;
 
 // for excluding elements that are within active directives
 const SX_PARAMETER_ID_PAGE_ELEMENT = `ac:parameter[@ac:name="id"][starts-with(text(),"page#elements.")]`;
-const SX_EXCLUDE_ACTIVE_ELEMENTS = /* syntax: xpath */ `[not(ancestor::ac:structured-macro[@ac:name="span"][child::${SX_PARAMETER_ID_PAGE_ELEMENT}])]`;
+const SX_PARAMETER_ID_EMBEDDED_ELEMENT = `ac:parameter[@ac:name="id"][starts-with(text(),"embedded#elements.")]`;
+const SX_EXCLUDE_ACTIVE_PAGE_ELEMENTS = /* syntax: xpath */ `[not(ancestor::ac:structured-macro[@ac:name="html"][child::${SX_PARAMETER_ID_EMBEDDED_ELEMENT}])]`;
+const SX_EXCLUDE_ACTIVE_EMBEDDED_ELEMENTS = /* syntax: xpath */ `[not(ancestor::ac:structured-macro[@ac:name="html"][child::${SX_PARAMETER_ID_EMBEDDED_ELEMENT}])]`;
 
 const A_DIRECTIVE_CORRELATIONS: CorrelationDescriptor[] = [
 	// dng web link
 	{
-		storage: /* syntax: xpath */ `.//a[starts-with(@href,"${P_DNG_WEB_PREFIX}")]${SX_EXCLUDE_ACTIVE_ELEMENTS}`,
-		live: `a[href^="${P_DNG_WEB_PREFIX}"]:not([data-ve4])`,
+		storage: /* syntax: xpath */ `.//a[starts-with(@href,"${P_DNG_WEB_PREFIX}")]${SX_EXCLUDE_ACTIVE_PAGE_ELEMENTS}`,
+		live: `a[href^="${P_DNG_WEB_PREFIX}"]:not([data-ve-type])`,
 		directive: ([ym_anchor, g_link]) => ({
 			component: DngArtifact,
 			props: {
@@ -158,14 +194,14 @@ const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 	// 	},
 	// }),
 
-	'CAE CED Table Element': ([, g_struct]: [HTMLElement, Record<string, any>]) => {
+	'CAE CED Table Element': ([, g_struct]: [HTMLElement, Record<string, unknown>]) => {
 		const si_uuid = (g_struct.uuid as string) || uuid_v4().replace(/_/g, '-');
 		const si_key: VeoPath.Full = `page#elements.serialized.queryTable.${si_uuid}`;
 
 		return {
 			component: QueryTable,
 			props: {
-				k_query_table: new MmsSparqlQueryTable(si_key,
+				k_model: new MmsSparqlQueryTable(si_key,
 					{
 						type: 'MmsSparqlQueryTable',
 						key: si_key,
@@ -175,7 +211,7 @@ const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 						connectionPath: 'document#connection.sparql.mms.dng',
 						parameterValues: {},
 					},
-					G_CONTEXT
+					G_CONTEXT,
 				),
 			},
 		};
@@ -185,38 +221,7 @@ const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 const xpath_attrs = (a_attrs: string[]) => a_attrs.map(sx => `[${sx}]`).join('');
 
 let k_document: ConfluenceDocument | null;
-let k_source: XhtmlDocument;
-
-function control_bar(gc_bar: ControlBarConfig) {
-	const g_props = {...gc_bar.props};
-
-	// error is present
-	if('number' === typeof gc_bar.error) {
-		let s_message = '';
-		let xc_level = Ve4ErrorLevel.INFO;
-
-		switch(gc_bar.error) {
-			case Ve4Error.PERMISSIONS: {
-				s_message = lang.error.page_permissions;
-				xc_level = Ve4ErrorLevel.WARN;
-				break;
-			}
-
-			case Ve4Error.METADATA: {
-				s_message = lang.error.page_metadata;
-				xc_level = Ve4ErrorLevel.FATAL;
-				break;
-			}
-
-			case Ve4Error.UNKNOWN:
-			default: {
-				s_message = lang.error.unknown;
-				xc_level = Ve4ErrorLevel.FATAL;
-				break;
-			}
-		}
-	}
-}
+let k_source: ConfluenceXhtmlDocument;
 
 function* correlate(gc_correlator: CorrelationDescriptor): Generator<ViewBundle> {
 	// find all matching page nodes
@@ -228,6 +233,7 @@ function* correlate(gc_correlator: CorrelationDescriptor): Generator<ViewBundle>
 
 	// mismatch
 	if(a_elmts.length !== nl_nodes) {
+		debugger;
 		// `XPath selection found ${nl_nodes} matches but DOM query selection found ${a_elmts.length} matches`);
 		throw new Error(format(lang.error.xpath_dom_mismatch, {
 			node_count: nl_nodes,
@@ -251,14 +257,50 @@ function* correlate(gc_correlator: CorrelationDescriptor): Generator<ViewBundle>
 
 function render_component(g_bundle: ViewBundle, b_hide_anchor = false) {
 	const dm_anchor = g_bundle.anchor;
+	const dm_render = g_bundle.render || dm_anchor;
+	const dm_parent = dm_render.parentElement!;
 
+	// re-stitch together inline paragraph
+	if(TransclusionComponent === g_bundle.component && (('P' === dm_parent.nodeName && !qsa(dm_parent, 'br').length) || ('SPAN' === dm_parent.nodeName && 'P' === dm_parent.parentElement?.nodeName && !qsa(dm_parent.parentElement, 'br').length))) {
+		// dm_anchor.style.display = 'none';
+
+		const dm_parent_render = dm_render.closest('p')!;
+		dm_parent_render.style.display = 'inline';
+		const dm_tag = dm_parent_render.nextElementSibling as HTMLElement;
+
+		dm_tag.style.display = 'none';
+
+		const dm_placeholder = dm_tag.nextElementSibling;
+		if(dm_placeholder && 'P' === dm_placeholder.nodeName) {
+			(dm_placeholder as HTMLElement).style.display = 'none';
+
+			const dm_follow = dm_placeholder.nextElementSibling;
+			if(dm_follow && 'P' === dm_follow.nodeName) {
+				qs(dm_follow, 'br')?.remove();
+				(dm_follow as HTMLElement).style.display = 'inline';
+			}
+		}
+
+		// add special prop for transclusion
+		g_bundle.props!.b_inlined = true;
+	}
 	// hide anchor
-	if(b_hide_anchor) dm_anchor.style.display = 'none';
+	else if(b_hide_anchor) {
+		if(dm_anchor) {
+			(g_bundle.render || dm_anchor).style.display = 'none';
+		}
+	}
 
 	// render component
 	new g_bundle.component({
-		target: dm_anchor.parentNode as HTMLElement,
-		anchor: dm_anchor,
+		...(dm_anchor
+			? {
+				target: dm_anchor.parentNode as HTMLElement,
+				anchor: dm_anchor,
+			}
+			: {
+				target: dm_render,
+			}),
 		props: {
 			...g_bundle.props || {},
 			yn_directive: g_bundle.node,
@@ -283,7 +325,6 @@ export async function main(): Promise<void> {
 		},
 	});
 
-	// G_CONTEXT.k_page =
 	k_page = await ConfluencePage.fromCurrentPage();
 
 	await Promise.allSettled([
@@ -321,6 +362,9 @@ export async function main(): Promise<void> {
 	// set page source
 	G_CONTEXT.source = k_source;
 
+	// set page original source
+	G_CONTEXT.source_original = k_source.clone();
+
 	// set page
 	G_CONTEXT.page = k_page;
 
@@ -347,8 +391,7 @@ export async function main(): Promise<void> {
 			live: `a[href="/display/${G_META.space_key}/${si_page_directive.replace(/ /g, '+')}"]`,
 			struct: (ym_node) => {
 				const ym_parent = ym_node.parentNode as Element;
-				// ym_parent.getAttribute('');
-				// debugger;
+
 				return {
 					label: ('ac:link' === ym_parent.nodeName? ym_parent.textContent: '') || si_page_directive,
 					// macro_id: (ym_parent 'ac:macro-id')
@@ -383,6 +426,85 @@ export async function main(): Promise<void> {
 		}
 	}
 
+	// interpret published elements
+	{
+		// xpath query for rendered elements
+		const a_macros = k_source.select<Node>(`//ac:structured-macro[@ac:name="html"][child::${SX_PARAMETER_ID_EMBEDDED_ELEMENT}]`);
+
+		// translate into ve paths
+		const a_paths = a_macros.map(yn => [xpathSelect1<Text>(`./ac:parameter[@ac:name="id"]/text()`, yn).data, yn] as [VeoPath.Full, Node]);
+
+		// resolve serialized element
+		for(const [sp_element, yn_directive] of a_paths) {
+			// correlate to live DOM element
+			const a_candidates = qsa(dm_main, `.ve-output-publish-anchor[id="${sp_element}"]`);
+
+			// incorrect match
+			if(1 !== a_candidates.length) {
+				throw new Error(`Expected exactly 1 element on page with id="${sp_element}" but found ${a_candidates.length}`);
+			}
+
+			const dm_anchor = a_candidates[0] as HTMLElement;
+
+			// select previous element
+			// const dm_script = qs(dm_anchor.parentElement, `script#ve-metadata-${}[type="application/json"]`);
+			const dm_script = dm_anchor.previousElementSibling;
+			if(!dm_script || 'SCRIPT' !== dm_script.tagName) {
+				throw new Error(`Embedded element is missing script metadata`);
+			}
+
+			// parse element metadata
+			const gc_element = JSON.parse(dm_script.textContent || '{}') as Serializable;
+
+			// model and component class
+			let dc_model!: VeOdmConstructor<Serializable, VeOdm<Serializable>>;
+			// let dc_component: {new(o: Record<string, unknown>): SvelteComponent};
+			let dc_component!: typeof SvelteComponentDev;
+
+			// deserialize
+			switch(gc_element.type) {
+				// query table
+				case 'MmsSparqlQueryTable': {
+					// @ts-expect-error safu
+					dc_model = MmsSparqlQueryTable;
+					dc_component = QueryTable;
+					break;
+				}
+
+				// transclusion
+				case 'Transclusion': {
+					// debugger;
+					// @ts-expect-error safu
+					dc_model = Transclusion;
+					dc_component = TransclusionComponent;
+					break;
+				}
+
+				default: {
+					debugger;
+					break;
+				}
+			}
+
+			if(dc_model) {
+				// construct model instance
+				const k_model = await VeOdm.createFromSerialized(dc_model, sp_element, gc_element, G_CONTEXT);
+
+				// inject component
+				render_component({
+					component: dc_component,
+					render: remove_all_children(dm_anchor),
+					anchor: dm_script,
+					node: yn_directive,
+					props: {
+						k_model,
+						b_published: true,
+					},
+				}, true);
+			}
+		}
+	}
+
 	// interpret rendered elements
 	{
 		// xpath query for rendered elements
@@ -393,7 +515,7 @@ export async function main(): Promise<void> {
 
 		// resolve serialized element
 		for(const [sp_element, yn_directive] of a_paths) {
-			const gc_element = await K_OBJECT_STORE.resolve<TypedKeyedUuidedObject>(sp_element);
+			const gc_element = await K_OBJECT_STORE.resolve(sp_element as string);
 
 			// correlate to live DOM element
 			const a_spans = qsa(dm_main, `span[id="${sp_element}"]`);
@@ -403,39 +525,72 @@ export async function main(): Promise<void> {
 				throw new Error(`Expected exactly 1 annotated span element on page with id="${sp_element}" but found ${a_spans.length}`);
 			}
 
+			const dm_render = a_spans[0] as HTMLElement;
+
 			// select adjacent element
-			const dm_render = a_spans[0].parentElement!.nextSibling as HTMLElement;
+			let dm_anchor = dm_render.parentElement!.nextSibling as HTMLElement;
+			if(!dm_anchor && 'SPAN' === dm_render.parentElement?.nodeName) {
+				dm_anchor = dm_render.parentElement.parentElement!.nextElementSibling as HTMLElement;
+			}
+
+			// model and component class
+			let dc_model!: VeOdmConstructor<Serializable, VeOdm<Serializable>>;
+			// let dc_component: {new(o: Record<string, unknown>): SvelteComponent};
+			let dc_component!: typeof SvelteComponentDev;
 
 			// deserialize
 			switch(gc_element.type) {
+				// query table
 				case 'MmsSparqlQueryTable': {
-					// construct table model
-					const k_query_table = await VeOdm.createFromSerialized(MmsSparqlQueryTable, sp_element, gc_element as MmsSparqlQueryTable.Serialized, G_CONTEXT);
+					// @ts-expect-error safu
+					dc_model = MmsSparqlQueryTable;
+					dc_component = QueryTable;
+					break;
+				}
 
-					// inject component
-					new QueryTable({
-						target: dm_render.parentElement!,
-						anchor: dm_render,
-						props: {
-							k_query_table,
-							yn_directive,
-							dm_anchor: dm_render,
-							b_published: true,
-						},
-					});
+				// transclusion
+				case 'Transclusion': {
+					// debugger;
+					// @ts-expect-error safu
+					dc_model = Transclusion;
+					dc_component = TransclusionComponent;
 					break;
 				}
 
 				default: {
+					debugger;
 					break;
 				}
+			}
+
+			if(dc_model) {
+				// construct model instance
+				const k_model = await VeOdm.createFromSerialized(dc_model, sp_element, gc_element as Serializable, G_CONTEXT);
+
+				// inject component
+				render_component({
+					component: dc_component,
+					render: dm_render,
+					anchor: dm_anchor,
+					node: yn_directive,
+					props: {
+						k_model,
+						b_published: true,
+					},
+				}, true);
 			}
 		}
 	}
 }
 
 const H_HASH_TRIGGERS: Record<string, (de_hash_change?: HashChangeEvent) => Promise<void>> = {
-	async [SR_HASH_VE_PAGE_EDIT_MODE.slice(1)]() {
+	async 'load-editor'() {
+		// apply beta changes
+		replace_edit_button();
+
+		if(!p_original_edit_link) {
+			throw new Error(`Original page edit button link was never captured`);
+		}
 		return await inject_frame(p_original_edit_link);
 	},
 
@@ -447,7 +602,7 @@ const H_HASH_TRIGGERS: Record<string, (de_hash_change?: HashChangeEvent) => Prom
 		await Promise.resolve();
 	},
 
-	async 'beta'(de_hash_change?: HashChangeEvent) {
+	async 'beta'() {
 		const m_path = /^(.*[^+])\+*$/.exec(location.pathname);
 		if(m_path) {
 			const s_expect = m_path[1]+'+';
@@ -463,8 +618,15 @@ const H_HASH_TRIGGERS: Record<string, (de_hash_change?: HashChangeEvent) => Prom
 		// update version info
 		kv_control_bar.$set({s_app_version:`${process.env.VERSION}-beta`});
 
-		// apply beta changes
-		replace_edit_button();
+		// // apply beta changes
+		// replace_edit_button();
+
+		await Promise.resolve();
+	},
+
+	async 'noop'() {
+		const dm_edit = qs(dm_main, 'a#editPageLink')! as HTMLAnchorElement;
+		dm_edit.href = '#noop';
 
 		await Promise.resolve();
 	},
@@ -472,15 +634,57 @@ const H_HASH_TRIGGERS: Record<string, (de_hash_change?: HashChangeEvent) => Prom
 
 
 let p_original_edit_link = '';
+const S_VE_PATCHED = 'vePatched';
+type MutableHistory = History & {
+	[S_VE_PATCHED]: boolean;
+}
 
 function replace_edit_button() {
+	// history not yet patched
+	if(!(history as MutableHistory)[S_VE_PATCHED]) {
+		(history as MutableHistory)[S_VE_PATCHED] = true;
+		const f_push = history.pushState;
+		history.pushState = (w_state: unknown, s_title: string, p_url: string) => {
+			// edit mode
+			if(/^\/pages\/editpage\.action/.test(p_url)) {
+				const p_load_editor = location.pathname+'+++#editor';
+				queueMicrotask(() => {
+					location.href = p_load_editor;
+				});
+
+				setTimeout(() => {
+					location.href = p_load_editor;
+				}, 200);
+				return;
+			}
+
+			// default
+			f_push.call(history, w_state, s_title, p_url);
+		};
+
+		// window.addEventListener('beforeunload', () => {
+		// 	debugger;
+		// });
+	}
+
+	// already replaced
+	if(p_original_edit_link) return;
+
 	const dm_edit = qs(dm_main, 'a#editPageLink')! as HTMLAnchorElement;
 	p_original_edit_link = dm_edit.href;
-	dm_edit.href = SR_HASH_VE_PAGE_EDIT_MODE;
+	dm_edit.href = '#load-editor';
 
 	// remove all event listeners
 	const dm_clone = dm_edit.cloneNode(true);
 	dm_edit.parentNode?.replaceChild(dm_clone, dm_edit);
+
+	// prefetch wysiwyg editor script
+	const dm_prefetch = dd('link', {
+		rel: 'prefetch',
+		href: P_SRC_WYSIWYG_EDITOR,
+		as: 'script',
+	});
+	document.head.appendChild(dm_prefetch);
 }
 
 function hash_updated(de_hash_change?: HashChangeEvent): void {
@@ -493,9 +697,18 @@ function hash_updated(de_hash_change?: HashChangeEvent): void {
 	}
 }
 
+const H_PATH_SUFFIX_TO_HASH: Record<string, string> = {
+	'+': 'beta',
+	'++': 'admin',
+	'+++': 'load-editor',
+};
+
 function dom_ready() {
+	// apply beta changes
+	replace_edit_button();
+
 	// listen for hash change
-	window.addEventListener('hashchange', hash_updated);
+	window.addEventListener('hashchange', hash_updated as (de: Event) => void);
 
 	INTERPRET_LOCATION: {
 		let si_page_title = location.pathname;
@@ -510,26 +723,41 @@ function dom_ready() {
 			// replace URL with page title version
 			history.replaceState(null, '', `/display/${y_params.get('spaceKey')!}/${si_page_title}`);
 		}
+		// doeditpage.action
+		else if(location.pathname.endsWith('doeditpage.action')) {
+			// normalize viewpage URL
+			si_page_title = encodeURIComponent(G_META.page_title).replace(/%20/g, '+');
+
+			// redirect to view page
+			location.href = `/display/${G_META.space_key}/${si_page_title}`;
+		}
 
 		// special url indication
 		const m_special = /(\++)$/.exec(si_page_title);
 		if(m_special) {
-			switch(m_special[1]) {
-				// beta mode
-				case '+': {
-					location.hash = '#beta';
-					break INTERPRET_LOCATION;
+			const s_suffix = m_special[1];
+
+			// suffix is mapped
+			if(s_suffix in H_PATH_SUFFIX_TO_HASH) {
+				// lookup corresponding hash
+				const s_set_hash = H_PATH_SUFFIX_TO_HASH[s_suffix];
+
+				// resolve hash parts
+				const as_parts = new Set(location.hash.slice(1).split(/:/g).filter(s => s));
+
+				// hash already set
+				if(as_parts.has(s_set_hash)) {
+					// manually trigger hash update
+					hash_updated();
+				}
+				// hash not set
+				else {
+					// prepend new hash part and update hash, allowing listener to trigger handler
+					location.hash = '#'+[s_set_hash, ...as_parts].join(':');
 				}
 
-				// edit mode
-				case '+++': {
-					void H_HASH_TRIGGERS[SR_HASH_VE_PAGE_EDIT_MODE]();
-					break INTERPRET_LOCATION;
-				}
-
-				default: {
-					break;
-				}
+				// exit location interpretter block
+				break INTERPRET_LOCATION;
 			}
 		}
 
@@ -541,7 +769,7 @@ function dom_ready() {
 // entry point
 {
 	// kickoff main
-	main();
+	void main();
 
 	// document is already loaded
 	if(['complete', 'interactive', 'loaded'].includes(document.readyState)) {

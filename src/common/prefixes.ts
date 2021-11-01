@@ -94,6 +94,9 @@ export const H_PREFIXES: Record<string, string> = {
 	'uml-primitives': 'https://www.omg.org/spec/UML/20161101/PrimitiveTypes.xmi#',
 	'uml-class': 'https://opencae.jpl.nasa.gov/mms/rdf/uml-class/',
 	'uml-property': 'https://opencae.jpl.nasa.gov/mms/rdf/uml-property/',
+
+	// Neptune
+	hint: 'http://aws.amazon.com/neptune/vocab/v01/QueryHints#',
 };
 
 export default H_PREFIXES;

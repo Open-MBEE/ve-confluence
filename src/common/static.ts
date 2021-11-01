@@ -8,6 +8,11 @@ export const process: Process = null as unknown as Process;
 
 export const lang: Lang = null as unknown as Lang;
 
+export const confluence_editor_injections = null as unknown as {
+	[attr: string]: string | undefined;
+	$: string;
+}[];
+
 export let static_css = '';
 
 static_css += /* syntax: css */ `
@@ -27,7 +32,7 @@ static_css += /* syntax: css */ `
 		--ve-color-accent-light: #2C7E8F;
 		--ve-color-accent-dark: #205C68;
 		--ve-color-accent-darker: #E6E6E6;
-		--ve-color-accent-dark-border: #102E34
+		--ve-color-accent-dark-border: #102E34;
 		--ve-color-button-light: #EDEDED;
 		--ve-color-error-red: #FF6060;
 	}
@@ -41,6 +46,18 @@ static_css += /* syntax: css */ `
 		padding: 2px 4px;
 		font-weight: 500;
 		vertical-align: middle;
+	}
+
+	p.precedes-inline {
+		display: inline;
+	}
+
+	p.precedes-inline+p {
+		display: inline;
+	}
+
+	.ve-transclusion-display {
+		padding-left: 3px;
 	}
 `;
 

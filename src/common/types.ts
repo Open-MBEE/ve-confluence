@@ -5,7 +5,7 @@ import type {
 	VeOdm,
 } from '#/model/Serializable';
 
-import type {VeoPath} from './veo';
+import type {VeoPathTarget} from './veo';
 
 export type Hash = Record<string, string>;
 
@@ -60,8 +60,8 @@ export interface LabeledPrimitive extends Omit<PrimitiveObject, 'label'> {
 	label: string;
 }
 
-export interface ValuedObject {
-	value: string;
+export interface ValuedObject<ValueType=string> {
+	value: ValueType;
 }
 
 export interface UuidedObject {
@@ -73,7 +73,9 @@ export type TypedKeyedUuidedObject<TypeValue extends string=string> = TypedKeyed
 export type TypedLabeledObject<TypeValue extends string=string> = TypedObject<TypeValue> & LabeledObject;
 export type KeyedLabeledObject = KeyedObject & LabeledObject;
 
-export type ValuedLabeledObject = ValuedObject & LabeledObject;
+export type ValuedLabeledObject<ValueType=string> = ValuedObject<ValueType> & (ValueType extends JsonValue? LabeledObject: {
+	label: string;
+});
 
 export type TypedKeyedLabeledObject<TypeValue extends string=string> = TypedObject<TypeValue> & KeyedObject & LabeledObject;
 
@@ -134,7 +136,7 @@ export interface Instantiable<
 	ValueType extends Serializable | Primitive,
 	ClassType extends VeOdm<ValueType>,
 > {
-	new(sp: VeoPath.Full, gc: ValueType, g: Context): ClassType;
+	new(sp: VeoPathTarget, gc: ValueType, g: Context): ClassType;
 }
 
 export type PathTarget<

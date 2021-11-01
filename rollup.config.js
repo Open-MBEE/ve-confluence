@@ -15,8 +15,9 @@ import ttypescript from 'ttypescript';
 // import tsPathsResolve from 'rollup-plugin-ts-paths-resolve';
 import path from 'path';
 import * as G_PACKAGE from './package.json';
+import { Transform } from 'stream';
 
-const production = !process.env.ROLLUP_WATCH;
+const B_PROD = !process.env.ROLLUP_WATCH;
 
 function serve() {
 	let server;
@@ -51,6 +52,7 @@ const H_REPLACE_IN = {
 			SPARQL_ENDPOINT: process.env.SPARQL_ENDPOINT,
 			DOORS_NG_PREFIX: process.env.DOORS_NG_PREFIX,
 			VERSION: G_PACKAGE.version,
+			PRODUCTION: B_PROD,
 		},
 	},
 	lang: yaml.load(fs.readFileSync(`./resource/${process.env.LANG_FILE || 'lang.yaml'}`))[process.env.LANG],
@@ -61,14 +63,20 @@ const H_REPLACE_IN = {
 	static_js: [
 		'./node_modules/@fortawesome/fontawesome-free/js/all.min.js',
 	].map(pr => fs.readFileSync(pr, 'utf8')).join('\n'),
+	confluence_editor_injections: process.env.CONFLUENCE_EDITOR_INJECTIONS
+		? require(process.env.CONFLUENCE_EDITOR_INJECTIONS) || []
+		: [],
 };
+
+console.dir(H_REPLACE_IN.confluence_editor_injections);
 
 const H_VALUES_OUT = replace_values(H_REPLACE_IN);
 
-console.dir(replace_values({
-	process: H_REPLACE_IN.process,
-	lang: H_REPLACE_IN.lang,
-}));
+console.dir(replace_values([
+	'process',
+	'lang',
+	'confluence_editor_injections',
+].reduce((h, s) => ({...h, [s]: H_REPLACE_IN[s]}), {})));
 
 const k_resolver = resolve({
 	browser: true,
@@ -81,74 +89,103 @@ const k_resolver = resolve({
 	],
 })
 
-export default {
-	input: 'src/vendor/confluence/main/entrypoint.ts',
-	output: {
-		sourcemap: true,
-		format: 'iife',
-		name: 'app',
-		file: 'public/build/bundle.js'
-	},
-	plugins: [
-		replace({
-			preventAssignment: false,
-			delimiters: ['', ''],
-			values: H_VALUES_OUT,
+const svelte_plugins = ({terser:z_terser='auto'}={}) => [
+	replace({
+		preventAssignment: false,
+		delimiters: ['', ''],
+		values: H_VALUES_OUT,
+	}),
+
+	// url({
+	// 	include: ['**/*.css'],
+	// }),
+
+	svelte({
+		preprocess: sveltePreprocess({
+			sourceMap: !B_PROD,
 		}),
+		compilerOptions: {
+			// enable run-time checks when not in production
+			dev: !B_PROD,
+		},
+		emitCss: false,
+	}),
 
-		// url({
-		// 	include: ['**/*.css'],
-		// }),
-
-		svelte({
-			preprocess: sveltePreprocess({ sourceMap: !production }),
-			compilerOptions: {
-				// enable run-time checks when not in production
-				dev: !production
-			},
-			emitCss: false,
-		}),
-
-		alias({
-			resolve: ['.svelte', '.ts'],
-			entries: {
-				'#': path.resolve(__dirname, 'src'),
-			},
-			k_resolver,
-		}),
-
+	alias({
+		resolve: ['.svelte', '.ts'],
+		entries: {
+			'#': path.resolve(__dirname, 'src'),
+		},
 		k_resolver,
+	}),
 
-		// If you have external dependencies installed from
-		// npm, you'll most likely need these plugins. In
-		// some cases you'll need additional configuration -
-		// consult the documentation for details:
-		// https://github.com/rollup/plugins/tree/master/packages/commonjs
-		// resolve({
-		// 	browser: true,
-		// 	dedupe: ['svelte']
-		// }),
-		// tsPathsResolve(),
-		commonjs(),
-		typescript({
-			typescript: ttypescript,
-			sourceMap: !production,
-			inlineSources: !production
-		}),
+	k_resolver,
 
-		// In dev mode, call `npm run start` once
-		// the bundle has been generated
-		!production && serve(),
+	// If you have external dependencies installed from
+	// npm, you'll most likely need these plugins. In
+	// some cases you'll need additional configuration -
+	// consult the documentation for details:
+	// https://github.com/rollup/plugins/tree/master/packages/commonjs
+	// resolve({
+	// 	browser: true,
+	// 	dedupe: ['svelte']
+	// }),
+	// tsPathsResolve(),
+	commonjs(),
+	typescript({
+		typescript: ttypescript,
+		sourceMap: !B_PROD,
+		inlineSources: !B_PROD
+	}),
 
-		// Watch the `public` directory and refresh the
-		// browser on changes when not in production
-		!production && livereload('public'),
+	// In dev mode, call `npm run start` once
+	// the bundle has been generated
+	!B_PROD && serve(),
 
-		// If we're building for production (npm run build
-		// instead of npm run dev), minify
-		production && terser()
-	],
-	watch: {
-		clearScreen: false
-	}
-};
+	// // Watch the `public` directory and refresh the
+	// // browser on changes when not in B_PROD
+	// !B_PROD && livereload('public'),
+
+	// If we're building for B_PROD (npm run build
+	// instead of npm run dev), minify
+	...('auto' === z_terser
+		? [B_PROD && terser()]
+		: (z_terser
+			? [terser()]
+			: [false])),
+];
+
+
+export default [
+	// confluence entrypoint
+	{
+		input: 'src/vendor/confluence/main/entrypoint.ts',
+		output: {
+			sourcemap: true,
+			format: 'iife',
+			name: 'app',
+			file: `public/build/bundle.${B_PROD? 'min': 'dev'}.js`,
+		},
+		plugins: svelte_plugins(),
+		watch: {
+			clearScreen: false,
+		},
+	},
+
+	// confluence editor
+	{
+		input: 'src/vendor/confluence/patch/editor.ts',
+		output: {
+			sourcemap: true,
+			format: 'iife',
+			name: 'editor',
+			file: `public/build/editor.${B_PROD? 'min': 'dev'}.js`,
+		},
+		plugins: [
+			...svelte_plugins(),
+		],
+		watch: {
+			clearScreen: false,
+		},
+	},
+];

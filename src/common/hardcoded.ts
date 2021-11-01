@@ -31,7 +31,12 @@ import {
 	XhtmlString,
 } from '#/util/strings';
 
-import {build_dng_select_query_from_params} from './helper/sparql-code';
+import {
+	build_dng_select_param_query,
+	build_dng_select_query_from_params,
+	dng_detailer_query,
+	dng_searcher_query,
+} from './helper/sparql-code';
 
 import H_PREFIXES from './prefixes';
 
@@ -168,6 +173,10 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					value: 'Maturity',
 					sortPath: null,
 				},
+				id: {
+					value: 'Identifier',
+					sortPath: null,
+				},
 			},
 		},
 	}),
@@ -182,7 +191,8 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 						'hardcoded#queryParameter.sparql.dng.maturity',
 					],
 					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basicWithChildren',
-					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.basicParamsL3',
+					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.table.basicParamsL3',
+					paramQueryBuilderPath: 'hardcoded#paramQueryBuilder.sparql.dng.default',
 				},
 				asr: {
 					label: 'Appendix Subsystem Requirements',
@@ -191,7 +201,17 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 						'hardcoded#queryParameter.sparql.dng.maturity',
 					],
 					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basic',
-					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.basicParamsL3ChildrenAndL4s',
+					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.table.basicParamsL3ChildrenAndL4s',
+					paramQueryBuilderPath: 'hardcoded#paramQueryBuilder.sparql.dng.default',
+				},
+				bid: {
+					label: 'By Requirement ID',
+					queryParametersPaths: [
+						'hardcoded#queryParameter.sparql.dng.id',
+					],
+					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.simple',
+					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.table.basicParams',
+					paramQueryBuilderPath: 'hardcoded#paramQueryBuilder.sparql.dng.default',
 				},
 			},
 		},
@@ -207,6 +227,13 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					queryFieldsPaths: [
 						...A_QUERY_FIELD_PATHS_BASIC,
 						'hardcoded#queryField.sparql.dng.children',
+					],
+				},
+				simple: {
+					queryFieldsPaths: [
+						'hardcoded#queryField.sparql.dng.id',
+						'hardcoded#queryField.sparql.dng.requirementName',
+						'hardcoded#queryField.sparql.dng.requirementText',
 					],
 				},
 			},
@@ -274,14 +301,36 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 		},
 	}),
 
+	paramQueryBuilder: {
+		sparql: {
+			dng: {
+				default: build_dng_select_param_query,
+			},
+		},
+	},
+
+	queryContext: {
+		sparql: {
+			dng: {
+				common: {
+					prefixes: H_PREFIXES,
+				},
+			},
+		},
+	},
+
 	queryBuilder: {
 		sparql: {
 			dng: {
-				basicParams: {
-					function: build_dng_select_query_from_params,
+				search: {
+					basic: dng_searcher_query,
 				},
-				basicParamsL3: {
-					function(this: MmsSparqlQueryTable): Promise<SparqlSelectQuery> {
+				detail: {
+					basic: dng_detailer_query,
+				},
+				table: {
+					basicParams: build_dng_select_query_from_params,
+					basicParamsL3(this: MmsSparqlQueryTable): Promise<SparqlSelectQuery> {
 						return build_dng_select_query_from_params.call(this, {
 							bgp: /* syntax: js */ `
 								?_level a rdf:Property ;
@@ -292,9 +341,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 							`,
 						});
 					},
-				},
-				basicParamsL3ChildrenAndL4s: {
-					function(this: MmsSparqlQueryTable): Promise<SparqlSelectQuery> {
+					basicParamsL3ChildrenAndL4s(this: MmsSparqlQueryTable): Promise<SparqlSelectQuery> {
 						return build_dng_select_query_from_params.call(this, {
 							bgp: /* syntax: js */ `
 								?_level a rdf:Property ;
@@ -313,16 +360,6 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 							`,
 						});
 					},
-				},
-			},
-		},
-	},
-
-	queryContext: {
-		sparql: {
-			dng: {
-				common: {
-					prefixes: H_PREFIXES,
 				},
 			},
 		},

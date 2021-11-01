@@ -1,3 +1,6 @@
+import type { JsonValue } from "#/common/types";
+import { oderac } from "./belt";
+
 type Hash = Record<string, string>;
 
 type Split<S extends string, D extends string> = S extends `${infer T}${D}${infer U}` ? [T, ...Split<U, D>] : [S];
@@ -71,10 +74,11 @@ export const qsa = <T extends string>(dm_node: ParentNode | HTMLElement, sq_sele
 
 export function dd<T extends HTMLElement = HTMLElement>(
 	s_tag: string,
-	h_attrs: Record<string, string | number | boolean> = {},
-	a_children: (Element | string)[] = [],
+	h_attrs: Record<string, string | number | boolean>={},
+	a_children: (Element | string)[]=[],
+	d_doc=document
 ): T {
-	const dm_node = document.createElement(s_tag);
+	const dm_node = d_doc.createElement(s_tag);
 
 	for(const si_attr in h_attrs) {
 		dm_node.setAttribute(si_attr, h_attrs[si_attr]+'');
@@ -91,15 +95,37 @@ export function dd<T extends HTMLElement = HTMLElement>(
 const S_UUID_V4 = 'xxxxxxxx_xxxx_4xxx_yxxx_xxxxxxxxxxxx';
 const R_UUID_V4 = /[xy]/g;
 
-export const uuid_v4 = (): string => {
+export const uuid_v4 = (s_delim='_'): string => {
 	let dt_now = Date.now();
 	if('undefined' !== typeof performance) dt_now += performance.now();
-	return S_UUID_V4.replace(R_UUID_V4, (s) => {
+	let s_uuid_v4 = S_UUID_V4;
+	if('_' !== s_delim) s_uuid_v4 = s_uuid_v4.replace(/_/g, s_delim);
+	return s_uuid_v4.replace(R_UUID_V4, (s) => {
 		const x_r = (dt_now + (Math.random()*16)) % 16 | 0;
 		dt_now = Math.floor(dt_now / 16);
 		return ('x' === s? x_r: ((x_r & 0x3) | 0x8)).toString(16);
 	});
 };
+
+export const encode_attr = (h: Record<string, unknown>): string => btoa(JSON.stringify(h));
+
+export const decode_attr = (sx: string): JsonValue | null => sx? JSON.parse(atob(sx)) as JsonValue: null;
+
+export const parse_html = (sx_html: string): Document => new DOMParser().parseFromString(sx_html, 'text/html');
+
+export const serialize_dom = (d_doc: Document): string => new XMLSerializer()
+	.serializeToString(d_doc.body).trim()
+	.replace(/^<body[^>]*>|<\/body>$/g, '').trim()
+	.replace(/\xa0/g, '&nbsp;');
+
+
+export function remove_all_children(dm_parent: HTMLElement): HTMLElement {
+	while(dm_parent.firstChild) {
+		dm_parent.removeChild(dm_parent.firstChild);
+	}
+
+	return dm_parent;
+}
 
 // main page
 export const dm_main = document.getElementById('main') as HTMLDivElement;
@@ -110,5 +136,6 @@ export const dm_content = document.getElementById('main-content') as HTMLDivElem
 // main header
 export const dm_main_header = document.getElementById('main-header') as HTMLDivElement;
 
-// sidebar
-export const dm_sidebar = document.getElementsByClassName('ia-fixed-sidebar').item(0) as HTMLDivElement;
+// // sidebar
+// export const dm_sidebar = document.getElementsByClassName('ia-fixed-sidebar').item(0) as HTMLDivElement;
+

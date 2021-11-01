@@ -1,4 +1,6 @@
-import type {VeoPath} from '#/common/veo';
+import type {
+	VeoPathTarget,
+} from '#/common/veo';
 
 import type {
 	UrlString,
@@ -9,12 +11,18 @@ import type {
 	TypedLabeledObject,
 } from '#/common/types';
 
-import SparqlEndpoint from '../util/sparql-endpoint';
+import SparqlEndpoint, {
+	SparqlSelectQuery,
+} from '../util/sparql-endpoint';
 
 import {
 	VeOdmLabeled,
 	VeOrmClass,
 } from './Serializable';
+
+import type {ConnectionQuery} from '#/element/QueryTable/model/QueryTable';
+
+import type {SearcherMask} from '#/common/helper/sparql-code';
 
 export interface ModelVersionDescriptor {
 	id: string;
@@ -29,6 +37,7 @@ export namespace Connection {
 
 	export interface Serialized<TypeString extends DefaultType=DefaultType> extends TypedLabeledObject<TypeString> {
 		endpoint: UrlString;
+		alias?: string;
 	}
 }
 
@@ -39,11 +48,15 @@ export abstract class Connection<
 		return this._gc_serialized.endpoint;
 	}
 
-	abstract fetchCurrentVersion(): Promise<ModelVersionDescriptor>;
+	get alias(): string {
+		return this._gc_serialized.alias || this.label;
+	}
 
-	abstract fetchVersions(): Promise<ModelVersionDescriptor[]>;
+	abstract execute(sq_query: string, fk_controller?: (d_controller: AbortController) => void): Promise<QueryRow[]>;
 
-	abstract execute(sq_query: string): Promise<QueryRow[]>;
+	abstract search(s_input: string, xm_types?: SearcherMask): ConnectionQuery;
+
+	abstract detail(p_item: string): ConnectionQuery;
 }
 
 
@@ -56,14 +69,32 @@ export namespace SparqlConnection {
 
 	export interface Serialized<TypeString extends DefaultType=DefaultType> extends Connection.Serialized<TypeString> {
 		endpoint: UrlString;
-		contextPath: VeoPath.SparqlQueryContext;
+		contextPath: VeoPathTarget;
+		searchPath: VeoPathTarget;
+		detailPath: VeoPathTarget;
 	}
 }
+
+export interface VersionedConnection extends Connection {
+	fetchCurrentVersion(): Promise<ModelVersionDescriptor>;
+
+	fetchVersions(): Promise<ModelVersionDescriptor[]>;
+}
+
+export function connectionHasVersioning(k_connection: Connection): k_connection is VersionedConnection {
+	return !!(k_connection as VersionedConnection).fetchVersions;
+}
+
+export type SparqlSearcher = (this: SparqlConnection, s_input: string, xm_types?: SearcherMask) => SparqlSelectQuery;
+
+export type SparqlDetailer = (this: SparqlConnection, p_item: string) => SparqlSelectQuery;
 
 export abstract class SparqlConnection<
 	Serialized extends SparqlConnection.Serialized=SparqlConnection.Serialized,
 > extends Connection<Serialized> {
 	protected _k_endpoint!: SparqlEndpoint;
+	protected _f_searcher!: SparqlSearcher;
+	protected _f_detailer!: SparqlDetailer;
 
 	protected _h_prefixes?: Hash;
 
@@ -72,14 +103,35 @@ export abstract class SparqlConnection<
 			endpoint: this.endpoint,
 			prefixes: this.prefixes,
 		});
+
+		this._f_searcher = this._k_store.resolveSync(this._gc_serialized.searchPath) as unknown as SparqlSearcher;
+		this._f_detailer = this._k_store.resolveSync(this._gc_serialized.detailPath) as unknown as SparqlDetailer;
+
+		return super.initSync();
 	}
 
 	get context(): SparqlQueryContext {
-		return this._k_store.resolveSync<SparqlQueryContext>(this._gc_serialized.contextPath);
+		return this._k_store.resolveSync(this._gc_serialized.contextPath) as unknown as SparqlQueryContext;
 	}
 
 	get prefixes(): Hash {
 		return this._h_prefixes || (this._h_prefixes = this.context.prefixes);
+	}
+
+	search(s_input: string, xm_types?: SearcherMask): SparqlSelectQuery {
+		return this._f_searcher(s_input, xm_types);
+	}
+
+	detail(p_item: string): SparqlSelectQuery {
+		return this._f_detailer(p_item);
+	}
+}
+
+export namespace PlainSparqlConnection {
+	export interface Serialized extends SparqlConnection.Serialized<'PlainSparqlConnection'> {
+		endpoint: UrlString;
+		graph: UrlString;
+		contextPath: VeoPathTarget;
 	}
 }
 
@@ -88,25 +140,9 @@ export namespace MmsSparqlConnection {
 		endpoint: UrlString;
 		modelGraph: UrlString;
 		metadataGraph: UrlString;
-		contextPath: VeoPath.SparqlQueryContext;
+		contextPath: VeoPathTarget;
 	}
 }
-
-const dt_now = new Date();
-const dt_old = new Date(dt_now.getTime() - (48*60*60*1e3));
-const date_format = (dt: Date): string => dt.toDateString().replace(/^\w+\s+/, '').replace(/(\d+)\s+/, '$1, ');
-
-const G_DUMMY_VERSION_LATEST = {
-	id: 'dummy-latest-commit-id',
-	label: date_format(dt_now),
-	dateTime: dt_now.toISOString(),
-};
-
-const G_DUMMY_VERSION_CURRENT = {
-	id: 'dummy-current-commit-id',
-	label: date_format(dt_old),
-	dateTime: dt_old.toISOString(),
-};
 
 interface CommitResult {
 	modelGraph: {
@@ -151,7 +187,17 @@ function commit_result_to_model_version(g_result: CommitResult): ModelVersionDes
 	};
 }
 
-export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Serialized> {
+export class PlainSparqlConnection extends SparqlConnection<PlainSparqlConnection.Serialized> {
+	get graph(): UrlString {
+		return this._gc_serialized.graph;
+	}
+
+	async execute(sq_query: SparqlString, fk_controller?: (d_controller: AbortController) => void): Promise<QueryRow[]> {
+		return await this._k_endpoint.select(sq_query, fk_controller);
+	}
+}
+
+export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Serialized> implements VersionedConnection {
 	get modelGraph(): UrlString {
 		return this._gc_serialized.modelGraph;
 	}
@@ -218,8 +264,8 @@ export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Se
 		}
 	}
 
-	async execute(sq_query: SparqlString): Promise<QueryRow[]> {
-		return await this._k_endpoint.select(sq_query);
+	async execute(sq_query: SparqlString, fk_controller?: (d_controller: AbortController) => void): Promise<QueryRow[]> {
+		return await this._k_endpoint.select(sq_query, fk_controller);
 	}
 }
 
