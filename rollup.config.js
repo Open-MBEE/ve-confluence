@@ -106,7 +106,7 @@ const svelte_plugins = ({terser:z_terser='auto'}={}) => [
 		}),
 		compilerOptions: {
 			// enable run-time checks when not in production
-			dev: !B_PROD
+			dev: !B_PROD,
 		},
 		emitCss: false,
 	}),
