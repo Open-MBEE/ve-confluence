@@ -666,7 +666,7 @@
 						{#if G_INFO_MODES.PREVIEW === xc_info_mode}
 							{s_status_info}
 						{:else if G_INFO_MODES.LOADING === xc_info_mode}
-							<!-- <Fa icon={faCircleNotch} class="fa-spin" /> LOADING PREVIEW -->
+							<Fa icon={faCircleNotch} class="fa-spin" /> LOADING PREVIEW
 						{/if}
 					{/if}
 				</span>

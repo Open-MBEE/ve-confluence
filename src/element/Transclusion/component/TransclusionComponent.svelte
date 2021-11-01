@@ -231,8 +231,7 @@
 					{k_model.connection.label}
 			</span>
 			<span class="date">
-					<!-- <Fa icon={faHistory} /> -->
-					<i class="fas fa-history" />
+					<Fa icon={faHistory} />
 					{s_display_version}
 			</span>
 		</div>
@@ -259,8 +258,7 @@
 
 <a href={k_model.itemIri} class="transclusion" on:mouseenter={enable_hover} on:mouseleave={disable_hover} bind:this={dm_link}>
 	<span>
-		<!-- <Fa icon={faBolt} /> -->
-		<i class="fas fa-bolt" />
+		<Fa icon={faBolt} />
 	</span>
 	<span>
 		{s_display || k_model.fallbackDisplayText}

@@ -615,8 +615,7 @@
 								{#await g_data?.status_mode then xc_status_mode}
 									{#if G_STATUS.CONNECTING === xc_status_mode}
 										<span class="status">
-											<!-- <Fa icon={faCircleNotch} class="fa-spin" /> -->
-											<i class="fas fa-spin fa-circle-notch" />
+											<Fa icon={faCircleNotch} class="fa-spin" />
 											<span class="text">
 												Connecting...
 											</span>
@@ -625,16 +624,14 @@
 										<!-- no display -->
 									{:else if G_STATUS.UPDATING === xc_status_mode}
 										<span class="status">
-											<!-- <Fa icon={faCircleNotch} class="fa-spin" /> -->
-											<i class="fas fa-spin fa-circle-notch" />
+											<Fa icon={faCircleNotch} class="fa-spin" />
 											<span class="text">
 												{g_data?.tables_touched_count}/{g_data?.tables.size} Updating Tables
 											</span>
 										</span>
 									{:else if G_STATUS.UPDATED === xc_status_mode}
 										<span class="status">
-											<!-- <Fa icon={faCheckCircle} /> -->
-											<i class="fas fa-check-circle" />
+											<Fa icon={faCheckCircle} />
 											<span class="text">
 												{g_data?.tables_touched_count}/{g_data?.tables.size} Tables Updated
 											</span>
