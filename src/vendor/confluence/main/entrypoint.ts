@@ -28,6 +28,8 @@ import {
 	dd,
 	parse_html,
 	remove_all_children,
+	dm_page,
+	dm_container,
 } from '#/util/dom';
 
 import type {SvelteComponent} from 'svelte';
@@ -67,7 +69,6 @@ import type {
 
 import {
 	inject_frame,
-	P_SRC_WYSIWYG_EDITOR,
 } from './inject-frame';
 
 import {Transclusion} from '#/element/Transclusion/model/Transclusion';
@@ -314,12 +315,12 @@ export async function main(): Promise<void> {
 		throw new Error(`ERROR: No lang file defined! Did you forget to set the environment variables when building?`);
 	}
 
-	const dm_header = qs(document.body, '#header');
+	const dm_header = qs(dm_container, '#header');
 	kv_control_bar = new ControlBar({
 		target: dm_main_header as HTMLElement,
 		anchor: qs(dm_main_header, 'div#navigation'),
-		// target: dm_header.parentElement as HTMLElement,
-		// anchor: dm_header.nextSibling as HTMLElement,
+		// target: dm_header.parentElement,
+		// anchor: dm_header.nextSibling,
 		props: {
 			g_context: G_CONTEXT,
 		},
@@ -678,13 +679,13 @@ function replace_edit_button() {
 	const dm_clone = dm_edit.cloneNode(true);
 	dm_edit.parentNode?.replaceChild(dm_clone, dm_edit);
 
-	// prefetch wysiwyg editor script
-	const dm_prefetch = dd('link', {
-		rel: 'prefetch',
-		href: P_SRC_WYSIWYG_EDITOR,
-		as: 'script',
-	});
-	document.head.appendChild(dm_prefetch);
+	// // prefetch wysiwyg editor script
+	// const dm_prefetch = dd('link', {
+	// 	rel: 'prefetch',
+	// 	href: P_SRC_WYSIWYG_EDITOR,
+	// 	as: 'script',
+	// });
+	// document.head.appendChild(dm_prefetch);
 }
 
 function hash_updated(de_hash_change?: HashChangeEvent): void {

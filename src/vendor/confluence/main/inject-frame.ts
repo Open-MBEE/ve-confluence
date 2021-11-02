@@ -15,10 +15,8 @@ import {
 
 export const SR_HASH_VE_PAGE_EDIT_MODE = '#editor';
 
-// export const P_SRC_WYSIWYG_EDITOR = 'https://ced-cdn-test.s3-us-gov-west-1.amazonaws.com/confluence-ui/injected-editor.js';
-
-export const P_SRC_WYSIWYG_EDITOR = process.env.PRODUCTION? 'https://ced-uat.jpl.nasa.gov/cdn/confluence-editor.min.js': 'http://localhost:3001/public/build/confluence-editor.dev.js';
-export const P_SRC_EDITOR_SUPPLEMENT = process.env.PRODUCTION? 'https://ced-uat.jpl.nasa.gov/cdn/editor.min.js': 'http://localhost:3001/public/build/editor.dev.js';
+export const P_SRC_EDITOR_SUPPLEMENT = process.env.EDITOR_SUPPLEMENT_SRC || 'https://ced.jpl.nasa.gov/cdn/editor.min.js';
+// process.env.PRODUCTION? 'https://ced-uat.jpl.nasa.gov/cdn/editor.min.js': 'http://localhost:3001/public/build/editor.dev.js';
 
 const B_AWAIT_PRELOAD = false;
 

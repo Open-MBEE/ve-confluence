@@ -127,6 +127,12 @@ export function remove_all_children(dm_parent: HTMLElement): HTMLElement {
 	return dm_parent;
 }
 
+// complete page
+export const dm_page = document.getElementById('page') as HTMLDivElement;
+
+// container
+export const dm_container = document.getElementById('full-height-container') as HTMLDivElement;
+
 // main page
 export const dm_main = document.getElementById('main') as HTMLDivElement;
 

@@ -63,7 +63,7 @@
 	let b_read_only = false;
 	let b_read_only_page = false;
 
-	let dm_bar: HTMLDivElement;
+	let dm_bar: HTMLElement;
 	let b_collapsed = true;
 	let dm_icon_dropdown: HTMLDivElement;
 
@@ -86,9 +86,12 @@
 	$: b_page_content_writable = b_page_json_valid && (new ConfluenceXhtmlDocument(sx_page_content_editted as string)).toString() !== sx_page_content_remote;
 	
 	const dm_sidebar = qs(document.body, '.ia-fixed-sidebar') as HTMLDivElement;
+	const dm_sidebar_scrollable = (qs(dm_sidebar, '.ia-scrollable-section') as HTMLDivElement);
+	const n_pre_scrolltop = dm_sidebar.scrollTop || 0;
+
 	// if(dm_sidebar) {
-	// 	let dm_sidebar_scrollable = (qs(dm_sidebar, '.ia-scrollable-section') as HTMLDivElement);
-	// 	let n_pre_scrolltop = dm_sidebar.scrollTop || 0;
+	// 	dm_sidebar_scrollable = (qs(dm_sidebar, '.ia-scrollable-section') as HTMLDivElement);
+	// 	n_pre_scrolltop = dm_sidebar.scrollTop || 0;
 	// }
 	
 	$: {
@@ -121,29 +124,32 @@
 	let k_document: ConfluenceDocument | null = null;
 
 	function realign_control_bar() {
-		if('' !== dm_main_header.style.position) {
-			dm_bar.style.marginTop = '0px';
-			// when the 'overlay-header' class is applied for the nav bar, adjust margins
-			if(dm_main_header.className.split(/\s+/g).includes('overlay-header')) {
-				dm_bar.style.marginTop = '-10px';
-			}
-		}
-		else {
-			dm_bar.style.marginTop = '-20px';
-		}
+		// if('' !== dm_main_header.style.position) {
+		// 	dm_bar.style.marginTop = '0px';
+		// 	// when the 'overlay-header' class is applied for the nav bar, adjust margins
+		// 	if(dm_main_header.className.split(/\s+/g).includes('overlay-header')) {
+		// 		dm_bar.style.marginTop = '-10px';
+		// 	}
+		// }
+		// else {
+		// 	dm_bar.style.marginTop = '-20px';
+		// }
 
 
 		// // when scrolling down the wiki header style changes, so update the control bar margin
 		// if('' !== dm_sidebar.style.width) {
-		// 	dm_sidebar.style.marginTop = `${dm_bar.getBoundingClientRect().height || 38}px`;
+		// 	const g_rect = dm_bar.getBoundingClientRect();
+		// 	console.dir(g_rect);
+
+		// 	dm_sidebar.style.marginTop = `${g_rect.height || 38}px`;
 
 		// 	dm_sidebar_scrollable.scrollTop = n_pre_scrolltop;
 
-		// 	debugger;
+		// 	// debugger;
 
-		// 	if(dm_expanded) {
-		// 		dm_expanded.style.paddingLeft = `calc(${dm_sidebar.style.width} + 20px)`;
-		// 	}
+		// 	// if(dm_expanded) {
+		// 	// 	dm_expanded.style.paddingLeft = `calc(${dm_sidebar.style.width} + 20px)`;
+		// 	// }
 		// }
 	}
 
@@ -175,8 +181,8 @@
 			}
 		});
 
-		// // start observing 'sidebar' attribute changes
-		// d_observer.observe(dm_sidebar, {attributes:true});
+		// start observing 'sidebar' attribute changes
+		d_observer.observe(dm_sidebar, {attributes:true});
 
 		d_observer.observe(dm_main, {attributes:true});
 		d_observer.observe(dm_main_header, {attributes:true});
@@ -610,8 +616,7 @@
 				{/if}
 				<span class="icon-help">
 					<!-- help icon -->
-					<!-- <Fa icon={faQuestionCircle} size="2x"></Fa> -->
-					<i class="fas fa-2x fa-question-circle" />
+					<Fa icon={faQuestionCircle} size="2x"></Fa>
 				</span>
 				<span class="version">
 					v{s_app_version}

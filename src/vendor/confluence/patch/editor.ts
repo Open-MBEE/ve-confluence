@@ -289,11 +289,11 @@ function init_page_element(dm_node: HTMLTableElement, gc_element: Serializable) 
 		// update display
 		k_thing.updateDisplay();
 
-		// wait a tick
-		queueMicrotask(() => {
-			// bind event listener3s
-			k_thing.bindEventListeners(true);
-		});
+		// // wait a tick
+		// queueMicrotask(() => {
+		// 	// bind event listener3s
+		// 	k_thing.bindEventListeners(true);
+		// });
 	});
 }
 
@@ -317,12 +317,12 @@ function editor_content_updated(a_nodes=qsa(d_doc_editor, 'body>*') as HTMLEleme
 			b_initialized = true;
 
 			// create overlay div
-			d_doc_editor.body.appendChild(dd('div', {
+			qs(d_doc_editor.body, '.synchrony-container.synchrony-exclude').appendChild(dd('div', {
 				'id': 've-overlays',
-				'class': 'synchrony-exclude',
-				'style': `user-select:none;`,
-				'data-mce-bogus': 'true',
-				'contenteditable': 'false',
+				// 'class': 'synchrony-exclude',
+				// 'style': `user-select:none;`,
+				// 'data-mce-bogus': 'true',
+				// 'contenteditable': 'false',
 			}, [], d_doc_editor));
 
 			// init deferred
