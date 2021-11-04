@@ -352,14 +352,13 @@ export class Mention {
 			],
 		});
 
-		// retro_fit(this._dm_shadow);
+		// synchronously init overlay
+		this.initOverlay();
 
 		void this._init(gc_session.ready);
 	}
 
 	protected async _init(fk_ready: MentionConfig['ready']): Promise<void> {
-		this.initOverlay();
-
 		const g_context = this._g_context;
 		const k_store = g_context.store;
 
@@ -554,7 +553,7 @@ export class Mention {
 			}, []),
 			dd('span', {
 				class: 've-mention-input',
-			}, [S_TRANSCLUDE_SYMBOL]),
+			}, [S_TRANSCLUDE_SYMBOL+'\xa0']),
 		]);
 	}
 
@@ -742,6 +741,10 @@ export class Mention {
 
 	initOverlay(): void {
 		const dm_target = qs(this._d_doc_editor, '#ve-overlays');
+
+		if(!dm_target) {
+			debugger;
+		}
 
 		// create component
 		this._y_component = new MentionOverlay({

@@ -767,8 +767,8 @@ function dom_ready() {
 	}
 }
 
-// entry point
-{
+// entry point only to be loaded in top context
+if(self === top) {
 	// kickoff main
 	void main();
 

@@ -159,6 +159,36 @@ function init_bindings() {
 					throw new Error('Failed to insert mention content into confluence editor');
 				}
 
+				// position caret
+				{
+					const d_sel = window.getSelection();
+					d_sel?.removeAllRanges();
+
+					const d_range = document.createRange();
+
+					const dm_input = qs(dm_inserted, '.ve-mention-input');
+					d_range.selectNodeContents(dm_inserted);
+
+					// const a_nodes = Array.from(dm_input.childNodes);
+					// if(a_nodes.length && '#text' === a_nodes[0].nodeName) {
+						
+					// 	// const dm_text = a_nodes[0];
+					// 	// d_range.selectNode(dm_text);
+					// 	// d_range.setStart(dm_text, 0);
+					// 	// d_range.collapse(true);
+					// 	// d_range.selectNodeContents(dm_input);
+					// 	// d_range.collapse();
+					// 	// debugger;
+					// }
+					// else {
+					// 	d_range.selectNode(dm_input);
+					// 	d_range.setStart(dm_input, 0);
+					// 	d_range.collapse(true);
+					// }
+
+					d_sel?.addRange(d_range);
+				}
+
 				// select preceding element
 				const dm_prev = dm_inserted.previousElementSibling;
 				if(dm_prev) {

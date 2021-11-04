@@ -53,6 +53,7 @@ const H_REPLACE_IN = {
 			DOORS_NG_PREFIX: process.env.DOORS_NG_PREFIX,
 			VERSION: G_PACKAGE.version,
 			PRODUCTION: B_PROD,
+			EDITOR_SUPPLEMENT_SRC: process.env.EDITOR_SUPPLEMENT_SRC,
 		},
 	},
 	lang: yaml.load(fs.readFileSync(`./resource/${process.env.LANG_FILE || 'lang.yaml'}`))[process.env.LANG],
@@ -164,7 +165,7 @@ export default [
 			sourcemap: true,
 			format: 'iife',
 			name: 'app',
-			file: `public/build/bundle.${B_PROD? 'min': 'dev'}.js`,
+			file: `public/build/viewer.${B_PROD? 'min': 'dev'}.js`,
 		},
 		plugins: svelte_plugins(),
 		watch: {

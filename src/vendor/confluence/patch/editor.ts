@@ -457,8 +457,11 @@ window.addEventListener('DOMContentLoaded', () => {
 				// grab ref to iframe's content document
 				d_doc_editor = (dm_node as HTMLIFrameElement).contentDocument!;
 
-				// observe mutations to editor
-				observe_editor();
+				// content document exists
+				if(d_doc_editor) {
+					// observe mutations to editor
+					observe_editor();
+				}
 			}
 		}
 	});
@@ -525,7 +528,7 @@ function tinymce_ready() {
 			background-color: var(--ve-color-light-background);
 			padding: 6px;
 			border-radius: 4px;
-			font-weight: 600;
+			font-weight: 601;
 		}
 
 		.ve-mention-attribute {
@@ -555,6 +558,11 @@ function tinymce_ready() {
 
 		.ve-mention-attribute.active .content {
 			color: var(--ve-color-medium-light-text);
+		}
+
+		.ve-mention-input {
+			display: inline-block;
+			user-select: text;
 		}
 
 		.precedes-inline {
@@ -797,9 +805,9 @@ const init_synchrony = () => {
 		if(dm_node?.closest && dm_node.closest('.synchrony-exclude')) {
 			return false;
 		}
-		else {
-			console.log(g_thing);
-		}
+		// else {
+		// 	console.log(g_thing);
+		// }
 	}
 
 	(() => {
