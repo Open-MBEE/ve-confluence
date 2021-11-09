@@ -39,6 +39,7 @@ import {
 	qs,
 	remove_all_children,
 	serialize_dom,
+	timeout,
 	uuid_v4,
 } from '#/util/dom';
 
@@ -169,7 +170,8 @@ export class Mention {
 			});
 		};
 
-		const k_precacher = Mention.fromConception(g_context, document);
+		const d_doc_wysiwyg = (qs(document, 'iframe#wysiwygTextarea_ifr') as HTMLIFrameElement).contentDocument!;
+		const k_precacher = Mention.fromConception(g_context, d_doc_wysiwyg);
 
 		await k_precacher.ready;
 
@@ -334,7 +336,7 @@ export class Mention {
 			},
 			autoCursor: true,
 			tableAttributes: {
-				class: 'wysiwyg-macro ve-inline-macro',
+				class: 'wysiwyg-macro ve-inline-macro ve-draft',
 			},
 			contentAttributes: {
 				style: 'display: none;',
@@ -358,7 +360,17 @@ export class Mention {
 	}
 
 	protected async _init(fk_ready: MentionConfig['ready']): Promise<void> {
-		this.initOverlay();
+		let c_retries = 0;
+		const n_max_retrires = 100;
+		while(!this.initOverlay() && c_retries < n_max_retrires) {
+			await timeout(200);
+			c_retries += 1;
+		}
+
+		if(c_retries >= n_max_retrires) {
+			debugger;
+			throw new Error(`failed to init Mentions overlay`);
+		}
 
 		const g_context = this._g_context;
 		const k_store = g_context.store;
@@ -526,6 +538,14 @@ export class Mention {
 			]),
 		]);
 
+		// insert dropdown indicator icon
+		new Fa({
+			target: qs(dm_static, '.indicator'),
+			props: {
+				icon: faAngleDown,
+			},
+		});
+
 		qs(this.macroDom, '.ve-mention-input').textContent = '';
 	}
 
@@ -579,8 +599,13 @@ export class Mention {
 			si_item,
 		]);
 
+		// make immutable
+		debugger;
+		qs(this.macroDom, '.ve-mention-input').remove();
+		this.macroDom.contentEditable = 'false';
+
 		// bind event listeners
-		this.bindEventListeners();
+		await this.bindEventListeners();
 
 		// 
 		await this._enter_attribute_selector(p_item);
@@ -588,20 +613,22 @@ export class Mention {
 		// query for rendered content
 		const dm_macro = this.macroDom;
 
-		// clear attribute span
-		const dm_attr = remove_all_children(qs(dm_macro, '.ve-mention-attribute') as HTMLElement);
+		// // clear attribute span
+		// const dm_attr = remove_all_children(qs(dm_macro, '.ve-mention-attribute') as HTMLElement);
 
-		// append template
-		dm_attr.append(...[
-			dd('span', {
-				class: 'content',
-			}, [
-				' |',  // cursor preview
-			]),
-			dd('span', {
-				class: 'indicator',
-			}),
-		]);
+		// // append template
+		// dm_attr.append(...[
+		// 	dd('span', {
+		// 		class: 'content',
+		// 	}, [
+		// 		' |',  // cursor preview
+		// 	]),
+		// 	dd('span', {
+		// 		class: 'indicator',
+		// 	}),
+		// ]);
+
+		const dm_attr = qs(dm_macro, '.ve-mention-attribute') as HTMLElement;
 
 		// create active attribute selector
 		dm_attr.classList.add('active');
@@ -669,14 +696,6 @@ export class Mention {
 			});
 		}
 
-		// insert dropdown indicator icon
-		new Fa({
-			target: qs(dm_attribute, '.indicator'),
-			props: {
-				icon: faAngleDown,
-			},
-		});
-
 		// also perform init
 		if(b_init) {
 			// get cursor offset
@@ -724,6 +743,9 @@ export class Mention {
 
 		// replace text content with new attribute
 		qs(dm_attribute, '.content').textContent = g_attr.label;
+
+		// remove draft status
+		this.macroDom.classList.remove('ve-draft');
 	}
 
 	searchInput(): void {
@@ -740,8 +762,13 @@ export class Mention {
 		return qs(this._d_doc_editor.body, this._sq_dom) as HTMLElement;
 	}
 
-	initOverlay(): void {
+	initOverlay(): boolean {
 		const dm_target = qs(this._d_doc_editor, '#ve-overlays');
+
+		if(!dm_target) {
+			console.warn(`during initOverlay() call, #ve-overlays was not ready ${document} ${this._d_doc_editor}`);
+			return false;
+		}
 
 		// create component
 		this._y_component = new MentionOverlay({
@@ -756,6 +783,8 @@ export class Mention {
 			this._dm_overlay_container = dm_container;
 			this._dm_overlay_content = dm_content;
 		});
+
+		return true;
 	}
 
 	get domSelector(): string {
@@ -784,6 +813,17 @@ export class Mention {
 		// debounce
 		clearTimeout(this._i_debounce);
 		this._i_debounce = setTimeout(() => {
+			// make each one dirty
+			for(const si_group in h_groups) {
+				const g_group = h_groups[si_group];
+				g_group.state = GroupState.DIRTY;
+			}
+
+			// update component
+			this._y_component.$set({
+				h_groups,
+			});
+
 			// apply query
 			void this.update(s_search, (g_channel: Channel, a_rows: QueryRow[]) => {
 				let a_mapped: Row[] = [];
@@ -898,7 +938,7 @@ export class Mention {
 			const sx_cache = localStorage.getItem(si_storage);
 			if(sx_cache && 'string' === typeof sx_cache) {
 				try {
-					fk_rows(g_channel, JSON.parse(sx_cache));
+					fk_rows(g_channel, JSON.parse(sx_cache) as QueryRow[]);
 					return;
 				}
 				catch(e_parse) {}

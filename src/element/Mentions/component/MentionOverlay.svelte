@@ -56,8 +56,6 @@
 	} from '../model/Mention';
 import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 
-	export let y_editor: PatchedEditor;
-	export let g_context: Context;
 	export let k_mention: Mention;
 	
 	export let b_display = false;
@@ -123,7 +121,7 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 	}
 
 
-	async function select_row() {
+	function select_row() {
 		const dm_selected = qs(dm_content, '.item-selected');
 
 		if(!dm_selected) {
@@ -131,7 +129,7 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 		}
 
 		if(DisplayMode.ITEM === xc_mode) {
-			return await select_item(dm_selected);
+			return select_item(dm_selected);
 		}
 		else if(DisplayMode.ATTRIBUTE === xc_mode) {
 			return select_attribute(dm_selected);

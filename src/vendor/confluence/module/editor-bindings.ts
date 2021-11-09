@@ -263,4 +263,6 @@ export function attach_editor_bindings(_y_editor: PatchedEditor, _g_context: Con
 	d_doc_editor = _d_doc_editor;
 
 	init_bindings();
+
+	void Mention.initGlobalPrecache(g_context);
 }

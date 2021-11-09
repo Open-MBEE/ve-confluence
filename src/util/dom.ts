@@ -127,6 +127,12 @@ export function remove_all_children(dm_parent: HTMLElement): HTMLElement {
 	return dm_parent;
 }
 
+export const timeout = (xt_wait: number) => new Promise((fk_resolve) => {
+	setTimeout(() => {
+		fk_resolve(void 0);
+	}, xt_wait);
+});
+
 // complete page
 export const dm_page = document.getElementById('page') as HTMLDivElement;
 

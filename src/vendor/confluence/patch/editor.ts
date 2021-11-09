@@ -61,12 +61,6 @@ const H_COMPONENTS = {
 	fromMacro(dm_node: HTMLTableElement, gc_element: Serializable, g_context: Context): MacroComponent;
 }>;
 
-const timeout = (xt_wait: number) => new Promise((fk_resolve) => {
-	setTimeout(() => {
-		fk_resolve(void 0);
-	}, xt_wait);
-});
-
 let d_doc_editor!: HTMLDocument;
 let kv_autocomplete!: MentionOverlay;
 
@@ -316,20 +310,64 @@ function editor_content_updated(a_nodes=qsa(d_doc_editor, 'body>*') as HTMLEleme
 			// now initialized
 			b_initialized = true;
 
-			// create overlay div
-			qs(d_doc_editor.body, '.synchrony-container.synchrony-exclude').appendChild(dd('div', {
+			// ref body
+			const dm_body = d_doc_editor.body;
+
+			// clear other overlays
+			qsa(dm_body, '.ve-overlays').forEach(dm => dm.remove());
+
+			// create private overlay div
+			dm_body.appendChild(dd('div', {
 				'id': 've-overlays',
-				// 'class': 'synchrony-exclude',
-				// 'style': `user-select:none;`,
-				// 'data-mce-bogus': 'true',
-				// 'contenteditable': 'false',
+				'class': 'synchrony-exclude ve-overlays',
+				'style': `user-select:none;`,
+				'data-mce-bogus': 'true',
+				'contenteditable': 'false',
 			}, [], d_doc_editor));
+
+			// clear draft elements
+			qsa(dm_body, '.ve-draft').forEach(dm => dm.remove());
+
+			// remove stale precedes-inline classes
+			qsa(dm_body, '.precedes-inline').forEach(dm_pre => {
+				if(!dm_pre.nextElementSibling?.classList?.contains('ve-inline-macro')) {
+					dm_pre.classList.remove('precedes-inline');
+				}
+			});
+
+			// remove dead empty spans
+			qsa(dm_body, 'p>span').forEach((dm_span) => {
+				// no children; remove it
+				if(!dm_span.childNodes.length) return dm_span.remove();
+
+				// only child is a text node with "&nbsp;"; remove it
+				const dm_child0 = dm_span.childNodes[0];
+				if(dm_child0 && '#text' === dm_child0.nodeName && '\xa0' === dm_child0.textContent) {
+					dm_span.remove();
+				}
+			});
+
+			// remove empty ps
+			qsa(dm_body, 'p').forEach((dm_p) => {
+				if(!dm_p.childNodes.length) {
+					dm_p.remove();
+				}
+			});
 
 			// init deferred
 			init_deferred();
 		}
 		// node is part of draft
 		else if(dm_node?.classList && !dm_node.classList.contains('synchrony-exclude')) {
+			// draft element
+			if(!b_initialized && dm_node.classList.contains('ve-draft')) {
+				// delete it
+				dm_node.parentElement?.removeChild(dm_node);
+
+				// continue onto next node
+				continue;
+			}
+
 			// adjusted macros as necessary
 			adjust_virgin_macro(dm_node);
 		}
