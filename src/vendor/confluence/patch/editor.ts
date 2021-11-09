@@ -140,6 +140,11 @@ function adjust_virgin_macro(dm_node: HTMLElement) {
 						f_init();
 					}
 				}
+				// element is retrofitted
+				else {
+					// ensure it cannot be edited
+					dm_node.contentEditable = 'false';
+				}
 			}
 		}
 	}

@@ -746,6 +746,9 @@ export class Mention {
 
 		// remove draft status
 		this.macroDom.classList.remove('ve-draft');
+
+		// ensure not content editable
+		this.macroDom.contentEditable = 'false';
 	}
 
 	searchInput(): void {
