@@ -89,6 +89,15 @@ export interface MentionConfig {
 
 export type MessageRouter = Record<string, (...a_args: any[]) => void | Promise<void>>;
 
+window.VE_LOCAL_STORAGE_MANAGER = {
+	clear() {
+		for(const si_key in localStorage) {
+			if(si_key.startsWith('ve-')) {
+				localStorage.removeItem(si_key);
+			}
+		}
+	},
+};
 
 // debounce time in ms
 const XT_DEBOUNCE = 350;
@@ -175,8 +184,12 @@ export class Mention {
 
 		await k_precacher.ready;
 
-		for(const s_char of range('0', '9')) {
-			void precache(s_char);
+		for(const s_char0 of range('0', '9')) {
+			void precache(s_char0);
+
+			// for(const s_char1 of range('0', '9')) {
+			// 	void precache(`${s_char0}${s_char1}`);
+			// }
 		}
 
 		for(const s_char of range('a', 'z')) {
@@ -600,12 +613,11 @@ export class Mention {
 		]);
 
 		// make immutable
-		debugger;
 		qs(this.macroDom, '.ve-mention-input').remove();
 		this.macroDom.contentEditable = 'false';
 
 		// bind event listeners
-		await this.bindEventListeners();
+		void this.bindEventListeners();
 
 		// 
 		await this._enter_attribute_selector(p_item);
@@ -720,7 +732,7 @@ export class Mention {
 			});
 
 			// enter attribute selector
-			void this._enter_attribute_selector(this._k_transclusion.itemIri);
+			await this._enter_attribute_selector(this._k_transclusion.itemIri);
 		}
 	}
 
@@ -754,9 +766,8 @@ export class Mention {
 	searchInput(): void {
 		const s_term = (qs(this.macroDom, '.ve-mention-input')?.textContent || '').replace(R_TRANSCLUDE_SYMBOL_PREFIX, '').trim().toLocaleLowerCase();
 
-		this._y_component.$set({
-			s_search: s_term,
-		});
+		// needs to happen synchronously before setting group vars
+		this.postMessage('render_search', [s_term]);
 
 		return this.search(s_term);
 	}
@@ -997,7 +1008,14 @@ export class Mention {
 
 				// cache
 				if(b_cache) {
-					localStorage.setItem(si_storage, JSON.stringify(a_rows));
+					try {
+						localStorage.setItem(si_storage, JSON.stringify(a_rows));
+					}
+					// could not set local storage
+					catch(e_set) {
+						// disable caching
+						b_cache = false;
+					}
 				}
 
 				// callback with new rows

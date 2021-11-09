@@ -232,12 +232,8 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 		}
 	}
 
-	const XT_DEBOUNCE = 350;
-	let i_debounce = 0;
-
-	function render_search(_s_search: string=s_search, b_debounce=false) {
+	function render_search(_s_search: string=s_search) {
 		s_search = _s_search;
-
 	}
 
 

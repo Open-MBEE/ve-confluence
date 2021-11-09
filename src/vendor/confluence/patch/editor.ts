@@ -141,7 +141,7 @@ function adjust_virgin_macro(dm_node: HTMLElement) {
 					}
 				}
 				// element is retrofitted
-				else {
+				else if(!dm_node.classList.contains('ve-draft')) {
 					// ensure it cannot be edited
 					dm_node.contentEditable = 'false';
 				}
@@ -362,6 +362,23 @@ function editor_content_updated(a_nodes=qsa(d_doc_editor, 'body>*') as HTMLEleme
 			// init deferred
 			init_deferred();
 		}
+		// caret
+		else if('P' === dm_node.tagName && 'after' === dm_node.getAttribute('data-mce-caret')) {
+			const dm_prev = dm_node.previousElementSibling;
+			if('TABLE' === dm_prev?.tagName && dm_prev.classList.contains('ve-inline-macro')) {
+				const g_rect = dm_prev.getBoundingClientRect();
+				const dm_caret = qs(dm_prev.ownerDocument, '.mce-visual-caret') as HTMLElement;
+				if(dm_caret) {
+					const sx_inset = dm_caret.style.inset;
+					if(sx_inset) {
+						const a_insets = sx_inset.trim().split(/\s/g);
+						a_insets[0] = Math.floor(g_rect.y - 4)+'px';
+						a_insets[1] = Math.ceil(g_rect.left + g_rect.width + 4)+'px';
+						dm_caret.style.inset = a_insets.join(' ');
+					}
+				}
+			}
+		}
 		// node is part of draft
 		else if(dm_node?.classList && !dm_node.classList.contains('synchrony-exclude')) {
 			// draft element
@@ -579,6 +596,8 @@ function tinymce_ready() {
 			margin-left: 4px;
 			padding: 0 4px;
 			background-color: var(--ve-color-button-light);
+			vertical-align: baseline;
+			line-height: 17px;
 		}
 
 		.ve-mention .content {
