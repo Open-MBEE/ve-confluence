@@ -17,7 +17,7 @@ import path from 'path';
 import * as G_PACKAGE from './package.json';
 import { Transform } from 'stream';
 
-const B_PROD = !process.env.ROLLUP_WATCH;
+const B_DEV = 'development' === process.env.NODE_ENV;
 
 function serve() {
 	let server;
@@ -52,7 +52,7 @@ const H_REPLACE_IN = {
 			SPARQL_ENDPOINT: process.env.SPARQL_ENDPOINT,
 			DOORS_NG_PREFIX: process.env.DOORS_NG_PREFIX,
 			VERSION: G_PACKAGE.version,
-			PRODUCTION: B_PROD,
+			PRODUCTION: !B_DEV,
 		},
 	},
 	lang: yaml.load(fs.readFileSync(`./resource/${process.env.LANG_FILE || 'lang.yaml'}`))[process.env.LANG],
@@ -102,11 +102,11 @@ const svelte_plugins = ({terser:z_terser='auto'}={}) => [
 
 	svelte({
 		preprocess: sveltePreprocess({
-			sourceMap: !B_PROD,
+			sourceMap: B_DEV,
 		}),
 		compilerOptions: {
 			// enable run-time checks when not in production
-			dev: !B_PROD,
+			dev: B_DEV,
 		},
 		emitCss: false,
 	}),
@@ -134,13 +134,13 @@ const svelte_plugins = ({terser:z_terser='auto'}={}) => [
 	commonjs(),
 	typescript({
 		typescript: ttypescript,
-		sourceMap: !B_PROD,
-		inlineSources: !B_PROD
+		sourceMap: B_DEV,
+		inlineSources: B_DEV
 	}),
 
 	// In dev mode, call `npm run start` once
 	// the bundle has been generated
-	!B_PROD && serve(),
+	B_DEV && serve(),
 
 	// // Watch the `public` directory and refresh the
 	// // browser on changes when not in B_PROD
@@ -149,7 +149,7 @@ const svelte_plugins = ({terser:z_terser='auto'}={}) => [
 	// If we're building for B_PROD (npm run build
 	// instead of npm run dev), minify
 	...('auto' === z_terser
-		? [B_PROD && terser()]
+		? [!B_DEV && terser()]
 		: (z_terser
 			? [terser()]
 			: [false])),
@@ -164,7 +164,7 @@ export default [
 			sourcemap: true,
 			format: 'iife',
 			name: 'app',
-			file: `public/build/bundle.${B_PROD? 'min': 'dev'}.js`,
+			file: `public/build/bundle.${B_DEV? 'dev': 'min'}.js`,
 		},
 		plugins: svelte_plugins(),
 		watch: {
@@ -179,7 +179,7 @@ export default [
 			sourcemap: true,
 			format: 'iife',
 			name: 'editor',
-			file: `public/build/editor.${B_PROD? 'min': 'dev'}.js`,
+			file: `public/build/editor.${B_DEV? 'dev': 'min'}.js`,
 		},
 		plugins: [
 			...svelte_plugins(),

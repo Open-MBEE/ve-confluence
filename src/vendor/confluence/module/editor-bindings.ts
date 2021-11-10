@@ -121,6 +121,15 @@ function init_bindings() {
 					connectionPath: 'document#connection.sparql.mms.dng',
 				});
 
+				// listen for overlay
+				k_mention._fk_overlay = () => {
+					if(!g_autocomplete_active) {
+						g_autocomplete_active = {
+							mention: k_mention,
+						};
+					}
+				};
+
 				// set mention
 				g_autocomplete_active = {
 					mention: k_mention,

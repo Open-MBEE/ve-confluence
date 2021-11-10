@@ -294,6 +294,8 @@ export class Mention {
 
 	protected _dm_publish: Document;
 
+	_fk_overlay: VoidFunction = () => {};  // eslint-disable-line class-methods-use-this, @typescript-eslint/no-empty-function
+
 	constructor(gc_session: MentionConfig) {
 		const {
 			g_context,
@@ -509,6 +511,10 @@ export class Mention {
 		this.postMessage('show_attribute_selector', [
 			this.macroDom,
 		]);
+
+		if(this._fk_overlay) {
+			this._fk_overlay();
+		}
 	}
 
 	protected _add_channel(sp_connection: VeoPathTarget, k_connection: Connection, h_features: {types: SearcherMask; limit: number}): void {
@@ -901,6 +907,9 @@ export class Mention {
 		this._y_component.$set({
 			b_display: false,
 		});
+
+		// select attribute
+		void this.selectAttribute(this._k_transclusion.toSerialized().displayAttribute);
 	}
 
 	renderMacroDom(): HTMLElement {
