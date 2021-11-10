@@ -269,7 +269,7 @@ function render_component(g_bundle: ViewBundle, b_hide_anchor = false) {
 		dm_parent_render.style.display = 'inline';
 		const dm_tag = dm_parent_render.nextElementSibling as HTMLElement;
 
-		dm_tag.style.display = 'none';
+		// dm_tag.style.display = 'none';
 
 		const dm_placeholder = dm_tag.nextElementSibling;
 		if(dm_placeholder && 'P' === dm_placeholder.nodeName) {
