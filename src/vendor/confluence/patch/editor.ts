@@ -367,14 +367,20 @@ function editor_content_updated(a_nodes=qsa(d_doc_editor, 'body>*') as HTMLEleme
 			const dm_prev = dm_node.previousElementSibling;
 			if('TABLE' === dm_prev?.tagName && dm_prev.classList.contains('ve-inline-macro')) {
 				const g_rect = dm_prev.getBoundingClientRect();
-				const dm_caret = qs(dm_prev.ownerDocument, '.mce-visual-caret') as HTMLElement;
-				if(dm_caret) {
-					const sx_inset = dm_caret.style.inset;
-					if(sx_inset) {
-						const a_insets = sx_inset.trim().split(/\s/g);
-						a_insets[0] = Math.floor(g_rect.y - 4)+'px';
-						a_insets[1] = Math.ceil(g_rect.left + g_rect.width + 4)+'px';
-						dm_caret.style.inset = a_insets.join(' ');
+				const a_carets = qsa(dm_prev.ownerDocument, '.mce-visual-caret') as HTMLElement[];
+				if(a_carets.length) {
+					for(const dm_caret of a_carets.filter(dm => dm.style.inset)) {
+						const sx_inset = dm_caret.style.inset;
+						console.log(sx_inset);
+						if(sx_inset) {
+							const a_insets = sx_inset.trim().split(/\s/g);
+							a_insets[0] = Math.floor(g_rect.y - 4)+'px';
+							a_insets[1] = Math.ceil(g_rect.left + g_rect.width + 4)+'px';
+
+							console.log(a_insets);
+
+							dm_caret.style.inset = a_insets.join(' ');
+						}
 					}
 				}
 			}

@@ -54,10 +54,6 @@
 
 	let s_display_version = '';
 
-	if(dm_anchor) {
-		dm_anchor.style.display = 'none';
-	}
-
 	(async() => {
 		s_display = await k_model.fetchDisplayText();
 

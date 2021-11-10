@@ -164,7 +164,7 @@ export default [
 			sourcemap: true,
 			format: 'iife',
 			name: 'app',
-			file: `public/build/bundle.${B_DEV? 'dev': 'min'}.js`,
+			file: `public/build/viewer.${B_DEV? 'dev': 'min'}.js`,
 		},
 		plugins: svelte_plugins(),
 		watch: {
