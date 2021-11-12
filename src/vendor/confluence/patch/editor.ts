@@ -93,6 +93,9 @@ function adjust_virgin_macro(dm_node: HTMLElement) {
 
 	// macro element
 	if('TABLE' === dm_node.tagName && 'html' === dm_node.getAttribute('data-macro-name') && si_macro?.startsWith('ve-')) {
+		// remove background-image
+		dm_node.style.backgroundImage = 'none';
+
 		// query for output body
 		const dm_pre = qs(dm_node, 'pre') as HTMLPreElement;
 
@@ -340,6 +343,14 @@ function editor_content_updated(a_nodes=qsa(d_doc_editor, 'body>*') as HTMLEleme
 				}
 			});
 
+			// add precedes inline classes where needed
+			qsa(dm_body, '.ve-inline-macro').forEach(dm_table => {
+				const dm_prev = dm_table.previousElementSibling;
+				if(dm_prev && 'P' === dm_prev.tagName) {
+					dm_prev.classList.add('precedes-inline');
+				}
+			});
+
 			// remove dead empty spans
 			qsa(dm_body, 'p>span').forEach((dm_span) => {
 				// no children; remove it
@@ -365,22 +376,36 @@ function editor_content_updated(a_nodes=qsa(d_doc_editor, 'body>*') as HTMLEleme
 		// caret
 		else if('P' === dm_node.tagName && 'after' === dm_node.getAttribute('data-mce-caret')) {
 			const dm_prev = dm_node.previousElementSibling;
+
+			// caret after inline macro
 			if('TABLE' === dm_prev?.tagName && dm_prev.classList.contains('ve-inline-macro')) {
+				// p follows caret
+				const dm_next = dm_node.nextElementSibling;
+				if('P' === dm_next?.tagName && dm_next.textContent) {
+					// delete caret
+					dm_node.remove();
+
+					// exit
+					continue;
+				}
+
+				// get inline macro bounds
 				const g_rect = dm_prev.getBoundingClientRect();
+
+				// query for display caret(s)
 				const a_carets = qsa(dm_prev.ownerDocument, '.mce-visual-caret') as HTMLElement[];
 				if(a_carets.length) {
+					// find the one with the inset style
 					for(const dm_caret of a_carets.filter(dm => dm.style.inset)) {
-						const sx_inset = dm_caret.style.inset;
-						console.log(sx_inset);
-						if(sx_inset) {
-							const a_insets = sx_inset.trim().split(/\s/g);
-							a_insets[0] = Math.floor(g_rect.y - 4)+'px';
-							a_insets[1] = Math.ceil(g_rect.left + g_rect.width + 4)+'px';
+						// parse inset
+						const a_insets = dm_caret.style.inset.trim().split(/\s/g);
 
-							console.log(a_insets);
+						// adjust left and top
+						a_insets[0] = Math.floor(g_rect.y - 4)+'px';
+						a_insets[1] = Math.ceil(g_rect.left + g_rect.width + 4)+'px';
 
-							dm_caret.style.inset = a_insets.join(' ');
-						}
+						// update style
+						dm_caret.style.inset = a_insets.join(' ');
 					}
 				}
 			}
@@ -573,8 +598,7 @@ function init_overlays() {
 
 function init_autocomplete() {
 	// check for mentions
-	const a_mentions = qsa(d_doc_editor, `.ve-mention[${SI_EDITOR_SYNC_KEY}]`) as HTMLDivElement[];
-	for(const dm_mention of a_mentions) {
+	for(const dm_mention of qsa(d_doc_editor, '.ve-mention') as HTMLElement[]) {
 		dm_mention.contentEditable = 'false';
 	}
 

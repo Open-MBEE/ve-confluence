@@ -51,6 +51,7 @@ const H_REPLACE_IN = {
 		env: {
 			SPARQL_ENDPOINT: process.env.SPARQL_ENDPOINT,
 			DOORS_NG_PREFIX: process.env.DOORS_NG_PREFIX,
+			EDITOR_SUPPLEMENT_SRC: process.env.EDITOR_SUPPLEMENT_SRC,
 			VERSION: G_PACKAGE.version,
 			PRODUCTION: !B_DEV,
 		},
