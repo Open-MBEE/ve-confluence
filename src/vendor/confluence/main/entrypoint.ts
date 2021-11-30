@@ -164,21 +164,21 @@ const SX_EXCLUDE_ACTIVE_PAGE_ELEMENTS = /* syntax: xpath */ `[not(ancestor::ac:s
 const SX_EXCLUDE_ACTIVE_EMBEDDED_ELEMENTS = /* syntax: xpath */ `[not(ancestor::ac:structured-macro[@ac:name="html"][child::${SX_PARAMETER_ID_EMBEDDED_ELEMENT}])]`;
 
 const A_DIRECTIVE_CORRELATIONS: CorrelationDescriptor[] = [
-	// dng web link
-	{
-		storage: /* syntax: xpath */ `.//a[starts-with(@href,"${P_DNG_WEB_PREFIX}")]${SX_EXCLUDE_ACTIVE_PAGE_ELEMENTS}`,
-		live: `a[href^="${P_DNG_WEB_PREFIX}"]:not([data-ve-type])`,
-		directive: ([ym_anchor, g_link]) => ({
-			component: DngArtifact,
-			props: {
-				ym_anchor,
-				g_link,
-				p_href: ym_anchor.getAttribute('href'),
-				s_label: ym_anchor.textContent?.trim() || '',
-				g_context: G_CONTEXT,
-			},
-		}),
-	},
+	// // dng web link
+	// {
+	// 	storage: /* syntax: xpath */ `.//a[starts-with(@href,"${P_DNG_WEB_PREFIX}")]${SX_EXCLUDE_ACTIVE_PAGE_ELEMENTS}`,
+	// 	live: `a[href^="${P_DNG_WEB_PREFIX}"]:not([data-ve-type])`,
+	// 	directive: ([ym_anchor, g_link]) => ({
+	// 		component: DngArtifact,
+	// 		props: {
+	// 			ym_anchor,
+	// 			g_link,
+	// 			p_href: ym_anchor.getAttribute('href'),
+	// 			s_label: ym_anchor.textContent?.trim() || '',
+	// 			g_context: G_CONTEXT,
+	// 		},
+	// 	}),
+	// },
 ];
 
 let K_OBJECT_STORE: ObjectStore;

@@ -121,7 +121,7 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 	}
 
 
-	function select_row() {
+	function select_row(g_attr?: ValuedLabeledObject<string>) {
 		const dm_selected = qs(dm_content, '.item-selected');
 
 		if(!dm_selected) {
@@ -132,7 +132,7 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 			return select_item(dm_selected);
 		}
 		else if(DisplayMode.ATTRIBUTE === xc_mode) {
-			return select_attribute(dm_selected);
+			return select_attribute(g_attr!);
 		}
 	}
 
@@ -169,10 +169,7 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 		void k_mention.selectItem(si_channel, p_item, si_item);
 	}
 
-	function select_attribute(dm_selected: Element): void {
-		//
-		const g_attr = decode_attr(dm_selected.getAttribute('data-attribute')!) as ValuedLabeledObject;
-
+	function select_attribute(g_attr: ValuedLabeledObject<string>): void {
 		// select attribute
 		void k_mention.selectAttribute(g_attr);
 
@@ -439,7 +436,7 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 									data-id={row_id(g_row, g_group.channel_hash)}
 									on:mouseenter={mouseenter_row}
 									on:mouseleave={mouseleave_row}
-									on:click={select_row}
+									on:click={() => select_row()}
 									class:item-selected={!i_group && !i_row}
 								>
 									<span class="ve-icon">
@@ -461,10 +458,9 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 					{#each a_attributes as g_attr, i_attr}
 						<div class="group">
 							<div class="row"
-								data-attribute={encode_attr(g_attr)}
 								on:mouseenter={mouseenter_row}
 								on:mouseleave={mouseleave_row}
-								on:click={select_row}
+								on:click={() => select_row(g_attr)}
 								class:item-selected={!i_attr}
 							>
 								<span class="info">

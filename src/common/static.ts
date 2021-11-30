@@ -48,16 +48,20 @@ static_css += /* syntax: css */ `
 		vertical-align: middle;
 	}
 
-	p.precedes-inline {
+	.observes-inline {
 		display: inline;
 	}
 
-	p.precedes-inline+p {
+	.propagates-inline+* {
 		display: inline;
 	}
 
 	.ve-transclusion-display {
 		padding-left: 3px;
+	}
+
+	.mce-visual-caret {
+		display: none !important;
 	}
 `;
 

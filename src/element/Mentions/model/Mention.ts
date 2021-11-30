@@ -99,6 +99,12 @@ window.VE_LOCAL_STORAGE_MANAGER = {
 	},
 };
 
+export class MacroDestroyedError extends Error {
+	constructor() {
+		super('Mention macro dom destroyed');
+	}
+}
+
 // debounce time in ms
 const XT_DEBOUNCE = 350;
 
@@ -295,6 +301,7 @@ export class Mention {
 	protected _dm_publish: Document;
 
 	_fk_overlay: VoidFunction = () => {};  // eslint-disable-line class-methods-use-this, @typescript-eslint/no-empty-function
+	_fk_destroy: VoidFunction = () => {};  // eslint-disable-line class-methods-use-this, @typescript-eslint/no-empty-function
 
 	constructor(gc_session: MentionConfig) {
 		const {
@@ -769,8 +776,12 @@ export class Mention {
 		this.macroDom.contentEditable = 'false';
 	}
 
+	get searchTerm(): string {
+		return (qs(this.macroDom, '.ve-mention-input')?.textContent || '').replace(R_TRANSCLUDE_SYMBOL_PREFIX, '').trim().toLocaleLowerCase();
+	}
+
 	searchInput(): void {
-		const s_term = (qs(this.macroDom, '.ve-mention-input')?.textContent || '').replace(R_TRANSCLUDE_SYMBOL_PREFIX, '').trim().toLocaleLowerCase();
+		const s_term = this.searchTerm;
 
 		// needs to happen synchronously before setting group vars
 		this.postMessage('render_search', [s_term]);
@@ -779,7 +790,14 @@ export class Mention {
 	}
 
 	get macroDom(): HTMLElement {
-		return qs(this._d_doc_editor.body, this._sq_dom) as HTMLElement;
+		const dm_macro = qs(this._d_doc_editor.body, this._sq_dom);
+		if(!dm_macro) {
+			this._fk_destroy();
+			throw new MacroDestroyedError();
+		}
+		else {
+			return dm_macro as HTMLElement;
+		}
 	}
 
 	initOverlay(): boolean {
@@ -908,8 +926,14 @@ export class Mention {
 			b_display: false,
 		});
 
-		// select attribute
-		void this.selectAttribute(this._k_transclusion.toSerialized().displayAttribute);
+		// draft status; self-destroy
+		if(this.macroDom.classList.contains('ve-draft')) {
+			this.macroDom.remove();
+		}
+		// publishable; select attribute
+		else {
+			void this.selectAttribute(this._k_transclusion.toSerialized().displayAttribute);
+		}
 	}
 
 	renderMacroDom(): HTMLElement {
