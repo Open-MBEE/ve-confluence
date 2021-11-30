@@ -311,6 +311,17 @@ function init_deferred() {
 	}
 }
 
+export function create_ve_overlays(dm_body: HTMLElement) {
+	// create private overlay div
+	dm_body.appendChild(dd('div', {
+		'id': 've-overlays',
+		'class': 'synchrony-exclude ve-overlays',
+		'style': `user-select:none;`,
+		'data-mce-bogus': 'true',
+		'contenteditable': 'false',
+	}, [], d_doc_editor));
+}
+
 function editor_content_updated(a_nodes=qsa(d_doc_editor, 'body>*') as HTMLElement[]) {
 	for(const dm_node of a_nodes) {
 		// synchrony container added
@@ -324,22 +335,16 @@ function editor_content_updated(a_nodes=qsa(d_doc_editor, 'body>*') as HTMLEleme
 			// clear other overlays
 			qsa(dm_body, '.ve-overlays').forEach(dm => dm.remove());
 
-			// create private overlay div
-			dm_body.appendChild(dd('div', {
-				'id': 've-overlays',
-				'class': 'synchrony-exclude ve-overlays',
-				'style': `user-select:none;`,
-				'data-mce-bogus': 'true',
-				'contenteditable': 'false',
-			}, [], d_doc_editor));
+			// create overlays space
+			create_ve_overlays(dm_body);
 
 			// clear draft elements
 			qsa(dm_body, '.ve-draft').forEach(dm => dm.remove());
 
-			// remove stale precedes-inline classes
-			qsa(dm_body, '.precedes-inline').forEach(dm_pre => {
+			// remove stale observes-inline classes
+			qsa(dm_body, '.observes-inline').forEach(dm_pre => {
 				if(!dm_pre.nextElementSibling?.classList?.contains('ve-inline-macro')) {
-					dm_pre.classList.remove('precedes-inline');
+					dm_pre.classList.remove('observes-inline');
 				}
 			});
 
@@ -347,7 +352,7 @@ function editor_content_updated(a_nodes=qsa(d_doc_editor, 'body>*') as HTMLEleme
 			qsa(dm_body, '.ve-inline-macro').forEach(dm_table => {
 				const dm_prev = dm_table.previousElementSibling;
 				if(dm_prev && 'P' === dm_prev.tagName) {
-					dm_prev.classList.add('precedes-inline');
+					dm_prev.classList.add('observes-inline');
 				}
 			});
 
@@ -373,39 +378,65 @@ function editor_content_updated(a_nodes=qsa(d_doc_editor, 'body>*') as HTMLEleme
 			// init deferred
 			init_deferred();
 		}
-		// caret
-		else if('P' === dm_node.tagName && 'after' === dm_node.getAttribute('data-mce-caret')) {
-			const dm_prev = dm_node.previousElementSibling;
-
-			// caret after inline macro
-			if('TABLE' === dm_prev?.tagName && dm_prev.classList.contains('ve-inline-macro')) {
-				// p follows caret
+		// p
+		else if('P' === dm_node.tagName) {
+			// observes-inline
+			if(dm_node.classList.contains('observes-inline')) {
+				const dm_prev = dm_node.previousElementSibling;
 				const dm_next = dm_node.nextElementSibling;
-				if('P' === dm_next?.tagName && dm_next.textContent) {
-					// delete caret
-					dm_node.remove();
 
-					// exit
-					continue;
+				// whether this p was likely copied from preceding element
+				let b_copied = false;
+				if(dm_prev && 'P' === dm_prev.nodeName && dm_prev.classList.contains('observes-inline')) {
+					b_copied = true;
 				}
 
-				// get inline macro bounds
-				const g_rect = dm_prev.getBoundingClientRect();
+				// whether the observes inline class would be useful
+				let b_useful = false;
+				if(!dm_next || !['P', 'DIV'].includes(dm_next.nodeName)) {
+					b_useful = true;
+				}
 
-				// query for display caret(s)
-				const a_carets = qsa(dm_prev.ownerDocument, '.mce-visual-caret') as HTMLElement[];
-				if(a_carets.length) {
-					// find the one with the inset style
-					for(const dm_caret of a_carets.filter(dm => dm.style.inset)) {
-						// parse inset
-						const a_insets = dm_caret.style.inset.trim().split(/\s/g);
+				// the observes-inline class was copied and is not useful; remove it
+				if(b_copied && !b_useful) {
+					dm_node.classList.remove('observes-inline');
+				}
+			}
 
-						// adjust left and top
-						a_insets[0] = Math.floor(g_rect.y - 4)+'px';
-						a_insets[1] = Math.ceil(g_rect.left + g_rect.width + 4)+'px';
+			// caret after
+			if('after' === dm_node.getAttribute('data-mce-caret')) {
+				const dm_prev = dm_node.previousElementSibling;
 
-						// update style
-						dm_caret.style.inset = a_insets.join(' ');
+				// caret after inline macro
+				if('TABLE' === dm_prev?.tagName && dm_prev.classList.contains('ve-inline-macro')) {
+					// p follows caret
+					const dm_next = dm_node.nextElementSibling;
+					if('P' === dm_next?.tagName && dm_next.textContent) {
+						// delete caret
+						dm_node.remove();
+
+						// exit
+						continue;
+					}
+
+					// get inline macro bounds
+					const g_rect = dm_prev.getBoundingClientRect();
+
+					// query for display caret(s)
+					const a_carets = qsa(dm_prev.ownerDocument, '.mce-visual-caret') as HTMLElement[];
+					if(a_carets.length) {
+						// find the one with the inset style
+						for(const dm_caret of a_carets.filter(dm => dm.style.inset)) {
+							// parse inset
+							const a_insets = dm_caret.style.inset.trim().split(/\s/g);
+
+							// adjust left and top
+							a_insets[0] = Math.floor(g_rect.y - 4)+'px';
+							a_insets[1] = Math.ceil(g_rect.left + g_rect.width + 4)+'px';
+
+							// update style
+							dm_caret.style.inset = a_insets.join(' ');
+						}
 					}
 				}
 			}
@@ -649,10 +680,6 @@ function tinymce_ready() {
 			color: var(--ve-color-medium-light-text);
 		}
 
-		.precedes-inline {
-			display: inline;
-		}
-
 		body.wiki-content table.wysiwyg-macro.ve-inline-macro {
 			display: inline;
 			padding: 0;
@@ -662,10 +689,6 @@ function tinymce_ready() {
 			border-spacing: 0;
 			background: none;
 			vertical-align: middle;
-		}
-
-		.ve-inline-macro+p {
-			display: inline;
 		}
 	`], d_doc_editor));
 
