@@ -14,7 +14,9 @@
 
 	import type {TypedString} from '#/util/strings';
 
-	import {ode} from '#/util/belt';
+	import {
+		ode,
+	} from '#/util/belt';
 
 	import {
 		dm_main,
@@ -42,7 +44,7 @@
 	*/
 	export let b_published = false;
 
-	export let b_inlined = false;
+	export let b_inlined = true;
 
 	let dm_hover!: HTMLDivElement;
 
@@ -120,7 +122,7 @@
 
 		const k_connection = k_model.connection;
 		if('MmsSparqlConnection' === k_connection.type) {
-			const g_version = await (k_connection as unknown as MmsSparqlConnection).fetchCurrentVersion()
+			const g_version = await (k_connection as unknown as MmsSparqlConnection).fetchCurrentVersion();
 			s_display_version = g_version.label;
 		}
 	});
