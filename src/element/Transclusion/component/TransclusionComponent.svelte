@@ -121,9 +121,9 @@
 		dm_hover.addEventListener('transitionrun', listen_transition_run);
 		dm_hover.addEventListener('transitioncancel', listen_transition_cancel);
 		dm_hover.addEventListener('transitionend', listen_transition_end);
-		window.addEventListener('resize', function() {
+		dm_link.addEventListener('mouseover', function() {
 			set_position(dm_hover);
-		}, true);
+		});
 
 		const k_connection = k_model.connection;
 		if('MmsSparqlConnection' === k_connection.type) {
