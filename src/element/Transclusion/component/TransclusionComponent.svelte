@@ -1,8 +1,8 @@
 <script lang="ts">
 	import type {Transclusion} from '../model/Transclusion';
-	
+
 	import {onMount} from 'svelte';
-	
+
 	import Fa from 'svelte-fa';
 
 	import {
@@ -63,12 +63,7 @@
 
 		// align with link
 		if(b_inlined) {
-			const g_rect = dm_link.getBoundingClientRect();
-
-			const g_main = dm_main.getBoundingClientRect();
-
-			dm_hover.style.top = (g_rect.top - g_main.top)+'px';
-			dm_hover.style.left = (g_rect.left - g_main.left)+'px';
+			set_position(dm_hover);
 		}
 	})();
 
@@ -115,10 +110,20 @@
 		}
 	}
 
+	function set_position(dm_hover) {
+		const g_rect = dm_link.getBoundingClientRect();
+		const g_main = dm_main.getBoundingClientRect();
+		dm_hover.style.top = (g_rect.top - g_main.top)+'px';
+		dm_hover.style.left = (g_rect.left - g_main.left)+'px';
+	}
+
 	onMount(async() => {
 		dm_hover.addEventListener('transitionrun', listen_transition_run);
 		dm_hover.addEventListener('transitioncancel', listen_transition_cancel);
 		dm_hover.addEventListener('transitionend', listen_transition_end);
+		window.addEventListener('resize', function() {
+			set_position(dm_hover);
+		}, true);
 
 		const k_connection = k_model.connection;
 		if('MmsSparqlConnection' === k_connection.type) {
@@ -197,10 +202,10 @@
 				}
 			}
 		}
-			
+
 		.arrow-down {
-			width: 0; 
-			height: 0; 
+			width: 0;
+			height: 0;
 			border-left: 20px solid transparent;
 			border-right: 20px solid transparent;
 
