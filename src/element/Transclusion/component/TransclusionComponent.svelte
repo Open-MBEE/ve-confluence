@@ -110,7 +110,7 @@
 		}
 	}
 
-	function set_position(dm_hover) {
+	function set_position() {
 		const g_rect = dm_link.getBoundingClientRect();
 		const g_main = dm_main.getBoundingClientRect();
 		dm_hover.style.top = (g_rect.top - g_main.top)+'px';
@@ -121,9 +121,7 @@
 		dm_hover.addEventListener('transitionrun', listen_transition_run);
 		dm_hover.addEventListener('transitioncancel', listen_transition_cancel);
 		dm_hover.addEventListener('transitionend', listen_transition_end);
-		dm_link.addEventListener('mouseover', function() {
-			set_position(dm_hover);
-		});
+		dm_link.addEventListener('mouseover', set_position);
 
 		const k_connection = k_model.connection;
 		if('MmsSparqlConnection' === k_connection.type) {
