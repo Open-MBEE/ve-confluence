@@ -48,6 +48,8 @@
 
 	let dm_hover!: HTMLDivElement;
 
+	let dm_arrow!: HTMLDivElement;
+
 	let dm_link!: HTMLElement;
 
 	let h_attributes: Record<string, [string, TypedString]> = {};
@@ -113,6 +115,21 @@
 	function set_position() {
 		const g_rect = dm_link.getBoundingClientRect();
 		const g_main = dm_main.getBoundingClientRect();
+		const dm_hover_rect = dm_hover.getBoundingClientRect();
+
+		// Offset if the popup is outside of the window
+		const offset = (dm_hover_rect.x + dm_hover_rect.width) - window.innerWidth;
+
+		if(offset > 0 ) {
+			// off screen from right
+			dm_hover.style.transform = 'translateX(-' + offset +'px)';
+			dm_arrow.style.transform = 'translateX(' + offset +'px)';
+		} else if (dm_hover_rect.x < 0) {
+			// off screen from left
+			dm_hover.style.transform = 'translateX(0px)';
+			dm_arrow.style.transform = 'translateX(0px)';
+		}
+
 		dm_hover.style.top = (g_rect.top - g_main.top)+'px';
 		dm_hover.style.left = (g_rect.left - g_main.left)+'px';
 	}
@@ -254,7 +271,7 @@
 			{/each}
 		</div>
 	</div>
-	<div class="arrow-down"></div>
+	<div class="arrow-down" bind:this={dm_arrow}></div>
 </div>
 
 <a href={k_model.itemIri} class="transclusion" on:mouseenter={enable_hover} on:mouseleave={disable_hover} bind:this={dm_link}>
