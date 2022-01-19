@@ -43,6 +43,7 @@
 	import {
 		createEventDispatcher,
 		onMount,
+		tick,
 	} from 'svelte';
 
 	import {
@@ -77,7 +78,8 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 	let dm_content!: HTMLDivElement;
 
 	const f_dispatch = createEventDispatcher();
-	onMount(() => {
+	onMount(async() => {
+		await tick();
 		f_dispatch('dom', {
 			dm_container,
 			dm_content,
@@ -121,7 +123,7 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 	}
 
 
-	function select_row(g_attr?: ValuedLabeledObject<string>) {
+	function select_row() {
 		const dm_selected = qs(dm_content, '.item-selected');
 
 		if(!dm_selected) {
@@ -132,7 +134,7 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 			return select_item(dm_selected);
 		}
 		else if(DisplayMode.ATTRIBUTE === xc_mode) {
-			return select_attribute(g_attr!);
+			return select_attribute(a_attributes[parseInt(dm_selected.getAttribute('data-index')!)]);
 		}
 	}
 
@@ -405,7 +407,7 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 		{/if}
 	</div>
 
-	{#if DisplayMode.ITEM === xc_mode}
+	<!--{#if DisplayMode.ITEM === xc_mode}
 		<div class="filter-select-scrollable">
 			<div class="filter-select">
 				<span class="filter selected" data-channel-all=1 on:click={() => enable_all_channels()}>
@@ -422,7 +424,7 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 				</span>
 			</div>
 		</div>
-	{/if}
+	{/if} -->
 
 	<div class="filter-content-scrollable">
 		<div class="filter-content">
@@ -455,12 +457,13 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 						</div>
 					{/each}
 				{:else if DisplayMode.ATTRIBUTE === xc_mode}
-					{#each a_attributes as g_attr, i_attr}
-						<div class="group">
+					<div class="group">
+						{#each a_attributes as g_attr, i_attr}
 							<div class="row"
+								data-index={i_attr}
 								on:mouseenter={mouseenter_row}
 								on:mouseleave={mouseleave_row}
-								on:click={() => select_row(g_attr)}
+								on:click={select_row}
 								class:item-selected={!i_attr}
 							>
 								<span class="info">
@@ -472,8 +475,8 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 									</div>
 								</span>
 							</div>
-						</div>
-					{/each}
+						{/each}
+					</div>
 				{/if}
 			</div>
 		</div>
