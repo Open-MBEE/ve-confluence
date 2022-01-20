@@ -817,9 +817,9 @@ export class Mention {
 		});
 
 		// listen for dom init event to fetch dom refs
-		this._y_component.$on('dom', ({dm_container, dm_content}: {dm_container: HTMLElement; dm_content: HTMLElement}) => {
-			this._dm_overlay_container = dm_container;
-			this._dm_overlay_content = dm_content;
+		this._y_component.$on('dom', (d_event: CustomEvent<{dm_container: HTMLElement; dm_content: HTMLElement}>) => {
+			this._dm_overlay_container = d_event.detail.dm_container;
+			this._dm_overlay_content = d_event.detail.dm_content;
 		});
 
 		return true;
