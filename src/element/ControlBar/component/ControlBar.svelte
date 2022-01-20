@@ -27,7 +27,11 @@
 
 	import Fa from 'svelte-fa';
 
-	import {faQuestionCircle} from '@fortawesome/free-solid-svg-icons';
+	import {
+		faQuestionCircle,
+		faExclamationTriangle,
+		faTimes,
+	} from '@fortawesome/free-solid-svg-icons';
 
 	import {
 		dm_main,
@@ -88,6 +92,10 @@
 	const dm_sidebar = qs(document.body, '.ia-fixed-sidebar') as HTMLDivElement;
 	const dm_sidebar_scrollable = (qs(dm_sidebar, '.ia-scrollable-section') as HTMLDivElement);
 	const n_pre_scrolltop = dm_sidebar.scrollTop || 0;
+
+	let is_chrome = !!window.chrome && (!!window.chrome.webstore || !!window.chrome.runtime);
+	let show_warning = !is_chrome;
+	$: warning = show_warning;
 
 	// if(dm_sidebar) {
 	// 	dm_sidebar_scrollable = (qs(dm_sidebar, '.ia-scrollable-section') as HTMLDivElement);
@@ -575,6 +583,27 @@
 		background-color: rgba(255, 255, 255, 0.1);
 		color: #ddd;
 	}
+
+	.ve-browser-warning {
+		background-color: #FBF3E6;
+		padding: 8px;
+		margin-bottom: 20px;
+		display: flex;
+		align-items: center;
+
+		p {
+			margin: 0 0 0 8px;
+			flex: 1 1 auto;
+		}
+
+		button {
+			background: none;
+			padding: 0;
+			border: 0;
+			margin: 0 8px 0 0;
+		}
+	}
+
 </style>
 
 {#if b_ready}
@@ -742,4 +771,12 @@
 			</div>
 		{/if}
 	</header>
+	{#if warning}
+		<div class="ve-browser-warning">
+			<Fa icon={faExclamationTriangle} size="sm" primaryColor="#F29E20" /><p>{@html lang.basic.browser_warning}</p>
+			<button on:click={() => show_warning = false}>
+				<Fa icon={faTimes} />
+			</button>
+		</div>
+	{/if}
 {/if}
