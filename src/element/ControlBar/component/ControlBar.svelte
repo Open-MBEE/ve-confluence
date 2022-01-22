@@ -773,7 +773,7 @@
 	</header>
 	{#if warning}
 		<div class="ve-browser-warning">
-			<Fa icon={faExclamationTriangle} size="sm" primaryColor="#F29E20" /><p>{@html lang.basic.browser_warning}</p>
+			<Fa icon={faExclamationTriangle} size="sm" primaryColor="#F29E20" /><p>{@html lang.basic.browser_warning || "Browser not supported" }</p>
 			<button on:click={() => show_warning = false}>
 				<Fa icon={faTimes} />
 			</button>
