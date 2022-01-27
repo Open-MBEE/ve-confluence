@@ -85,3 +85,5 @@ yarn run cypress:open
 
 Once the Cypress window is open, click on the test you would like to run.
 
+## CI Demo
+lol
