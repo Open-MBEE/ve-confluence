@@ -169,11 +169,12 @@ function init_bindings() {
 					left: x_left,
 					top: x_top,
 				} = g_rect;
-
+				const scrollY = y_editor.dom.doc.documentElement.scrollTop;
+				//or y_editor.dom.doc.defaultView.window.scrollY;
 				// set widget display and offset
 				k_mention.showOverlay({
 					x: `${x_left}px`,
-					y: `calc(${x_top}px + 1.5em)`,
+					y: `calc(${x_top + scrollY}px + 1.5em)`,
 					mode: DisplayMode.ITEM,
 				});
 
