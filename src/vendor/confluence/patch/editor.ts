@@ -45,7 +45,7 @@ import {ObjectStore} from '#/model/ObjectStore';
 
 import {K_HARDCODED} from '#/common/hardcoded';
 
-import {attach_editor_bindings} from '../module/editor-bindings';
+import {attach_editor_bindings, create_ve_overlays} from '../module/editor-bindings';
 import { Mention } from '#/element/Mentions/model/Mention';
 
 interface MacroComponent {
@@ -61,7 +61,7 @@ const H_COMPONENTS = {
 	fromMacro(dm_node: HTMLTableElement, gc_element: Serializable, g_context: Context): MacroComponent;
 }>;
 
-let d_doc_editor!: HTMLDocument;
+let d_doc_editor!: Document;
 let kv_autocomplete!: MentionOverlay;
 
 function* child_list_mutations_added_nodes(a_mutations: MutationRecord[]): Generator<HTMLElement> {
@@ -311,16 +311,6 @@ function init_deferred() {
 	}
 }
 
-export function create_ve_overlays(dm_body: HTMLElement) {
-	// create private overlay div
-	dm_body.appendChild(dd('div', {
-		'id': 've-overlays',
-		'class': 'synchrony-exclude ve-overlays',
-		'style': `user-select:none;`,
-		'data-mce-bogus': 'true',
-		'contenteditable': 'false',
-	}, [], d_doc_editor));
-}
 
 function editor_content_updated(a_nodes=qsa(d_doc_editor, 'body>*') as HTMLElement[]) {
 	for(const dm_node of a_nodes) {
@@ -336,7 +326,7 @@ function editor_content_updated(a_nodes=qsa(d_doc_editor, 'body>*') as HTMLEleme
 			qsa(dm_body, '.ve-overlays').forEach(dm => dm.remove());
 
 			// create overlays space
-			create_ve_overlays(dm_body);
+			create_ve_overlays(dm_body, d_doc_editor);
 
 			// clear draft elements
 			qsa(dm_body, '.ve-draft').forEach(dm => dm.remove());
@@ -466,7 +456,6 @@ let fk_resolve_store: (w: any) => void;
 const dp_store_ready = new Promise((fk) => {
 	fk_resolve_store = fk;
 });
-
 async function init_meta(): Promise<boolean> {
 	// fro current page
 	k_page = await ConfluencePage.fromCurrentPage();
@@ -511,33 +500,28 @@ async function init_meta(): Promise<boolean> {
 		// throw new Error(`Document exists but no metadata`);
 		return false;
 	}
-
-	if(b_editor_ready) {
-		init_autocomplete();
-
-		// init deferred
-		init_deferred();
-	}
-
-	b_store_ready = true;
+	attach_editor_bindings(tinymce.activeEditor, G_CONTEXT, d_doc_editor);
 
 	return true;
 }
 
-// once DOM has loaded
+// once DOM and scripts has completely loaded
 if (document.readyState === "complete") {
     onReady();
 } else {
     document.addEventListener("load", onReady);
 }
 function onReady() {
+	d_doc_editor = (document.getElementById('wysiwygTextarea_ifr') as HTMLIFrameElement)?.contentDocument!;
+	if (!d_doc_editor) {
+		throw new Error('editor not found');
+	}
 	init_meta().then((b_okay) => {
 		if(!b_okay) {
 			throw new Error(`Metadata initialization failed`);
 		}
 	});
 
-	d_doc_editor = document.getElementById('wysiwygTextarea_ifr').contentDocument;
 	const observe_editor = () => {
 		const dmt_editor = new MutationObserver((a_mutations) => {
 			const a_roots: HTMLElement[] = [];
@@ -573,36 +557,7 @@ function onReady() {
 		});
 	}
 
-	const i_editor = setInterval(() => {
-		if(tinymce.activeEditor) {
-			tinymce_ready();
-			clearInterval(i_editor);
-		}
-	}, 500);
-}
-
-let b_editor_ready = false;
-let b_store_ready = false;
-
-function init_overlays() {
-	if(b_store_ready) {
-		init_autocomplete();
-	}
-
-	b_editor_ready = true;
-}
-
-function init_autocomplete() {
-	// check for mentions
-	for(const dm_mention of qsa(d_doc_editor, '.ve-mention') as HTMLElement[]) {
-		dm_mention.contentEditable = 'false';
-	}
-
-	attach_editor_bindings(tinymce.activeEditor, G_CONTEXT, d_doc_editor);
-}
-
-function tinymce_ready() {
-	// add static css
+	// add tinymce static css
 	d_doc_editor.head.appendChild(dd('style', {}, [`
 		${static_css}
 
@@ -657,8 +612,10 @@ function tinymce_ready() {
 		}
 	`], d_doc_editor));
 
-	// initialize custom overlays
-	init_overlays();
+	// check for mentions
+	for(const dm_mention of qsa(d_doc_editor, '.ve-mention') as HTMLElement[]) {
+		dm_mention.contentEditable = 'false';
+	}	
 }
 
 

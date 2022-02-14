@@ -16,7 +16,6 @@ import {
 	qs,
 	qsa,
 } from '#/util/dom';
-import { create_ve_overlays } from '../patch/editor';
 import { SI_EDITOR_SYNC_KEY } from './confluence';
 
 
@@ -63,7 +62,16 @@ let d_doc_editor: Document;
 
 const S_NBSP = '\xa0';
 
-
+export function create_ve_overlays(dm_body: HTMLElement, d_doc_editor_in=d_doc_editor as Document) {
+	// create private overlay div
+	dm_body.appendChild(dd('div', {
+		'id': 've-overlays',
+		'class': 'synchrony-exclude ve-overlays',
+		'style': `user-select:none;`,
+		'data-mce-bogus': 'true',
+		'contenteditable': 'false',
+	}, [], d_doc_editor_in));
+}
 
 function init_bindings() {
 	// on remote change

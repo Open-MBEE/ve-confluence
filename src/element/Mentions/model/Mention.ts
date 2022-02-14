@@ -181,7 +181,7 @@ export class Mention {
 
 				g_scenario.ready = true;
 				f_release();
-				console.log(`precached search: "${s_input}"`);
+				//console.log(`precached search: "${s_input}"`);
 			});
 		};
 
