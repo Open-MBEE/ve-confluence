@@ -525,29 +525,19 @@ async function init_meta(): Promise<boolean> {
 }
 
 // once DOM has loaded
-window.addEventListener('DOMContentLoaded', () => {
+if (document.readyState === "complete") {
+    onReady();
+} else {
+    document.addEventListener("load", onReady);
+}
+function onReady() {
 	init_meta().then((b_okay) => {
 		if(!b_okay) {
 			throw new Error(`Metadata initialization failed`);
 		}
 	});
 
-	const dmt_update = new MutationObserver((a_mutations) => {
-		replace_listeners();
-	});
-
-	dmt_update.observe(qs(document.body, '.save-button-container'), {
-		subtree: true,
-		childList: true,
-	});
-
-	replace_listeners();
-
-	const dm_rte = document.getElementById('rte');
-	if(!dm_rte) {
-		throw new Error(`Failed to locate wysiwyg editor element`);
-	}
-
+	d_doc_editor = document.getElementById('wysiwygTextarea_ifr').contentDocument;
 	const observe_editor = () => {
 		const dmt_editor = new MutationObserver((a_mutations) => {
 			const a_roots: HTMLElement[] = [];
@@ -568,27 +558,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
 		void editor_content_updated();
 	};
-
-	const dmt_rte = new MutationObserver((a_mutations) => {
-		for(const dm_node of child_list_mutations_added_nodes(a_mutations)) {
-			// an iframe element
-			if('IFRAME' === dm_node.tagName) {
-				// disconnect mutation observer
-				dmt_rte.disconnect();
-
-				// grab ref to iframe's content document
-				d_doc_editor = (dm_node as HTMLIFrameElement).contentDocument!;
-
-				// observe mutations to editor
-				observe_editor();
-			}
-		}
-	});
-
-	// observe childList mutations future on iframe parent
-	dmt_rte.observe(dm_rte, {
-		childList: true,
-	});
+    observe_editor();
 
 	// copy all styles onto editor iframe as they are added by svelte
 	{
@@ -603,18 +573,13 @@ window.addEventListener('DOMContentLoaded', () => {
 		});
 	}
 
-	// observe childList mutations future on iframe parent
-	dmt_rte.observe(dm_rte, {
-		childList: true,
-	});
-
 	const i_editor = setInterval(() => {
 		if(tinymce.activeEditor) {
 			tinymce_ready();
 			clearInterval(i_editor);
 		}
 	}, 500);
-});
+}
 
 let b_editor_ready = false;
 let b_store_ready = false;
@@ -705,285 +670,3 @@ type Adjusted = {
 	type: 'modified';
 	modifications: string[];
 };
-
-function replace_listeners() {
-	return;
-
-	const dm_update_old = qs(document.body, '.save-button-container button');
-
-	if(dm_update_old.getAttribute('data-ve')) {
-		return;
-	}
-
-	const y_ceditor = AJS.Editor;
-	if(!y_ceditor) return;
-
-	const y_ceui = y_ceditor.UI;
-	if(!y_ceui) return;
-
-	try {
-		y_ceditor.removeAllSaveHandlers();
-	}
-	catch(e_defined) {
-		// ignore
-		return;
-	}
-
-	const dm_update_new = dm_update_old.cloneNode(true) as HTMLElement;
-
-	dm_update_new.setAttribute('data-ve', '1');
-
-	dm_update_new.textContent = '*Update';
-
-	y_ceui.saveButton = dm_update_new;
-
-	// replace save button
-	dm_update_old.parentElement?.replaceChild(dm_update_new, dm_update_old);
-
-	// add new click listener
-	dm_update_new.addEventListener('click', (d_evt: Event) => {
-		d_evt.stopImmediatePropagation();
-		d_evt.preventDefault();
-
-		if(y_ceui.isButtonEnabled(jQuery(y_ceui.saveButton))) {
-			y_ceui.toggleSavebarBusy(true);
-
-			// start async task
-			void publish_document();
-		}
-	});
-
-	// TODO: create ctrl+s handler
-
-
-	// // add new click listener
-	// dm_update_old.addEventListener('click', (d_evt: Event) => {
-	// 	if(y_ceui.isButtonEnabled(jQuery(y_ceui.saveButton))) {
-	// 	// stop Synchrony and pretend to be editor ;)
-	// 		AJS.trigger('synchrony.stop', {
-	// 			id: 'confluence.editor.publish',
-	// 		});
-	// 	}
-	// });
-}
-
-/* eslint-disable @typescript-eslint/unbound-method, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
-async function publish_document() {
-	// stop Synchrony and pretend to be editor ;)
-	AJS.trigger('synchrony.stop', {
-		id: 'confluence.editor.publish',
-	});
-
-	// next beat
-	await Promise.resolve();
-
-	// notify confluence editor UI
-	AJS.Editor.isPublishing(1);
-
-	// acquire editor handle
-	const y_editor = tinymce.get('wysiwygTextarea');
-
-	// get text contents
-	const sx_content = y_editor.getContent();
-
-	// parse as HTML
-	const d_doc_content = new DOMParser().parseFromString(sx_content, 'text/html');
-
-	// query for adjusted attributes
-	const a_adjusted = qsa(d_doc_content, `[${SI_EDITOR_SYNC_KEY}]`);
-
-	// each element that matched
-	for(const dm_adjusted of a_adjusted) {
-		// decode attribute value
-		const g_adjusted = decode_attr(dm_adjusted.getAttribute(SI_EDITOR_SYNC_KEY)!)! as Adjusted;  // eslint-disable-line @typescript-eslint/no-unsafe-assignment
-
-		// remove attribute from element
-		dm_adjusted.removeAttribute(SI_EDITOR_SYNC_KEY);
-
-		// depending on value type
-		switch(g_adjusted.type) {
-			// attribute marks node as visited
-			case 'visited': {
-				break;
-			}
-
-			// simply for display, remove the entire element
-			case 'display': {
-				dm_adjusted.remove();
-				break;
-			}
-
-			// element was modified, revert changes
-			case 'modified': {
-				// debugger;
-				for(const sx_mod of g_adjusted.modifications.reverse()) {
-					const g_mod = JSON.parse(sx_mod);
-
-					let dm_node = dm_adjusted as unknown as Uobject;
-					const a_path = g_mod.path;
-					for(const s_path of a_path.slice(0, -1)) {
-						dm_node = dm_node[s_path] as Uobject;
-					}
-					dm_node[a_path[a_path.length-1]] = g_mod.init;
-				}
-
-				// debugger;
-				break;
-			}
-
-			default: {
-				break;
-			}
-		}
-	}
-
-	// re-serialize the mutated dom body and take care of pre-flight HTML sequences
-	const sx_patched = new XMLSerializer()
-		.serializeToString(d_doc_content.body)
-		.replace(/^\s*<body[^>]*>\s*/, '')
-		.replace(/\s*<\/body>\s*$/, '')
-		.replace(/\s*style=""(\s*)/g, '$1')
-		.replace(/\xa0/g, '&nbsp;');
-
-	// convert editor HTML string to CXHTML storage representation format
-	const g_convert = await confluence_post_json('/contentbody/convert/storage', {
-		json: {
-			representation: 'editor',
-			value: sx_patched,
-		},
-	});
-
-	// ref storage string
-	const sx_storage = g_convert?.data?.value as string;
-
-	// create confluence XHTML doc instance
-	const k_contents = new ConfluenceXhtmlDocument(sx_storage);
-
-	// for(const [si_replacement, f_replace] of ode(h_replacements)) {
-	// 	const yn_macro: Node = k_contents.select1(`//ac:structured-macro[@ac:macro-id="${si_replacement}"]`);
-	// 	yn_macro.parentNode?.replaceChild(f_replace(k_contents), yn_macro);
-	// }
-
-	// get commit message from DOM
-	const s_msg = (qs(document.body, '#versionComment') as HTMLInputElement).value;
-
-	// get page title from DOM
-	const s_title = (qs(document.body, '#content-title') as HTMLInputElement).value;
-
-	// commit contents to page
-	const g_res = await k_page.postContent(k_contents, s_msg || '', s_title);
-
-	// get view page URL
-	const pr_view = k_page.getDisplayUrlString();
-
-	// // delete any drafts that formed
-	// try {
-	// 	await confluence_delete_json(`/content/${k_page.pageId}`, {
-	// 		search: {
-	// 			status: 'draft',
-	// 		},
-	// 	});
-	// }
-	// catch(e_delete) {}
-
-	// delete any drafts that formed
-	try {
-		await delete_json(`/rest/synchrony/1.0/content/${k_page.pageId}/changes/unpublished`, {
-			json: {
-				draftId: G_META.content_id,
-			},
-		});
-	}
-	catch(e_delete) {}
-
-	// prevent unload prompt by turning off editor dirtyness
-	y_editor.isNotDirty = true;
-	window.onbeforeunload = null;
-
-	// load view page
-	location.href = pr_view;
-}
-
-// patch synchrony
-const init_synchrony = () => {
-	Synchrony.isWhitelisted = (d_wl, g_thing) => {
-		const dm_node = g_thing?.domNode || g_thing?.domParent;
-
-		if(dm_node?.closest && dm_node.closest('.synchrony-exclude')) {
-			return false;
-		}
-		else {
-			console.log(g_thing);
-		}
-	}
-
-	(() => {
-		let d_node = window;
-		let d_synchrony;
-
-		for(;;) {
-			d_synchrony = d_node.Synchrony;
-			if(d_synchrony) {
-				break;
-			}
-			else if(d_node === window.top) {
-				console.error(`Synchrony is not yet available`);
-				return;
-			}
-			else {
-				d_node = d_node.parent;
-			}
-		}
-
-		if(!d_synchrony.isVePatched) {
-			const f_whitelisted = d_synchrony.isWhitelisted;
-			d_synchrony.isWhitelisted = (g_whitelist, g_event) => {
-				if(f_whitelisted.call(d_synchrony, g_whitelist, g_event)) {
-					return true;
-				}
-				else {
-					const dm_node = g_event.domNode || g_event.domParent;
-
-					if(dm_node && dm_node.closest && dm_node.closest('.synchrony-exclude')) {
-						return false;
-					}
-					else {
-						// we are the source
-						if('read' === g_event.direction) {
-							return true;
-						}
-						// we are a receiver
-						else if('write' === g_event.direction) {
-							return true;
-						}
-
-						// default
-						return false;
-					}
-				}
-			};
-
-			d_synchrony.isVePatched = true;
-
-			console.log(`
-				======
-				Synchrony successfully patched
-				======
-			`.trim().split(/\n\s*/g).join('\n'));
-		}
-		else {
-			console.warn('Synchrony is already patched');
-		}
-	})();
-};
-
-(function try_init() {
-	try {
-		init_synchrony();
-	}
-	catch(e_init) {
-		setTimeout(() => {
-			try_init();
-		}, 100);
-	}
-})();
