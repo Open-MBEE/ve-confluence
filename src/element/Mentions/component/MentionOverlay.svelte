@@ -398,7 +398,7 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 </svg>
 
 
-<div class="container" style="display:{b_display? 'block': 'none'}; left:{sx_offset_x}; top:{sx_offset_y};" bind:this={dm_container}>
+<div class="container ve-mention-overlay" style="display:{b_display? 'block': 'none'}; left:{sx_offset_x}; top:{sx_offset_y};" bind:this={dm_container}>
 	<div class="heading">
 		{#if DisplayMode.ITEM === xc_mode}
 			Insert Cross-Reference

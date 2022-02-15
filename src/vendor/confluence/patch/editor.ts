@@ -1,12 +1,7 @@
-import G_META, {
-	$PATCHED,
-} from '#/common/meta';
-
-import type {Hash, JsonObject, JsonValue} from '#/common/types';
+import type {Hash, JsonValue} from '#/common/types';
 
 import {
 	ode,
-	oderac,
 	oderaf,
 } from '#/util/belt';
 
@@ -20,20 +15,13 @@ import {
 	uuid_v4,
 } from '#/util/dom';
 
-import {delete_json} from '#/util/fetch';
-
 import {
 	ConfluenceDocument,
 	ConfluencePage,
-	ConfluenceXhtmlDocument,
-	confluence_delete_json,
-	confluence_post_json,
 	is_retro_fitted,
-	retro_fit,
 	SI_EDITOR_SYNC_KEY,
 } from '../module/confluence';
 
-import type MentionOverlay from '#/element/Mentions/component/MentionOverlay.svelte';
 
 import {static_css} from '#/common/static';
 
@@ -62,7 +50,6 @@ const H_COMPONENTS = {
 }>;
 
 let d_doc_editor!: Document;
-let kv_autocomplete!: MentionOverlay;
 
 function* child_list_mutations_added_nodes(a_mutations: MutationRecord[]): Generator<HTMLElement> {
 	// each mutation
@@ -311,65 +298,65 @@ function init_deferred() {
 	}
 }
 
+function init_editor() {
+	b_initialized = true;
 
+	// ref body
+	const dm_body = d_doc_editor.body;
+
+	// clear other overlays
+	qsa(dm_body, '.ve-overlays').forEach(dm => dm.remove());
+
+	// create overlays space
+	create_ve_overlays(dm_body, d_doc_editor);
+
+	// remove rogue mention overlays (they get added by confluence when updating, not sure why)
+	qsa(dm_body, '.ve-mention-overlay').forEach(dm => dm.remove());
+	// clear draft elements
+	qsa(dm_body, '.ve-draft').forEach(dm => dm.remove());
+
+	// remove stale observes-inline classes
+	qsa(dm_body, '.observes-inline').forEach(dm_pre => {
+		if(!dm_pre.nextElementSibling?.classList?.contains('ve-inline-macro')) {
+			dm_pre.classList.remove('observes-inline');
+		}
+	});
+
+	// add precedes inline classes where needed
+	qsa(dm_body, '.ve-inline-macro').forEach(dm_table => {
+		const dm_prev = dm_table.previousElementSibling;
+		if(dm_prev && 'P' === dm_prev.tagName) {
+			dm_prev.classList.add('observes-inline');
+		}
+	});
+
+	// remove dead empty spans
+	qsa(dm_body, 'p>span').forEach((dm_span) => {
+		// no children; remove it
+		if(!dm_span.childNodes.length) return dm_span.remove();
+
+		// only child is a text node with "&nbsp;"; remove it
+		const dm_child0 = dm_span.childNodes[0];
+		if(dm_child0 && '#text' === dm_child0.nodeName && '\xa0' === dm_child0.textContent) {
+			dm_span.remove();
+		}
+	});
+
+	// remove empty ps
+	qsa(dm_body, 'p').forEach((dm_p) => {
+		if(!dm_p.childNodes.length) {
+			dm_p.remove();
+		}
+	});
+
+	//fix ve macros on init
+	qsa(dm_body, 'table').forEach((dm_node) => {
+		adjust_virgin_macro(dm_node as HTMLElement);
+	});
+}
 function editor_content_updated(a_nodes=qsa(d_doc_editor, 'body>*') as HTMLElement[]) {
 	for(const dm_node of a_nodes) {
-		// synchrony container added
-		if('DIV' === dm_node?.nodeName && dm_node.classList.contains('synchrony-container') && !b_initialized) {
-			// now initialized
-			b_initialized = true;
-
-			// ref body
-			const dm_body = d_doc_editor.body;
-
-			// clear other overlays
-			qsa(dm_body, '.ve-overlays').forEach(dm => dm.remove());
-
-			// create overlays space
-			create_ve_overlays(dm_body, d_doc_editor);
-
-			// clear draft elements
-			qsa(dm_body, '.ve-draft').forEach(dm => dm.remove());
-
-			// remove stale observes-inline classes
-			qsa(dm_body, '.observes-inline').forEach(dm_pre => {
-				if(!dm_pre.nextElementSibling?.classList?.contains('ve-inline-macro')) {
-					dm_pre.classList.remove('observes-inline');
-				}
-			});
-
-			// add precedes inline classes where needed
-			qsa(dm_body, '.ve-inline-macro').forEach(dm_table => {
-				const dm_prev = dm_table.previousElementSibling;
-				if(dm_prev && 'P' === dm_prev.tagName) {
-					dm_prev.classList.add('observes-inline');
-				}
-			});
-
-			// remove dead empty spans
-			qsa(dm_body, 'p>span').forEach((dm_span) => {
-				// no children; remove it
-				if(!dm_span.childNodes.length) return dm_span.remove();
-
-				// only child is a text node with "&nbsp;"; remove it
-				const dm_child0 = dm_span.childNodes[0];
-				if(dm_child0 && '#text' === dm_child0.nodeName && '\xa0' === dm_child0.textContent) {
-					dm_span.remove();
-				}
-			});
-
-			// remove empty ps
-			qsa(dm_body, 'p').forEach((dm_p) => {
-				if(!dm_p.childNodes.length) {
-					dm_p.remove();
-				}
-			});
-
-			// init deferred
-			init_deferred();
-		}
-		// p
-		else if('P' === dm_node.tagName) {
+		if('P' === dm_node.tagName) {
 			// observes-inline
 			if(dm_node.classList.contains('observes-inline')) {
 				const dm_prev = dm_node.previousElementSibling;
@@ -500,8 +487,6 @@ async function init_meta(): Promise<boolean> {
 		// throw new Error(`Document exists but no metadata`);
 		return false;
 	}
-	attach_editor_bindings(tinymce.activeEditor, G_CONTEXT, d_doc_editor);
-
 	return true;
 }
 
@@ -511,17 +496,18 @@ if (document.readyState === "complete") {
 } else {
     document.addEventListener("load", onReady);
 }
-function onReady() {
+async function onReady() {
 	d_doc_editor = (document.getElementById('wysiwygTextarea_ifr') as HTMLIFrameElement)?.contentDocument!;
 	if (!d_doc_editor) {
 		throw new Error('editor not found');
 	}
-	init_meta().then((b_okay) => {
-		if(!b_okay) {
-			throw new Error(`Metadata initialization failed`);
-		}
-	});
-
+	let b_okay = await init_meta();
+	if(!b_okay) {
+		throw new Error(`Metadata initialization failed`);
+	}
+	//init_synchrony(); //this doesn't seem to matter, it already excludes stuff in synchony-exclude
+    init_editor();
+	attach_editor_bindings(tinymce.activeEditor, G_CONTEXT, d_doc_editor);
 	const observe_editor = () => {
 		const dmt_editor = new MutationObserver((a_mutations) => {
 			const a_roots: HTMLElement[] = [];
@@ -539,8 +525,6 @@ function onReady() {
 			childList: true,
 			attributes: true,
 		});
-
-		void editor_content_updated();
 	};
     observe_editor();
 
@@ -627,3 +611,23 @@ type Adjusted = {
 	type: 'modified';
 	modifications: string[];
 };
+function init_synchrony() {
+	if (!window.Synchrony || Synchrony.vePatched) {
+		return;
+	}
+	const f_whitelisted = Synchrony.isWhitelisted;
+	Synchrony.isWhitelisted = (g_whitelist, g_event) => {
+		const dm_node = g_event.domNode || g_event.domParent;
+		if (dm_node && dm_node.closest && dm_node.closest('.synchrony-exclude')) {
+			return false;
+		}
+		return f_whitelisted.call(Synchrony, g_whitelist, g_event);
+	}
+	Synchrony.vePatched = true;
+	console.log(`
+		======
+		Synchrony successfully patched
+		======
+	`.trim().split(/\n\s*/g).join('\n'));
+
+}
