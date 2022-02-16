@@ -1,25 +1,16 @@
-import type {Hash, JsonValue} from '#/common/types';
-
-import {
-	ode,
-	oderaf,
-} from '#/util/belt';
+import type {Hash} from '#/common/types';
 
 import {
 	dd,
-	decode_attr,
-	encode_attr,
 	parse_html,
 	qs,
 	qsa,
-	uuid_v4,
 } from '#/util/dom';
 
 import {
 	ConfluenceDocument,
 	ConfluencePage,
-	is_retro_fitted,
-	SI_EDITOR_SYNC_KEY,
+	is_retro_fitted
 } from '../module/confluence';
 
 
@@ -100,35 +91,8 @@ function adjust_virgin_macro(dm_node: HTMLElement) {
 				if(!is_retro_fitted(dm_node)) {
 					// decode serialized element
 					const gc_element = JSON.parse(dm_script.textContent || '{}') as Serializable;
-
-					// decode macro id
-					const si_params = decode_macro_parameters(dm_node.getAttribute('data-macro-parameters')!).id;
-
-					// // ve4 script tag
-					// if('ve4-script-tag' === si_macro) {
-					// 	return hide_editor_element(dm_node);
-					// }
-
-					// element initialization
-					const f_init = () => {
-						// select node
-						const dm_node_live = qs(d_doc_editor, `table[data-macro-id="${si_macro}"]`) as HTMLTableElement;
-
-						// macro is still not retrofitted
-						if(dm_node_live && !is_retro_fitted(dm_node_live)) {
-							// route macro viewer
-							init_page_element(dm_node as HTMLTableElement, gc_element);
-						}
-					};
-
-					// ve-overlays not yet exist; defer initialization
-					if(!G_CONTEXT.store || !b_initialized) {
-						h_deferred[si_params] = f_init;
-					}
-					// ve-overlays exists; initialize now
-					else {
-						f_init();
-					}
+					// route macro viewer
+					init_page_element(dm_node as HTMLTableElement, gc_element);
 				}
 				// element is retrofitted
 				else if(!dm_node.classList.contains('ve-draft')) {
@@ -139,101 +103,6 @@ function adjust_virgin_macro(dm_node: HTMLElement) {
 		}
 	}
 	return false;
-}
-
-type Uobject = Record<string, unknown>;
-type Rso = Record<string, string | Uobject>;
-
-interface SerializableSetDescriptor{
-	path: string[];
-	set: JsonValue;
-	init: JsonValue;
-}
-
-interface SetDescriptor extends SerializableSetDescriptor {
-	src: {[k: string]: unknown};
-	node: Uobject;
-}
-
-function reduce_set_descriptor(h_src: Uobject, h_set: Rso, a_path: string[]=[], h_node=h_src): SetDescriptor[] {
-	return oderaf(h_set, (si_key: string, w_value: string | Record<string, unknown>) => {
-		if('object' === typeof w_value) {
-			return reduce_set_descriptor(h_src as Rso, w_value as Rso, [...a_path, si_key], h_node[si_key] as Uobject);
-		}
-		else {
-			return [{
-				src: h_src,
-				path: [...a_path, si_key],
-				node: h_node,
-				init: h_node[si_key] as JsonValue,
-				set: w_value as JsonValue,
-			}];
-		}
-	});
-}
-
-function modify_editor_dom(dm_src: HTMLElement, h_set: Rso) {
-	const a_acts = reduce_set_descriptor(dm_src as unknown as Uobject, h_set);
-	const a_mods = [];
-
-	const sx_adjusted = dm_src.getAttribute(SI_EDITOR_SYNC_KEY);
-	if(sx_adjusted) {
-		const g_adjusted = decode_attr(sx_adjusted) as Adjusted;
-
-		// display element, do not proceed
-		if('display' === g_adjusted.type) return;
-
-		// copy existing mods
-		if('modified' === g_adjusted.type) {
-			a_mods.push(...g_adjusted.modifications);
-		}
-	}
-
-	for(const g_act of a_acts) {
-		const {
-			src: g_src,
-			path: a_path,
-			node: h_node,
-			init: w_init,
-			set: w_set,
-		} = g_act;
-
-		// set value
-		h_node[a_path[a_path.length-1]] = w_set;
-
-		// push to mod list
-		a_mods.push(JSON.stringify({
-			path: a_path,
-			init: w_init,
-			set: w_set,
-		}));
-	}
-
-	const a_mods_out = [...new Set(a_mods)];
-
-	dm_src.setAttribute(SI_EDITOR_SYNC_KEY, encode_attr({
-		type: 'modified',
-		modifications: a_mods_out,
-	} as Adjusted));
-
-	return a_mods_out;
-}
-
-
-const H_MODIFICATIONS: Record<string, VoidFunction> = {};
-
-function add_modification(f_mod: VoidFunction) {
-	const si_mod = uuid_v4();
-	H_MODIFICATIONS[si_mod] = f_mod;
-	return si_mod;
-}
-
-function hide_editor_element(dm_node: HTMLElement) {
-	modify_editor_dom(dm_node, {
-		style: {
-			display: 'none',
-		},
-	});
 }
 
 function init_page_element(dm_node: HTMLTableElement, gc_element: Serializable) {
@@ -277,29 +146,10 @@ function init_page_element(dm_node: HTMLTableElement, gc_element: Serializable) 
 
 		// update display
 		k_thing.updateDisplay();
-
-		// // wait a tick
-		// queueMicrotask(() => {
-		// 	// bind event listener3s
-		// 	k_thing.bindEventListeners(true);
-		// });
 	});
 }
 
-let b_initialized = false;
-const h_deferred: Record<string, VoidFunction> = {};
-
-function init_deferred() {
-	if(b_initialized && G_CONTEXT.store) {
-		ode(h_deferred).forEach(([si_macro, f_init]) => {
-			f_init();
-			delete h_deferred[si_macro];
-		});
-	}
-}
-
 function init_editor() {
-	b_initialized = true;
 
 	// ref body
 	const dm_body = d_doc_editor.body;
@@ -420,15 +270,6 @@ function editor_content_updated(a_nodes=qsa(d_doc_editor, 'body>*') as HTMLEleme
 		}
 		// node is part of draft
 		else if(dm_node?.classList && !dm_node.classList.contains('synchrony-exclude')) {
-			// draft element
-			if(!b_initialized && dm_node.classList.contains('ve-draft')) {
-				// delete it
-				dm_node.parentElement?.removeChild(dm_node);
-
-				// continue onto next node
-				continue;
-			}
-
 			// adjusted macros as necessary
 			adjust_virgin_macro(dm_node);
 		}
