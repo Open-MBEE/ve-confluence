@@ -432,14 +432,6 @@ function addTinymceCss() {
 		}
 	`], d_doc_editor));
 }
-type Adjusted = {
-	type: 'visited';
-} | {
-	type: 'display';
-} | {
-	type: 'modified';
-	modifications: string[];
-};
 function init_synchrony() {
 	if (!window.Synchrony || Synchrony.vePatched) {
 		return;
@@ -458,5 +450,4 @@ function init_synchrony() {
 		Synchrony successfully patched
 		======
 	`.trim().split(/\n\s*/g).join('\n'));
-
 }
