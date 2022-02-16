@@ -203,6 +203,11 @@ function init_editor() {
 	qsa(dm_body, 'table').forEach((dm_node) => {
 		adjust_virgin_macro(dm_node as HTMLElement);
 	});
+
+    // check for mentions
+	for(const dm_mention of qsa(d_doc_editor, '.ve-mention') as HTMLElement[]) {
+		dm_mention.contentEditable = 'false';
+	}	
 }
 function editor_content_updated(a_nodes=qsa(d_doc_editor, 'body>*') as HTMLElement[]) {
 	for(const dm_node of a_nodes) {
@@ -342,6 +347,7 @@ async function onReady() {
 	if (!d_doc_editor) {
 		throw new Error('editor not found');
 	}
+    addTinymceCss();
 	let b_okay = await init_meta();
 	if(!b_okay) {
 		throw new Error(`Metadata initialization failed`);
@@ -368,21 +374,10 @@ async function onReady() {
 		});
 	};
     observe_editor();
+}
 
-	// copy all styles onto editor iframe as they are added by svelte
-	{
-		new MutationObserver((a_mutations) => {
-			for(const dm_node of child_list_mutations_added_nodes(a_mutations)) {
-				if('STYLE' === dm_node.tagName) {
-					d_doc_editor.head.appendChild(dm_node.cloneNode(true));
-				}
-			}
-		}).observe(document.head, {
-			childList: true,
-		});
-	}
-
-	// add tinymce static css
+function addTinymceCss() {
+// add tinymce static css
 	d_doc_editor.head.appendChild(dd('style', {}, [`
 		${static_css}
 
@@ -436,14 +431,7 @@ async function onReady() {
 			vertical-align: middle;
 		}
 	`], d_doc_editor));
-
-	// check for mentions
-	for(const dm_mention of qsa(d_doc_editor, '.ve-mention') as HTMLElement[]) {
-		dm_mention.contentEditable = 'false';
-	}	
 }
-
-
 type Adjusted = {
 	type: 'visited';
 } | {
