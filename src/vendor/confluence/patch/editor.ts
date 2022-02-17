@@ -160,8 +160,6 @@ function init_editor() {
 	// create overlays space
 	create_ve_overlays(dm_body, d_doc_editor);
 
-	// remove rogue mention overlays (they get added by confluence when updating, not sure why)
-	qsa(dm_body, '.ve-mention-overlay').forEach(dm => dm.remove());
 	// clear draft elements
 	qsa(dm_body, '.ve-draft').forEach(dm => dm.remove());
 

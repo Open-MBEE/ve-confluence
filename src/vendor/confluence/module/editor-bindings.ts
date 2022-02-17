@@ -68,7 +68,7 @@ export function create_ve_overlays(dm_body: HTMLElement, d_doc_editor_in=d_doc_e
 		'id': 've-overlays',
 		'class': 'synchrony-exclude ve-overlays',
 		'style': `user-select:none;`,
-		'data-mce-bogus': 'true',
+		'data-mce-bogus': 'all',
 		'contenteditable': 'false',
 	}, [], d_doc_editor_in));
 }
