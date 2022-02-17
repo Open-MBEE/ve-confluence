@@ -48,7 +48,6 @@ import {oderac} from '#/util/belt';
 import type {Transclusion} from '#/element/Transclusion/model/Transclusion';
 
 import {ObjectStore} from '#/model/ObjectStore';
-import { decode_macro_parameters } from '../patch/editor';
 
 const P_API_DEFAULT = '/rest/api';
 
