@@ -56,8 +56,16 @@
 
 			const a_rows = await k_connection.execute(/* syntax: sparql */ `
 				select ?value (count(?req) as ?count) from <${k_connection.modelGraph}> {
-					?_attr a rdf:Property ;
-						rdfs:label ${Sparql.literal(k_param_load.value)} .
+					{
+						?_attr a rdf:Property ;
+							rdfs:label ${Sparql.literal(k_param_load.value)} .
+					} union {
+						?_attr_decl a oslc:Property ;
+							dct:title ?title ;
+							oslc:propertyDefinition ?_attr .
+
+						filter(str(?title) = ${Sparql.literal(k_param_load.value)})
+					}
 
 					?req a oslc_rm:Requirement ;
 						?_attr [rdfs:label ?value] .

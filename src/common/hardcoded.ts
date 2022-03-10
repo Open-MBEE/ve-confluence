@@ -173,6 +173,15 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					value: 'Maturity',
 					sortPath: null,
 				},
+				capturingDocument: {
+					value: 'Capturing Document',
+					sortPath: 'hardcoded#utility.function.sort.iri_asc',
+				},
+				requirementWorkflow: {
+					label: 'Workflow',
+					value: 'State (Requirement Workflow)',
+					sortPath: 'hardcoded#utility.function.sort.iri_asc',
+				},
 				id: {
 					value: 'Identifier',
 					sortPath: null,
@@ -199,6 +208,16 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					queryParametersPaths: [
 						'hardcoded#queryParameter.sparql.dng.sysvac',
 						'hardcoded#queryParameter.sparql.dng.maturity',
+					],
+					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basic',
+					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.table.basicParamsL3ChildrenAndL4s',
+					paramQueryBuilderPath: 'hardcoded#paramQueryBuilder.sparql.dng.default',
+				},
+				msrasr: {
+					label: 'MSR Appendix Subsystem Requirements',
+					queryParametersPaths: [
+						'hardcoded#queryParameter.sparql.dng.capturingDocument',
+						'hardcoded#queryParameter.sparql.dng.requirementWorkflow',
 					],
 					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basic',
 					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.table.basicParamsL3ChildrenAndL4s',
@@ -369,6 +388,10 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 		function: {
 			sort: {
 				label_asc: (g_a: Labeled, g_b: Labeled) => g_a.label < g_b.label ? -1 : 1,
+				iri_asc: (g_a: Labeled, g_b: Labeled) => {
+					debugger;
+					return g_a.label < g_b.label ? -1 : 1;
+				},
 			},
 		},
 	},
