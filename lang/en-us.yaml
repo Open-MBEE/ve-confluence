@@ -5,6 +5,7 @@ en_US: &en
     app_title: View Editor
     loading_pending: Loading...
     loading_failed: Failed to load
+    browser_warning: Browser not supported
   error:
     page_permissions: You do not have permissions to edit this page
     page_metadata: The metadata associated with this page is corrupt

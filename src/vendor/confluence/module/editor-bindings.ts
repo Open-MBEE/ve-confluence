@@ -3,6 +3,7 @@ import type {PatchedEditor} from '#/common/meta';
 import {DisplayMode} from '#/element/Mentions/model/Autocomplete';
 
 import {
+	MacroDestroyedError,
 	Mention,
 } from '#/element/Mentions/model/Mention';
 
@@ -61,7 +62,16 @@ let d_doc_editor: Document;
 
 const S_NBSP = '\xa0';
 
-
+export function create_ve_overlays(dm_body: HTMLElement, d_doc_editor_in=d_doc_editor as Document) {
+	// create private overlay div
+	dm_body.appendChild(dd('div', {
+		'id': 've-overlays',
+		'class': 'synchrony-exclude ve-overlays',
+		'style': `user-select:none;`,
+		'data-mce-bogus': 'all',
+		'contenteditable': 'false',
+	}, [], d_doc_editor_in));
+}
 
 function init_bindings() {
 	// on remote change
@@ -94,16 +104,22 @@ function init_bindings() {
 	y_editor.on('input', (y_event: InputEvent) => {
 		// single mention node
 		if(g_autocomplete_active) {
-			// prevent confluence from doing something
-			y_event.stopImmediatePropagation();
-
 			// ref mention
 			const k_mention = g_autocomplete_active.mention;
 
+			// ensure macro exists
+			try {
+				void k_mention.macroDom;
+			}
+			catch(e_destroyed) {
+				return;
+			}
+
+			// prevent confluence from doing something
+			y_event.stopImmediatePropagation();
+
 			// execute search
 			k_mention.searchInput();
-
-			return;
 		}
 	}, true);
 
@@ -116,10 +132,31 @@ function init_bindings() {
 				d_event.stopImmediatePropagation();
 				d_event.preventDefault();
 
+				// no overlays space
+				if(!qs(d_doc_editor.body, '#ve-overlays')) {
+					create_ve_overlays(d_doc_editor.body);
+				}
+
 				// create new mention
 				const k_mention = Mention.fromConception(g_context, d_doc_editor, {
 					connectionPath: 'document#connection.sparql.mms.dng',
 				});
+
+				// listen for overlay
+				k_mention._fk_overlay = () => {
+					if(!g_autocomplete_active) {
+						g_autocomplete_active = {
+							mention: k_mention,
+						};
+					}
+				};
+
+				// listen for destroy
+				k_mention._fk_destroy = () => {
+					if(g_autocomplete_active && k_mention === g_autocomplete_active.mention) {
+						g_autocomplete_active = null;
+					}
+				};
 
 				// set mention
 				g_autocomplete_active = {
@@ -140,13 +177,63 @@ function init_bindings() {
 					left: x_left,
 					top: x_top,
 				} = g_rect;
-
+				const scrollY = y_editor.dom.doc.documentElement.scrollTop;
+				//or y_editor.dom.doc.defaultView.window.scrollY;
 				// set widget display and offset
 				k_mention.showOverlay({
 					x: `${x_left}px`,
-					y: `calc(${x_top}px + 1.5em)`,
+					y: `calc(${x_top + scrollY}px + 1.5em)`,
 					mode: DisplayMode.ITEM,
 				});
+
+				const d_range = y_editor.selection.getRng();
+				const dm_start = d_range.startContainer;
+
+				// whether to propagate inline onto the next sibling element
+				let b_propagate_inline = false;
+
+				// whether to break the preceding element
+				let b_break_preceding = false;
+
+				// range is collapsed
+				if(d_range.collapsed) {
+					// ref range offset within start container
+					const n_offset = d_range.startOffset;
+
+					// preceding content is empty
+					if(!n_offset) {
+						// propagate inline
+						b_propagate_inline = true;
+
+						// insert break
+						b_break_preceding = true;
+					}
+					// cursor at end of preceding pre
+					else {
+						// select text node's parent element
+						const dm_precede = dm_start.parentElement!;
+
+						// set preceding p as observes-inline if it exists
+						const dm_p = dm_precede.closest('p');
+						if(dm_p) dm_p.classList.add('observes-inline');
+
+						// cursor within pre
+						if(n_offset !== dm_start.textContent?.length) {
+							b_propagate_inline = true;
+						}
+					}
+				}
+
+
+					// // iteratively find next sibling
+					// dm_next = (() => {
+					// 	let dm_node = d_range.commonAncestorContainer as HTMLElement;
+					// 	while(!dm_node.nextElementSibling) {
+					// 		dm_node = dm_node.parentElement!;
+					// 	}
+					// 	return dm_node.nextElementSibling as HTMLElement;
+					// })();
+
 
 				// insert new mention
 				y_editor.execCommand('mceInsertContent', false, k_mention.renderMacroHtml());
@@ -159,28 +246,38 @@ function init_bindings() {
 					throw new Error('Failed to insert mention content into confluence editor');
 				}
 
-				// select preceding element
-				const dm_prev = dm_inserted.previousElementSibling;
-				if(dm_prev) {
-					// paragraph; add precedes inline class
-					if('P' === dm_prev.tagName) {
-						dm_prev.classList.add('precedes-inline');
-					}
+				// propagate inline
+				if(b_propagate_inline) {
+					dm_inserted.classList.add('propagates-inline');
 				}
 
-				const dm_span = dd('span', {}, [S_NBSP]);
+				// break preceding
+				if(b_break_preceding) {
+					dm_inserted.insertAdjacentElement('beforebegin', dd('p'));
+				}
 
-				// select following element
-				const dm_next = dm_inserted.nextElementSibling;
-				if(dm_next && 'P' === dm_next.tagName && 'SPAN' === dm_next.firstElementChild?.tagName) {
-					dm_next.prepend(dm_span);
-					if(!dm_next.textContent) {
-						dm_next.textContent = S_NBSP;
-					}
-				}
-				else {
-					dm_inserted.insertAdjacentElement('afterend', dd('p', {}, [dm_span]));
-				}
+				// // select preceding element
+				// const dm_prev = dm_inserted.previousElementSibling;
+				// if(dm_prev) {
+				// 	// paragraph; add observes-inline class
+				// 	if('P' === dm_prev.tagName) {
+				// 		dm_prev.classList.add('observes-inline');
+				// 	}
+				// }
+
+				// const dm_span = dd('span', {}, [S_NBSP]);
+
+				// // select following element
+				// const dm_next = dm_inserted.nextElementSibling;
+				// if(dm_next && 'P' === dm_next.tagName && 'SPAN' === dm_next.firstElementChild?.tagName) {
+				// 	dm_next.prepend(dm_span);
+				// 	if(!dm_next.textContent) {
+				// 		dm_next.textContent = S_NBSP;
+				// 	}
+				// }
+				// else {
+				// 	dm_inserted.insertAdjacentElement('afterend', dd('p', {}, [dm_span]));
+				// }
 			}
 			// anything else
 			else {
@@ -190,6 +287,14 @@ function init_bindings() {
 		// mentions exist
 		else {
 			const k_mention = g_autocomplete_active.mention;
+
+			// ensure macro exists
+			try {
+				void k_mention.macroDom;
+			}
+			catch(e_destroyed) {
+				return;
+			}
 
 			const si_key = d_event.key;
 
@@ -219,6 +324,26 @@ function init_bindings() {
 				case 'Enter': {
 					if(k_mention.acceptItem()) {
 						d_event.preventDefault();
+					}
+					return;
+				}
+
+				// backspace
+				case 'Backspace': {
+					try {
+						if(!k_mention.searchTerm) {
+							throw new Error(`empty search term`);
+						}
+					}
+					catch(e_abandoned) {
+						d_event.stopImmediatePropagation();
+						d_event.preventDefault();
+
+						// hide overlay and allow mention to auto-destroy
+						try {
+							k_mention.hideOverlay();
+						}
+						catch(e_destroy) {}
 					}
 					return;
 				}
@@ -263,4 +388,6 @@ export function attach_editor_bindings(_y_editor: PatchedEditor, _g_context: Con
 	d_doc_editor = _d_doc_editor;
 
 	init_bindings();
+
+	void Mention.initGlobalPrecache(g_context);
 }

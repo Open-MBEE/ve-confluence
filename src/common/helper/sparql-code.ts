@@ -379,7 +379,7 @@ export function dng_searcher_query(this: MmsSparqlConnection, s_input: string, x
 
 			hint:Prior hint:rangeSafe 'true' .
 
-			${b_id_candidate? `filter(?requirementNameValue != "")`: ''}
+			${b_id_candidate? `filter(str(?requirementNameValue) != "")`: ''}
 
 			${b_multirank /* eslint-disable @typescript-eslint/indent */
 				? `

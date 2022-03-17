@@ -1,8 +1,8 @@
 <script lang="ts">
 	import type {Transclusion} from '../model/Transclusion';
-	
+
 	import {onMount} from 'svelte';
-	
+
 	import Fa from 'svelte-fa';
 
 	import {
@@ -14,7 +14,9 @@
 
 	import type {TypedString} from '#/util/strings';
 
-	import {ode} from '#/util/belt';
+	import {
+		ode,
+	} from '#/util/belt';
 
 	import {
 		dm_main,
@@ -42,9 +44,11 @@
 	*/
 	export let b_published = false;
 
-	export let b_inlined = false;
+	export let b_inlined = true;
 
 	let dm_hover!: HTMLDivElement;
+
+	let dm_arrow!: HTMLDivElement;
 
 	let dm_link!: HTMLElement;
 
@@ -54,10 +58,6 @@
 
 	let s_display_version = '';
 
-	if(dm_anchor) {
-		dm_anchor.style.display = 'none';
-	}
-
 	(async() => {
 		s_display = await k_model.fetchDisplayText();
 
@@ -65,12 +65,7 @@
 
 		// align with link
 		if(b_inlined) {
-			const g_rect = dm_link.getBoundingClientRect();
-
-			const g_main = dm_main.getBoundingClientRect();
-
-			dm_hover.style.top = (g_rect.top - g_main.top)+'px';
-			dm_hover.style.left = (g_rect.left - g_main.left)+'px';
+			set_position(dm_hover);
 		}
 	})();
 
@@ -117,14 +112,37 @@
 		}
 	}
 
+	function set_position() {
+		const g_rect = dm_link.getBoundingClientRect();
+		const g_main = dm_main.getBoundingClientRect();
+		const dm_hover_rect = dm_hover.getBoundingClientRect();
+
+		// Offset if the popup is outside of the window
+		const offset = (dm_hover_rect.x + dm_hover_rect.width) - window.innerWidth;
+
+		if(offset > 0 ) {
+			// off screen from right
+			dm_hover.style.transform = 'translateX(-' + offset +'px)';
+			dm_arrow.style.transform = 'translateX(' + offset +'px)';
+		} else if (dm_hover_rect.x < 0) {
+			// off screen from left
+			dm_hover.style.transform = 'translateX(0px)';
+			dm_arrow.style.transform = 'translateX(0px)';
+		}
+
+		dm_hover.style.top = (g_rect.top - g_main.top)+'px';
+		dm_hover.style.left = (g_rect.left - g_main.left)+'px';
+	}
+
 	onMount(async() => {
 		dm_hover.addEventListener('transitionrun', listen_transition_run);
 		dm_hover.addEventListener('transitioncancel', listen_transition_cancel);
 		dm_hover.addEventListener('transitionend', listen_transition_end);
+		dm_link.addEventListener('mouseover', set_position);
 
 		const k_connection = k_model.connection;
 		if('MmsSparqlConnection' === k_connection.type) {
-			const g_version = await (k_connection as unknown as MmsSparqlConnection).fetchCurrentVersion()
+			const g_version = await (k_connection as unknown as MmsSparqlConnection).fetchCurrentVersion();
 			s_display_version = g_version.label;
 		}
 	});
@@ -199,10 +217,10 @@
 				}
 			}
 		}
-			
+
 		.arrow-down {
-			width: 0; 
-			height: 0; 
+			width: 0;
+			height: 0;
 			border-left: 20px solid transparent;
 			border-right: 20px solid transparent;
 
@@ -253,7 +271,7 @@
 			{/each}
 		</div>
 	</div>
-	<div class="arrow-down"></div>
+	<div class="arrow-down" bind:this={dm_arrow}></div>
 </div>
 
 <a href={k_model.itemIri} class="transclusion" on:mouseenter={enable_hover} on:mouseleave={disable_hover} bind:this={dm_link}>

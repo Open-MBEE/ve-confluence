@@ -28,6 +28,8 @@ import {
 	dd,
 	parse_html,
 	remove_all_children,
+	dm_page,
+	dm_container,
 } from '#/util/dom';
 
 import type {SvelteComponent} from 'svelte';
@@ -67,7 +69,6 @@ import type {
 
 import {
 	inject_frame,
-	P_SRC_WYSIWYG_EDITOR,
 } from './inject-frame';
 
 import {Transclusion} from '#/element/Transclusion/model/Transclusion';
@@ -163,21 +164,21 @@ const SX_EXCLUDE_ACTIVE_PAGE_ELEMENTS = /* syntax: xpath */ `[not(ancestor::ac:s
 const SX_EXCLUDE_ACTIVE_EMBEDDED_ELEMENTS = /* syntax: xpath */ `[not(ancestor::ac:structured-macro[@ac:name="html"][child::${SX_PARAMETER_ID_EMBEDDED_ELEMENT}])]`;
 
 const A_DIRECTIVE_CORRELATIONS: CorrelationDescriptor[] = [
-	// dng web link
-	{
-		storage: /* syntax: xpath */ `.//a[starts-with(@href,"${P_DNG_WEB_PREFIX}")]${SX_EXCLUDE_ACTIVE_PAGE_ELEMENTS}`,
-		live: `a[href^="${P_DNG_WEB_PREFIX}"]:not([data-ve-type])`,
-		directive: ([ym_anchor, g_link]) => ({
-			component: DngArtifact,
-			props: {
-				ym_anchor,
-				g_link,
-				p_href: ym_anchor.getAttribute('href'),
-				s_label: ym_anchor.textContent?.trim() || '',
-				g_context: G_CONTEXT,
-			},
-		}),
-	},
+	// // dng web link
+	// {
+	// 	storage: /* syntax: xpath */ `.//a[starts-with(@href,"${P_DNG_WEB_PREFIX}")]${SX_EXCLUDE_ACTIVE_PAGE_ELEMENTS}`,
+	// 	live: `a[href^="${P_DNG_WEB_PREFIX}"]:not([data-ve-type])`,
+	// 	directive: ([ym_anchor, g_link]) => ({
+	// 		component: DngArtifact,
+	// 		props: {
+	// 			ym_anchor,
+	// 			g_link,
+	// 			p_href: ym_anchor.getAttribute('href'),
+	// 			s_label: ym_anchor.textContent?.trim() || '',
+	// 			g_context: G_CONTEXT,
+	// 		},
+	// 	}),
+	// },
 ];
 
 let K_OBJECT_STORE: ObjectStore;
@@ -258,34 +259,9 @@ function* correlate(gc_correlator: CorrelationDescriptor): Generator<ViewBundle>
 function render_component(g_bundle: ViewBundle, b_hide_anchor = false) {
 	const dm_anchor = g_bundle.anchor;
 	const dm_render = g_bundle.render || dm_anchor;
-	const dm_parent = dm_render.parentElement!;
 
-	// re-stitch together inline paragraph
-	if(TransclusionComponent === g_bundle.component && (('P' === dm_parent.nodeName && !qsa(dm_parent, 'br').length) || ('SPAN' === dm_parent.nodeName && 'P' === dm_parent.parentElement?.nodeName && !qsa(dm_parent.parentElement, 'br').length))) {
-		// dm_anchor.style.display = 'none';
-
-		const dm_parent_render = dm_render.closest('p')!;
-		dm_parent_render.style.display = 'inline';
-		const dm_tag = dm_parent_render.nextElementSibling as HTMLElement;
-
-		dm_tag.style.display = 'none';
-
-		const dm_placeholder = dm_tag.nextElementSibling;
-		if(dm_placeholder && 'P' === dm_placeholder.nodeName) {
-			(dm_placeholder as HTMLElement).style.display = 'none';
-
-			const dm_follow = dm_placeholder.nextElementSibling;
-			if(dm_follow && 'P' === dm_follow.nodeName) {
-				qs(dm_follow, 'br')?.remove();
-				(dm_follow as HTMLElement).style.display = 'inline';
-			}
-		}
-
-		// add special prop for transclusion
-		g_bundle.props!.b_inlined = true;
-	}
 	// hide anchor
-	else if(b_hide_anchor) {
+	if(b_hide_anchor) {
 		if(dm_anchor) {
 			(g_bundle.render || dm_anchor).style.display = 'none';
 		}
@@ -314,12 +290,12 @@ export async function main(): Promise<void> {
 		throw new Error(`ERROR: No lang file defined! Did you forget to set the environment variables when building?`);
 	}
 
-	const dm_header = qs(document.body, '#header');
+	const dm_header = qs(dm_container, '#header');
 	kv_control_bar = new ControlBar({
 		target: dm_main_header as HTMLElement,
 		anchor: qs(dm_main_header, 'div#navigation'),
-		// target: dm_header.parentElement as HTMLElement,
-		// anchor: dm_header.nextSibling as HTMLElement,
+		// target: dm_header.parentElement,
+		// anchor: dm_header.nextSibling,
 		props: {
 			g_context: G_CONTEXT,
 		},
@@ -678,13 +654,13 @@ function replace_edit_button() {
 	const dm_clone = dm_edit.cloneNode(true);
 	dm_edit.parentNode?.replaceChild(dm_clone, dm_edit);
 
-	// prefetch wysiwyg editor script
-	const dm_prefetch = dd('link', {
-		rel: 'prefetch',
-		href: P_SRC_WYSIWYG_EDITOR,
-		as: 'script',
-	});
-	document.head.appendChild(dm_prefetch);
+	// // prefetch wysiwyg editor script
+	// const dm_prefetch = dd('link', {
+	// 	rel: 'prefetch',
+	// 	href: P_SRC_WYSIWYG_EDITOR,
+	// 	as: 'script',
+	// });
+	// document.head.appendChild(dm_prefetch);
 }
 
 function hash_updated(de_hash_change?: HashChangeEvent): void {

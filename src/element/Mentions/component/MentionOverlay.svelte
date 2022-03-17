@@ -43,6 +43,7 @@
 	import {
 		createEventDispatcher,
 		onMount,
+		tick,
 	} from 'svelte';
 
 	import {
@@ -56,8 +57,6 @@
 	} from '../model/Mention';
 import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 
-	export let y_editor: PatchedEditor;
-	export let g_context: Context;
 	export let k_mention: Mention;
 	
 	export let b_display = false;
@@ -79,7 +78,8 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 	let dm_content!: HTMLDivElement;
 
 	const f_dispatch = createEventDispatcher();
-	onMount(() => {
+	onMount(async() => {
+		await tick();
 		f_dispatch('dom', {
 			dm_container,
 			dm_content,
@@ -123,7 +123,7 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 	}
 
 
-	async function select_row() {
+	function select_row() {
 		const dm_selected = qs(dm_content, '.item-selected');
 
 		if(!dm_selected) {
@@ -131,10 +131,10 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 		}
 
 		if(DisplayMode.ITEM === xc_mode) {
-			return await select_item(dm_selected);
+			return select_item(dm_selected);
 		}
 		else if(DisplayMode.ATTRIBUTE === xc_mode) {
-			return select_attribute(dm_selected);
+			return select_attribute(a_attributes[parseInt(dm_selected.getAttribute('data-index')!)]);
 		}
 	}
 
@@ -171,10 +171,7 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 		void k_mention.selectItem(si_channel, p_item, si_item);
 	}
 
-	function select_attribute(dm_selected: Element): void {
-		//
-		const g_attr = decode_attr(dm_selected.getAttribute('data-attribute')!) as ValuedLabeledObject;
-
+	function select_attribute(g_attr: ValuedLabeledObject<string>): void {
 		// select attribute
 		void k_mention.selectAttribute(g_attr);
 
@@ -234,12 +231,8 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 		}
 	}
 
-	const XT_DEBOUNCE = 350;
-	let i_debounce = 0;
-
-	function render_search(_s_search: string=s_search, b_debounce=false) {
+	function render_search(_s_search: string=s_search) {
 		s_search = _s_search;
-
 	}
 
 
@@ -405,7 +398,7 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 </svg>
 
 
-<div class="container" style="display:{b_display? 'block': 'none'}; left:{sx_offset_x}; top:{sx_offset_y};" bind:this={dm_container}>
+<div class="container ve-mention-overlay" style="display:{b_display? 'block': 'none'}; left:{sx_offset_x}; top:{sx_offset_y};" bind:this={dm_container}>
 	<div class="heading">
 		{#if DisplayMode.ITEM === xc_mode}
 			Insert Cross-Reference
@@ -414,7 +407,7 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 		{/if}
 	</div>
 
-	{#if DisplayMode.ITEM === xc_mode}
+	<!--{#if DisplayMode.ITEM === xc_mode}
 		<div class="filter-select-scrollable">
 			<div class="filter-select">
 				<span class="filter selected" data-channel-all=1 on:click={() => enable_all_channels()}>
@@ -431,7 +424,7 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 				</span>
 			</div>
 		</div>
-	{/if}
+	{/if} -->
 
 	<div class="filter-content-scrollable">
 		<div class="filter-content">
@@ -445,7 +438,7 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 									data-id={row_id(g_row, g_group.channel_hash)}
 									on:mouseenter={mouseenter_row}
 									on:mouseleave={mouseleave_row}
-									on:click={select_row}
+									on:click={() => select_row()}
 									class:item-selected={!i_group && !i_row}
 								>
 									<span class="ve-icon">
@@ -464,10 +457,10 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 						</div>
 					{/each}
 				{:else if DisplayMode.ATTRIBUTE === xc_mode}
-					{#each a_attributes as g_attr, i_attr}
-						<div class="group">
+					<div class="group">
+						{#each a_attributes as g_attr, i_attr}
 							<div class="row"
-								data-attribute={encode_attr(g_attr)}
+								data-index={i_attr}
 								on:mouseenter={mouseenter_row}
 								on:mouseleave={mouseleave_row}
 								on:click={select_row}
@@ -482,8 +475,8 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 									</div>
 								</span>
 							</div>
-						</div>
-					{/each}
+						{/each}
+					</div>
 				{/if}
 			</div>
 		</div>

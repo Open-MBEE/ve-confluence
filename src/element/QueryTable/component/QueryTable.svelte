@@ -68,7 +68,9 @@
 	 * Whether or not this table is already published
 	 */
 	export let b_published = false;
+
 	
+	let dm_display: HTMLElement;
 
 	// shows/hides the table results
 	let b_display_preview = !b_published;
@@ -152,6 +154,13 @@
 	g_source = {label:'DNG Requirements'};
 
 	$: dm_anchor.style.display = b_published && b_display_preview? 'none' :'block';
+
+	// hide the published table while editing
+	$: {
+		if('DIV' === dm_display?.nextElementSibling?.tagName) {
+			(dm_display.nextElementSibling as HTMLElement).style.display = b_published && b_display_preview? 'none' :'block';
+		}
+	}
 
 	// anchor provided
 	if(dm_anchor) {
@@ -629,7 +638,7 @@
 {#await k_model.ready()}
 	<!-- loading -->
 {:then}
-	<div class="ve-query-table">
+	<div class="ve-query-table" bind:this={dm_display}>
 		<div class="controls">
 			<span class="label">
 				Connected Data Table {g_source ? `with ${g_source.label}` : ''}
