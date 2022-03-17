@@ -638,11 +638,13 @@
 				<span class="title">
 					{lang.basic.app_title}
 				</span>
+				<!--
 				{#if b_read_only}
 					<span class="icon-readonly">
 						Read-Only
 					</span>
 				{/if}
+				-->
 				<span class="icon-help">
 					<!-- help icon -->
 					<Fa icon={faQuestionCircle} size="2x"></Fa>
@@ -674,7 +676,7 @@
 						<TabPanel>
 							<div class="tab-body">
 								<p>New updates are available every Friday at 10:00 PM</p>
-								<DatasetsTable {g_context}></DatasetsTable>
+								<DatasetsTable {g_context} {b_read_only}></DatasetsTable>
 							</div>
 						</TabPanel>
 					{/if}

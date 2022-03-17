@@ -68,6 +68,7 @@
 	};
 
 	export let g_context: Context;
+	export let b_read_only = false;
 	let k_object_store = g_context.store;
 
 	let g_version_current: ModelVersionDescriptor;
@@ -576,6 +577,7 @@
 						{:then [a_versions, g_current_version, s_hash]}
 						<!-- bind:this={h_selects['@'+s_hash]} -->
 							<Select
+								isDisabled={b_read_only}
 								bind:this={yc_select}
 								optionIdentifier={'id'}
 								value={g_current_version}
