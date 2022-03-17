@@ -378,9 +378,13 @@
 		// set query type on model
 		k_model.setQueryType(dv_select.detail);
 
-		// clear parameters
-		for(const si_param in k_model.parameterValues) {
-			k_model.parameterValuesList(si_param).clear();
+		try {
+			// clear parameters
+			for(const si_param in k_model.parameterValues) {
+				 k_model.parameterValuesList(si_param).clear();
+			}
+		} catch (e) {
+
 		}
 
 		// clear preview

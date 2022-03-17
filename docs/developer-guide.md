@@ -85,5 +85,5 @@ The project is configured in such a way that importing files can be done relativ
 
 ```
 3. Edit the appropriate substitutions in the script for the include and exclude URLs
-4. Open a terminal in the project root directory and run `$ python -m SimpleHTTPServer 3001`
+4. Open a terminal in the project root directory and run `$ python -m SimpleHTTPServer 3001` or Python 3 `$ python -m http.server 3001`
 5. Open the wiki to a sample page and click the Tampermonkey extension to reload the page and enable the script
