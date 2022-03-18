@@ -1,7 +1,4 @@
 import type { JsonValue } from "#/common/types";
-import { oderac } from "./belt";
-
-type Hash = Record<string, string>;
 
 type Split<S extends string, D extends string> = S extends `${infer T}${D}${infer U}` ? [T, ...Split<U, D>] : [S];
 

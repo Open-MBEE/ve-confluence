@@ -3,7 +3,7 @@ import type {
 	MmsSparqlQueryTable,
 } from '#/element/QueryTable/model/QueryTable';
 
-import type {MmsSparqlConnection} from '#/model/Connection';
+import type {Mms5Connection} from '#/model/Connection';
 
 import {
 	ode,
@@ -105,11 +105,8 @@ export async function build_dng_select_param_query(this: MmsSparqlQueryTable, k_
 		`);
 	}
 
-	const k_connection = await this.fetchConnection();
-
 	return new SparqlSelectQuery({
 		select: [...a_selects],
-		from: `<${k_connection.modelGraph}>`,
 		bgp: /* syntax: sparql */ `
 			?artifact a oslc_rm:Requirement ;
 				oslc:instanceShape [
@@ -210,12 +207,9 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 		}
 	}
 
-	const k_connection = await this.fetchConnection();
-
 	return new SparqlSelectQuery({
 		count: '?artifact',
 		select: [...a_selects, ...a_aggregates],
-		from: `<${k_connection.modelGraph}>`,
 		bgp: /* syntax: sparql */ `
 			?artifact a oslc_rm:Requirement ;
 				oslc:instanceShape [
@@ -252,14 +246,13 @@ export enum SearcherMask {
 	ALL = 0xffff,
 }
 
-export function dng_detailer_query(this: MmsSparqlConnection, p_artifact: string): SparqlSelectQuery {
+export function dng_detailer_query(this: Mms5Connection, p_artifact: string): SparqlSelectQuery {
 	return new SparqlSelectQuery({
 		select: [
 			'?idValue',
 			'?requirementNameValue',
 			'?requirementTextValue',
 		],
-		from: `<${this.modelGraph}>`,
 		bgp: /* syntax: sparql */ `
 			?artifact a oslc_rm:Requirement ;
 				oslc:instanceShape [
@@ -287,7 +280,7 @@ export function dng_detailer_query(this: MmsSparqlConnection, p_artifact: string
 	});
 }
 
-export function dng_searcher_query(this: MmsSparqlConnection, s_input: string, xm_types?: number): SparqlSelectQuery {
+export function dng_searcher_query(this: Mms5Connection, s_input: string, xm_types?: number): SparqlSelectQuery {
 	// criteria for searching
 	const h_criteria = {
 		1: [],
@@ -358,7 +351,6 @@ export function dng_searcher_query(this: MmsSparqlConnection, s_input: string, x
 			'?requirementNameValue',
 			`(strLen(strBefore(lcase(?requirementNameValue), "${s_sanitized}")) as ?score)`,
 		],
-		from: `<${this.modelGraph}>`,
 		bgp: /* syntax: sparql */ `
 			?artifact a oslc_rm:Requirement ;
 				oslc:instanceShape [

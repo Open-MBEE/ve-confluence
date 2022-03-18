@@ -4,7 +4,7 @@ import type {VeoPathTarget} from '#/common/veo';
 
 import {
 	Connection,
-	MmsSparqlConnection,
+	Mms5Connection,
 } from '#/model/Connection';
 
 import {
@@ -60,12 +60,12 @@ export class Transclusion<
 		const gc_connection = await this._k_store.resolve(this._gc_serialized.connectionPath);
 
 		switch(gc_connection.type) {
-			case 'MmsSparqlConnection': {
+			case 'Mms5Connection': {
 				// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
 				this._k_connection = await VeOdm.createFromSerialized(
-					MmsSparqlConnection,
+					Mms5Connection,
 					gc_connection.path as VeoPathTarget,
-					gc_connection as MmsSparqlConnection.Serialized,
+					gc_connection as Mms5Connection.Serialized,
 					this._g_context
 				) as unknown as Connection;
 				return;

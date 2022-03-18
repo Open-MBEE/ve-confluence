@@ -12,7 +12,7 @@
 	import {
 		Connection,
 		connectionHasVersioning,
-		MmsSparqlConnection,
+		Mms5Connection,
 	} from '#/model/Connection';
 
 	import type {
@@ -94,11 +94,11 @@
 		for(const sp_connection in h_connections) {
 			const gc_connection = (h_connections as Record<string, Connection.Serialized>)[sp_connection];
 			switch(gc_connection.type) {
-				case 'MmsSparqlConnection': {
+				case 'Mms5Connection': {
 					const k_connection = await VeOdm.createFromSerialized(
-						MmsSparqlConnection,
+						Mms5Connection,
 						sp_connection,
-						gc_connection as MmsSparqlConnection.Serialized, g_context
+						gc_connection as Mms5Connection.Serialized, g_context
 					);
 
 					A_CONNECTIONS.push(k_connection as unknown as Connection);

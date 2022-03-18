@@ -353,7 +353,7 @@
 			sparql: {
 				mms: {
 					dng: {
-						type: 'MmsSparqlConnection',
+						type: 'MmsSparqlConnection',// TODO fix
 						label: 'DNG Requirements',
 						alias: 'DNG',
 						endpoint: 'https://ced-uat.jpl.nasa.gov/sparql',

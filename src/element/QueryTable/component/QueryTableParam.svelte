@@ -10,7 +10,7 @@
 		QueryTable,
 	} from '#/element/QueryTable/model/QueryTable';
 	
-	import type {MmsSparqlConnection} from '#/model/Connection';
+	import type {Mms5Connection} from '#/model/Connection';
 	
 	import {Sparql} from '#/util/sparql-endpoint';
 
@@ -52,10 +52,10 @@
 
 	async function load_param(k_param_load: QueryParam) {
 		if(k_query_table.type.startsWith('MmsSparql')) {
-			const k_connection = (await k_query_table.fetchConnection()) as MmsSparqlConnection;
+			const k_connection = (await k_query_table.fetchConnection()) as Mms5Connection;
 
 			const a_rows = await k_connection.execute(/* syntax: sparql */ `
-				select ?value (count(?req) as ?count) from <${k_connection.modelGraph}> {
+				select ?value (count(?req) as ?count) {
 					?_attr a rdf:Property ;
 						rdfs:label ${Sparql.literal(k_param_load.value)} .
 

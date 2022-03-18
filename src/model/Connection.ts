@@ -17,23 +17,26 @@ import SparqlEndpoint, {
 
 import {
 	VeOdmLabeled,
-	VeOrmClass,
+    VeOrmClass,
 } from './Serializable';
 
 import type {ConnectionQuery} from '#/element/QueryTable/model/QueryTable';
 
 import type {SearcherMask} from '#/common/helper/sparql-code';
 
+import {
+	process,
+} from '#/common/static';
 export interface ModelVersionDescriptor {
 	id: string;
 	label: string;
 	dateTime: string;
 	data?: Record<string, boolean | number | string>;
-	modify?: Partial<MmsSparqlConnection.Serialized>;
+	modify?: Partial<Mms5Connection.Serialized>;
 }
 
 export namespace Connection {
-	type DefaultType = `${'Mms' | 'Plain'}${'Sparql' | 'Vql'}Connection`;
+	type DefaultType = `${'Mms' | 'Plain'}${'Sparql' | 'Vql' | '5'}Connection`;
 
 	export interface Serialized<TypeString extends DefaultType=DefaultType> extends TypedLabeledObject<TypeString> {
 		endpoint: UrlString;
@@ -65,7 +68,7 @@ export interface SparqlQueryContext extends JsonObject {
 }
 
 export namespace SparqlConnection {
-	type DefaultType = `${'Mms' | 'Plain'}SparqlConnection`;
+	type DefaultType = `${'Mms5' | 'MmsSparql' | 'PlainSparql'}Connection`;
 
 	export interface Serialized<TypeString extends DefaultType=DefaultType> extends Connection.Serialized<TypeString> {
 		endpoint: UrlString;
@@ -271,3 +274,85 @@ export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Se
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const MmsSparqlConnection_Assertion: VeOrmClass<MmsSparqlConnection.Serialized> = MmsSparqlConnection;
+
+export namespace Mms5Connection {
+	export interface Serialized extends SparqlConnection.Serialized<'Mms5Connection'> {
+		org: string;
+        repo: string;
+        ref: string;
+	}
+}
+export class Mms5Connection extends SparqlConnection<Mms5Connection.Serialized> implements VersionedConnection {
+    protected _token = '';
+	initSync(): void {
+		this._k_endpoint = new SparqlEndpoint({
+			endpoint: `${this.endpoint}/orgs/${this._gc_serialized.org}/repos/${this._gc_serialized.repo}/branches/${this._gc_serialized.ref}/query`,
+			prefixes: this.prefixes,
+		});
+
+		this._f_searcher = this._k_store.resolveSync(this._gc_serialized.searchPath) as unknown as SparqlSearcher;
+		this._f_detailer = this._k_store.resolveSync(this._gc_serialized.detailPath) as unknown as SparqlDetailer;
+	}
+
+    async init(): Promise<void> {
+        const res = await fetch(`${this.endpoint}/login`, {
+			method: 'GET',
+            mode: 'cors',
+			headers: {Authorization:`Basic ${process.env.MMS5BASIC}`},
+		});
+        const token: string = (await res.json()).token;
+        this._token = token;
+        this._k_endpoint.setAuth(token);
+    }
+
+	async execute(sq_query: SparqlString, fk_controller?: (d_controller: AbortController) => void): Promise<QueryRow[]> {
+		return await this._k_endpoint.select(sq_query, fk_controller);
+	}
+
+    async fetchCurrentVersion(): Promise<ModelVersionDescriptor> {
+        await fetch('');
+		return {
+            id: this._gc_serialized.ref,
+            label: 's_label',
+            dateTime: 's_datetime',
+            modify: {
+                ref: this._gc_serialized.ref,
+            },
+        };
+	}
+
+	async fetchVersions(): Promise<ModelVersionDescriptor[]> {
+        await fetch('');
+		return [{
+            id: this._gc_serialized.ref,
+            label: 's_label',
+            dateTime: 's_datetime',
+            modify: {
+                ref: this._gc_serialized.ref,
+            },
+        }];
+	}
+
+    async makeLatest(ref: string): Promise<ModelVersionDescriptor> {
+        await fetch(`${this.endpoint}/orgs/${this._gc_serialized.org}/repos/${this._gc_serialized.repo}/branches/${ref}`, {
+			method: 'PUT',
+			mode: 'cors',
+			headers: {Authorization:`Bearer ${this._token}`},
+            body: `
+                <>
+                    mms:ref <./master> ;
+                    dct:title "latest"@en ;
+                    .
+            `,
+		});
+        return {
+            id: ref,
+            label: 's_label',
+            dateTime: 's_datetime',
+            modify: {
+                ref: ref,
+            },
+        };
+    }
+
+}

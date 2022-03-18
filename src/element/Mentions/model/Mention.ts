@@ -12,7 +12,7 @@ import type {VeoPathTarget} from '#/common/veo';
 
 import {
 	Connection,
-	MmsSparqlConnection,
+	Mms5Connection,
 } from '#/model/Connection';
 
 import {
@@ -408,8 +408,8 @@ export class Mention {
 
 		for(const [sp_connection, gc_connection] of ode(h_connections)) {
 			switch(gc_connection.type) {
-				case 'MmsSparqlConnection': {
-					const k_connection = await VeOdm.createFromSerialized(MmsSparqlConnection, sp_connection, gc_connection as MmsSparqlConnection.Serialized, g_context);
+				case 'Mms5Connection': {
+					const k_connection = await VeOdm.createFromSerialized(Mms5Connection, sp_connection, gc_connection as Mms5Connection.Serialized, g_context);
 
 					// push as separate channels
 					this._add_channel(sp_connection, k_connection, {

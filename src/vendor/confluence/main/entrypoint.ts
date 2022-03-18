@@ -25,18 +25,12 @@ import {
 	dm_main_header,
 	uuid_v4,
 	dm_main,
-	dd,
-	parse_html,
 	remove_all_children,
-	dm_page,
-	dm_container,
 } from '#/util/dom';
 
 import type {SvelteComponent} from 'svelte';
 
 import ControlBar from '#/element/ControlBar/component/ControlBar.svelte';
-
-import DngArtifact from '#/element/DngArtifact/component/DngArtifact.svelte';
 
 import QueryTable from '#/element/QueryTable/component/QueryTable.svelte';
 
@@ -60,12 +54,6 @@ import {ObjectStore} from '#/model/ObjectStore';
 import {
 	xpathSelect1,
 } from '#/vendor/confluence/module/xhtml-document';
-
-import type {VeoPath} from '#/common/veo';
-
-import type {
-	TypedKeyedUuidedObject,
-} from '#/common/types';
 
 import {
 	inject_frame,
@@ -155,31 +143,11 @@ type ControlBarConfig = {
 	props?: Record<string, any>;
 };
 
-const P_DNG_WEB_PREFIX = process.env.DOORS_NG_PREFIX;
-
 // for excluding elements that are within active directives
 const SX_PARAMETER_ID_PAGE_ELEMENT = `ac:parameter[@ac:name="id"][starts-with(text(),"page#elements.")]`;
 const SX_PARAMETER_ID_EMBEDDED_ELEMENT = `ac:parameter[@ac:name="id"][starts-with(text(),"embedded#elements.")]`;
 const SX_EXCLUDE_ACTIVE_PAGE_ELEMENTS = /* syntax: xpath */ `[not(ancestor::ac:structured-macro[@ac:name="html"][child::${SX_PARAMETER_ID_EMBEDDED_ELEMENT}])]`;
 const SX_EXCLUDE_ACTIVE_EMBEDDED_ELEMENTS = /* syntax: xpath */ `[not(ancestor::ac:structured-macro[@ac:name="html"][child::${SX_PARAMETER_ID_EMBEDDED_ELEMENT}])]`;
-
-const A_DIRECTIVE_CORRELATIONS: CorrelationDescriptor[] = [
-	// // dng web link
-	// {
-	// 	storage: /* syntax: xpath */ `.//a[starts-with(@href,"${P_DNG_WEB_PREFIX}")]${SX_EXCLUDE_ACTIVE_PAGE_ELEMENTS}`,
-	// 	live: `a[href^="${P_DNG_WEB_PREFIX}"]:not([data-ve-type])`,
-	// 	directive: ([ym_anchor, g_link]) => ({
-	// 		component: DngArtifact,
-	// 		props: {
-	// 			ym_anchor,
-	// 			g_link,
-	// 			p_href: ym_anchor.getAttribute('href'),
-	// 			s_label: ym_anchor.textContent?.trim() || '',
-	// 			g_context: G_CONTEXT,
-	// 		},
-	// 	}),
-	// },
-];
 
 let K_OBJECT_STORE: ObjectStore;
 let k_page: ConfluencePage;
@@ -197,7 +165,7 @@ const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 
 	'CAE CED Table Element': ([, g_struct]: [HTMLElement, Record<string, unknown>]) => {
 		const si_uuid = (g_struct.uuid as string) || uuid_v4().replace(/_/g, '-');
-		const si_key: VeoPath.Full = `page#elements.serialized.queryTable.${si_uuid}`;
+		const si_key = `page#elements.serialized.queryTable.${si_uuid}`;
 
 		return {
 			component: QueryTable,
@@ -212,7 +180,7 @@ const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 						connectionPath: 'document#connection.sparql.mms.dng',
 						parameterValues: {},
 					},
-					G_CONTEXT,
+					G_CONTEXT
 				),
 			},
 		};
@@ -289,8 +257,6 @@ export async function main(): Promise<void> {
 	if('object' !== typeof lang?.basic) {
 		throw new Error(`ERROR: No lang file defined! Did you forget to set the environment variables when building?`);
 	}
-
-	const dm_header = qs(dm_container, '#header');
 	kv_control_bar = new ControlBar({
 		target: dm_main_header as HTMLElement,
 		anchor: qs(dm_main_header, 'div#navigation'),
@@ -391,24 +357,13 @@ export async function main(): Promise<void> {
 		}
 	}
 
-	// each simple directive
-	for(const gc_correlator of A_DIRECTIVE_CORRELATIONS) {
-		// select all instances of this directive
-		const dg_directives = correlate(gc_correlator);
-
-		//
-		for(const g_bundle of dg_directives) {
-			render_component(g_bundle, true);
-		}
-	}
-
 	// interpret published elements
 	{
 		// xpath query for rendered elements
 		const a_macros = k_source.select<Node>(`//ac:structured-macro[@ac:name="html"][child::${SX_PARAMETER_ID_EMBEDDED_ELEMENT}]`);
 
 		// translate into ve paths
-		const a_paths = a_macros.map(yn => [xpathSelect1<Text>(`./ac:parameter[@ac:name="id"]/text()`, yn).data, yn] as [VeoPath.Full, Node]);
+		const a_paths = a_macros.map(yn => [xpathSelect1<Text>(`./ac:parameter[@ac:name="id"]/text()`, yn).data, yn] as [string, Node]);
 
 		// resolve serialized element
 		for(const [sp_element, yn_directive] of a_paths) {
@@ -470,7 +425,7 @@ export async function main(): Promise<void> {
 				render_component({
 					component: dc_component,
 					render: remove_all_children(dm_anchor),
-					anchor: dm_script,
+					anchor: dm_script as HTMLElement,
 					node: yn_directive,
 					props: {
 						k_model,
@@ -487,11 +442,11 @@ export async function main(): Promise<void> {
 		const a_macros = k_source.select<Node>(`//ac:structured-macro[@ac:name="span"][child::${SX_PARAMETER_ID_PAGE_ELEMENT}]`);
 
 		// translate into ve paths
-		const a_paths = a_macros.map(yn => [xpathSelect1<Text>(`./ac:parameter[@ac:name="id"]/text()`, yn).data, yn] as [VeoPath.Full, Node]);
+		const a_paths = a_macros.map(yn => [xpathSelect1<Text>(`./ac:parameter[@ac:name="id"]/text()`, yn).data, yn] as [string, Node]);
 
 		// resolve serialized element
 		for(const [sp_element, yn_directive] of a_paths) {
-			const gc_element = await K_OBJECT_STORE.resolve(sp_element as string);
+			const gc_element = await K_OBJECT_STORE.resolve(sp_element);
 
 			// correlate to live DOM element
 			const a_spans = qsa(dm_main, `span[id="${sp_element}"]`);
