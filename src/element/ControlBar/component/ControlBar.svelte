@@ -377,7 +377,7 @@
 						label: 'DNG Requirements',
 						alias: 'DNG',
 						endpoint: 'https://ced-uat.jpl.nasa.gov/sparql',
-						modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/object/Commit.Mars_Sample_Return.2022-04-01T20-31-50_318Z',
+						modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/Model.Mars_Sample_Return.2022-04-01T20-31-50_318Z',
 						metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/Metadata.Mars_Sample_Return',
 						contextPath: 'hardcoded#queryContext.sparql.dng.common',
 						searchPath: 'hardcoded#queryBuilder.sparql.dng.search.basic',
