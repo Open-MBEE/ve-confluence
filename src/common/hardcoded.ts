@@ -175,12 +175,10 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 				},
 				capturingDocument: {
 					value: 'Capturing Document',
-					sortPath: 'hardcoded#utility.function.sort.iri_asc',
 				},
 				requirementWorkflow: {
 					label: 'Workflow',
 					value: 'State (Requirement Workflow)',
-					sortPath: 'hardcoded#utility.function.sort.iri_asc',
 				},
 				id: {
 					value: 'Identifier',
@@ -388,10 +386,6 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 		function: {
 			sort: {
 				label_asc: (g_a: Labeled, g_b: Labeled) => g_a.label < g_b.label ? -1 : 1,
-				iri_asc: (g_a: Labeled, g_b: Labeled) => {
-					debugger;
-					return g_a.label < g_b.label ? -1 : 1;
-				},
 			},
 		},
 	},
