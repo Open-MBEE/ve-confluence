@@ -114,10 +114,8 @@ export async function build_dng_select_param_query(this: MmsSparqlQueryTable, k_
 				] ;
 			.
 			# exclude requirements that are part of a requirement document
-			filter not exists {
-				?collection a oslc_rm:RequirementCollection ;
-					oslc_rm:uses ?artifact ;
-					.
+			filter exists {
+				?artifact jazz_nav:parent ?parent .
 			}
 			${a_bgp.join('\n')}
 		`,
@@ -218,10 +216,8 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 				.
 
 			# exclude requirements that are part of a requirement document
-			filter not exists {
-				?collection a oslc_rm:RequirementCollection ;
-					oslc_rm:uses ?artifact ;
-					.
+			filter exists {
+				?artifact jazz_nav:parent ?parent .
 			}
 
 			${a_bgp.join('\n')}
@@ -261,10 +257,8 @@ export function dng_detailer_query(this: Mms5Connection, p_artifact: string): Sp
 				.
 
 			# exclude requirements that are part of a requirement document
-			filter not exists {
-				?collection a oslc_rm:RequirementCollection ;
-					oslc_rm:uses ?artifact ;
-					.
+			filter exists {
+				?artifact jazz_nav:parent ?parent .
 			}
 			
 			${H_NATIVE_DNG_PATTERNS.id}
@@ -359,12 +353,9 @@ export function dng_searcher_query(this: Mms5Connection, s_input: string, xm_typ
 				.
 
 			# exclude requirements that are part of a requirement document
-			filter not exists {
-				?collection a oslc_rm:RequirementCollection ;
-					oslc_rm:uses ?artifact ;
-					.
+			filter exists {
+				?artifact jazz_nav:parent ?parent .
 			}
-			
 			${H_NATIVE_DNG_PATTERNS.id}
 
 			${H_NATIVE_DNG_PATTERNS.requirementName}

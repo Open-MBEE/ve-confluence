@@ -292,7 +292,9 @@ export class Mms5Connection extends SparqlConnection<Mms5Connection.Serialized> 
 
 		this._f_searcher = this._k_store.resolveSync(this._gc_serialized.searchPath) as unknown as SparqlSearcher;
 		this._f_detailer = this._k_store.resolveSync(this._gc_serialized.detailPath) as unknown as SparqlDetailer;
-        this._token = '';
+        if (!this._token) {
+            this._token = '';
+        } //TODO save it in session somewhere and get it back if within a day?
 	}
 
     async init(): Promise<void> {
