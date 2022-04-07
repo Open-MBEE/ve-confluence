@@ -294,7 +294,7 @@ export class Mms5Connection extends SparqlConnection<Mms5Connection.Serialized> 
 		this._f_detailer = this._k_store.resolveSync(this._gc_serialized.detailPath) as unknown as SparqlDetailer;
         if (!this._token) {
             this._token = '';
-        } //TODO save it in session somewhere and get it back if within a day?
+        }
 	}
 
     async init(): Promise<void> {
@@ -302,6 +302,11 @@ export class Mms5Connection extends SparqlConnection<Mms5Connection.Serialized> 
             this._k_endpoint.setAuth(this._token);
             return;
         }
+		if (window.sessionStorage.getItem('ve4-mms5token')) {
+			this._token = window.sessionStorage.getItem('ve4-mms5token');
+			this._k_endpoint.setAuth(this._token);
+            return;
+		}
 		const res = await fetch(`${this.endpoint}/login`, {
             method: 'GET',
             mode: 'cors',
@@ -310,6 +315,7 @@ export class Mms5Connection extends SparqlConnection<Mms5Connection.Serialized> 
         const token: string = (await res.json()).token;
         this._token = token;
         this._k_endpoint.setAuth(token);
+		window.sessionStorage.setItem('ve4-mms5token', this._token);
     }
 
 	async execute(sq_query: SparqlString, fk_controller?: (d_controller: AbortController) => void): Promise<QueryRow[]> {
