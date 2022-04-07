@@ -139,7 +139,7 @@ function init_bindings() {
 
 				// create new mention
 				const k_mention = Mention.fromConception(g_context, d_doc_editor, {
-					connectionPath: 'document#connection.sparql.mms.dng',
+					connectionPath: 'document#connection.sparql.mms.dng', //TODO
 				});
 
 				// listen for overlay

@@ -369,23 +369,24 @@
 	};
 
 	const H_PATHS_MSR = {
-		connection: {
-			sparql: {
-				mms: {
-					dng: {
-						type: 'MmsSparqlConnection',
-						label: 'DNG Requirements',
-						alias: 'DNG',
-						endpoint: 'https://ced-uat.jpl.nasa.gov/sparql',
-						modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/Model.MSR',
-						metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/Metadata.MSR',
-						contextPath: 'hardcoded#queryContext.sparql.dng.common',
-						searchPath: 'hardcoded#queryBuilder.sparql.dng.search.basic',
-						detailPath: 'hardcoded#queryBuilder.sparql.dng.detail.basic',
-					},
-				},
+		connection: { 
+			sparql: { 
+				mms: { 
+			dng: {
+				type: 'Mms5Connection',
+				label: 'DNG Requirements',
+				alias: 'DNG',
+				endpoint: 'https://mms5-test.jpl.nasa.gov/',
+				org: 'dngmdk',
+				repo: 'msr3',
+				ref: 'main',
+				contextPath: 'hardcoded#queryContext.sparql.dng.common',
+				searchPath: 'hardcoded#queryBuilder.sparql.dng.search.basic',
+				detailPath: 'hardcoded#queryBuilder.sparql.dng.detail.basic',
 			},
-		},
+				},
+			}
+		}
 	};
 
 

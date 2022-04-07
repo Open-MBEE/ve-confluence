@@ -179,7 +179,7 @@ export class ObjectStore {
 
 		let h_out: PathOptions<ValueType, ClassType> = {};
 
-		if(c_frags < NL_PATH_FRAGMENTS-1) { // TODO check NL_PATH_FRAGMENTS impact
+		if(c_frags < NL_PATH_FRAGMENTS-1) { // TODO check NL_PATH_FRAGMENTS impact //doesnt' work for shorter paths
 			for(const si_frag in h_options) {
 				h_out = {
 					...h_out,

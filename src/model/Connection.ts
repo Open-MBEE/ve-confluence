@@ -292,14 +292,19 @@ export class Mms5Connection extends SparqlConnection<Mms5Connection.Serialized> 
 
 		this._f_searcher = this._k_store.resolveSync(this._gc_serialized.searchPath) as unknown as SparqlSearcher;
 		this._f_detailer = this._k_store.resolveSync(this._gc_serialized.detailPath) as unknown as SparqlDetailer;
+        this._token = '';
 	}
 
     async init(): Promise<void> {
-        const res = await fetch(`${this.endpoint}/login`, {
-			method: 'GET',
+        if (this._token !== '') {
+            this._k_endpoint.setAuth(this._token);
+            return;
+        }
+		const res = await fetch(`${this.endpoint}/login`, {
+            method: 'GET',
             mode: 'cors',
-			headers: {Authorization:`Basic ${process.env.MMS5BASIC}`},
-		});
+            headers: {Authorization:`Basic ${process.env.MMS5BASIC}`},
+        });
         const token: string = (await res.json()).token;
         this._token = token;
         this._k_endpoint.setAuth(token);
