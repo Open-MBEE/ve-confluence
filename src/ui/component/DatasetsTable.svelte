@@ -343,53 +343,18 @@
 		return hm_tables;
 	}
 
-	async function fetch_version_info(k_connection: Connection): Promise<[ModelVersionDescriptor[], ModelVersionDescriptor, string]> {
+	async function fetch_version_info(k_connection: Connection): Promise<[ModelVersionDescriptor, string]> {
 		if(!connectionHasVersioning(k_connection)) {
 			throw new Error(`Connection does not support versioning`);
 		}
-
-		const [a_versions_raw, g_version_current_raw] = await Promise.all([
-			k_connection.fetchVersions(),
-			k_connection.fetchCurrentVersion(),
-		]);
-
-		const a_versions = a_versions_raw.map(g => Object.assign({}, g));
+		const g_version_current_raw = await k_connection.fetchCurrentVersion();
 		g_version_current = Object.assign({}, g_version_current_raw);
-
-		a_versions.sort((g_a, g_b) => Date.parse(g_b.dateTime) - Date.parse(g_a.dateTime));
-
-		if(a_versions.length) {
-			const g_version_latest = a_versions[0];
-			g_version_latest.data = {
-				...g_version_latest.data,
-				original_label: g_version_latest.label,
-				latest: true,
-			};
-
-			g_version_latest.label += `
-				<span class="ve-tag-pill" style="position:relative; top:-2px; margin-left:2px;">
-					Latest
-				</span>
-			`;
-		}
-
-		const si_version_current = g_version_current.id;
-		for(const g_version of a_versions) {
-			if(g_version.id === si_version_current) {
-				g_version.data = {
-					...g_version.data,
-					current: true,
-				};
-				break;
-			}
-		}
-
+	
 		set_connection_properties(k_connection, {
 			status_mode: G_STATUS.CONNECTED,
 		});
 
 		return [
-			a_versions,
 			g_version_current,
 			k_connection.hash(),
 		];
@@ -569,32 +534,10 @@
 					<td>{k_connection.label}</td>
 					<td class="cell-version">
 						{#await fetch_version_info(k_connection)}
-							<Select
-								isDisabled={true}
-								isClearable={false}
-								placeholder="Loading..."
-							></Select>
-						{:then [a_versions, g_current_version, s_hash]}
+							&nbsp; Loading...
+						{:then [g_current_version, s_hash]}
+						    &nbsp; {g_current_version.dateTime} &nbsp; <button>Update to Latest</button> &nbsp;
 						<!-- bind:this={h_selects['@'+s_hash]} -->
-							<Select
-								isDisabled={b_read_only}
-								bind:this={yc_select}
-								optionIdentifier={'id'}
-								value={g_current_version}
-								items={a_versions}
-								isClearable={false}
-								placeholder="Missing Version Information"
-								showIndicator={true}
-								indicatorSvg={/* syntax: html */ `
-									<svg width="7" height="5" viewBox="0 0 7 5" fill="none" xmlns="http://www.w3.org/2000/svg">
-										<path d="M3.5 4.5L0.468911 0.75L6.53109 0.75L3.5 4.5Z" fill="#333333"/>
-									</svg>
-								`}
-								Item={SelectItem}
-								containerStyles={'padding: 0px 40px 0px 6px;'}
-								listOffset={7}
-								on:select={select_version_for(k_connection)}
-							></Select>
 						{/await}
 
 						<Modal>

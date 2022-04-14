@@ -509,7 +509,9 @@ export class MmsSparqlQueryTable<
 	async fetchConnection(): Promise<Mms5Connection> {
 		const sp_connection = this._gc_serialized.connectionPath;
 		const gc_serialized = await this._k_store.resolve(sp_connection);
-		return new Mms5Connection(sp_connection, gc_serialized as Mms5Connection.Serialized, this._g_context);
+		const res = new Mms5Connection(sp_connection, gc_serialized as Mms5Connection.Serialized, this._g_context);
+		await res.ready();
+		return res;
 	}
 }
 // eslint-disable-next-line @typescript-eslint/no-unused-vars

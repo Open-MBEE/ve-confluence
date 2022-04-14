@@ -323,11 +323,40 @@ export class Mms5Connection extends SparqlConnection<Mms5Connection.Serialized> 
 	}
 
     async fetchCurrentVersion(): Promise<ModelVersionDescriptor> {
-        await fetch('');
+
+		const d_res = await fetch(`${this.endpoint}/orgs/${this._gc_serialized.org}/repos/${this._gc_serialized.repo}/query`, {
+			method: 'POST',
+			mode: 'cors',
+			headers: {
+				'Content-Type': 'application/sparql-query',
+				'Accept': 'application/sparql-results+json',
+				'Authorization': `Bearer ${this._token}`,
+			},
+			body: `select  ?time  where {
+				?branch mms:id "${this._gc_serialized.ref}" .
+				?branch mms:commit ?commit .
+				?commit mms:submitted  ?time
+			} 
+			`,
+		});
+		
+		// response not ok
+		if(!d_res.ok) {
+			throw new Error(
+				`MMS Metadata query response not OK: '''\n${await d_res.text()}\n'''`
+			);
+		}
+
+		// parse results as JSON
+		const g_res = (await d_res.json()) as {
+			results: {
+				bindings: SparqlBindings;
+			};
+		};
 		return {
             id: this._gc_serialized.ref,
-            label: 's_label',
-            dateTime: 's_datetime',
+            label: `${this._gc_serialized.label}`,
+            dateTime: `${g_res.results.bindings[0].time.value}`,
             modify: {
                 ref: this._gc_serialized.ref,
             },
@@ -353,7 +382,7 @@ export class Mms5Connection extends SparqlConnection<Mms5Connection.Serialized> 
 			headers: {Authorization:`Bearer ${this._token}`},
             body: `
                 <>
-                    mms:ref <./master> ;
+                    mms:ref <./main> ;
                     dct:title "latest"@en ;
                     .
             `,
