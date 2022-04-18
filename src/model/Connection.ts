@@ -322,8 +322,7 @@ export class Mms5Connection extends SparqlConnection<Mms5Connection.Serialized> 
 		return await this._k_endpoint.select(sq_query, fk_controller);
 	}
 
-    async fetchCurrentVersion(): Promise<ModelVersionDescriptor> {
-
+	async fetchVersionForRef(ref: string): Promise<ModelVersionDescriptor> {
 		const d_res = await fetch(`${this.endpoint}/orgs/${this._gc_serialized.org}/repos/${this._gc_serialized.repo}/query`, {
 			method: 'POST',
 			mode: 'cors',
@@ -333,7 +332,7 @@ export class Mms5Connection extends SparqlConnection<Mms5Connection.Serialized> 
 				'Authorization': `Bearer ${this._token}`,
 			},
 			body: `select  ?time  where {
-				?branch mms:id "${this._gc_serialized.ref}" .
+				?branch mms:id "${ref}" .
 				?branch mms:commit ?commit .
 				?commit mms:submitted  ?time
 			} 
@@ -354,15 +353,21 @@ export class Mms5Connection extends SparqlConnection<Mms5Connection.Serialized> 
 			};
 		};
 		return {
-            id: this._gc_serialized.ref,
+            id: ref,
             label: `${this._gc_serialized.label}`,
             dateTime: `${g_res.results.bindings[0].time.value}`,
             modify: {
-                ref: this._gc_serialized.ref,
+                ref: ref,
             },
         };
 	}
+    async fetchCurrentVersion(): Promise<ModelVersionDescriptor> {
+		return this.fetchVersionForRef(this._gc_serialized.ref);
+	}
 
+	async fetchLatestVersion(): Promise<ModelVersionDescriptor> {
+		return this.fetchVersionForRef('main');
+	}
 	async fetchVersions(): Promise<ModelVersionDescriptor[]> {
         await fetch('');
 		return [{

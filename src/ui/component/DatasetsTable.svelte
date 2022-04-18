@@ -7,7 +7,6 @@
 
 </script>
 <script lang="ts">
-	import Select from 'svelte-select';
 
 	import {
 		Connection,
@@ -27,7 +26,6 @@
 		VeOdm,
 	} from '#/model/Serializable';
 
-	import SelectItem from './SelectItem.svelte';
 
 	import {
 		faCheckCircle,
@@ -55,8 +53,6 @@
 
 	import UpdateDatasetConfirmation from './UpdateDatasetConfirmation.svelte';
 
-	import type {SvelteComponent} from 'svelte/internal';
-
 
 	type CustomDataProperties = {
 		status_mode: G_STATUS;
@@ -81,8 +77,6 @@
 		ERROR,
 	}
 
-	let h_selects: Record<string, SvelteComponent> = {};
-	let yc_select: SvelteComponent;
 	let hmw_connections = new WeakMap<Connection, CustomDataProperties>();
 
 	let dm_warning: HTMLDivElement;
@@ -147,13 +141,9 @@
 	};
 
 	function select_version_for(k_connection: Connection) {
-		return function select_version(this: Select, d_event: CustomEvent<ModelVersionDescriptor>) {
-			// ref selected model version info
-			const g_version_new = d_event.detail;
+		return function select_version(d_event) {
 
-			// return to current
-			if(g_version_new.id === g_version_current.id) return;
-
+		(k_connection as Mms5Connection).fetchLatestVersion().then((g_version_new) => {
 			// open confirmation modal
 			g_modal_context.open(UpdateDatasetConfirmation, {
 				g_modal_context,
@@ -184,10 +174,6 @@
 
 				// upon cancellation
 				cancel() {
-					// h_selects[k_connection.hash()].$set({
-					yc_select.$set({
-						value: g_version_current,
-					});
 				},
 			}, {
 				styleWindowWrap: {
@@ -209,15 +195,11 @@
 					display: 'none',
 				},
 			});
-		};
+		});
+		}
 	}
 
 	async function change_version(k_connection: Connection, g_version_new: ModelVersionDescriptor) {
-		// disable select
-		yc_select.$set({
-			isDisabled: true,
-		});
-
 		// show warning
 		dm_warning.style.visibility = 'visible';
 		dm_warning.innerText = 'Do not close this webpage until updates are complete.';
@@ -237,8 +219,11 @@
 		let c_pages_touched = 0;
 		let c_pages_changed = 0;
 
+		// make new branch
+		const newrefname = g_version_new.dateTime.replace(/:/g, '_');
+		await (k_connection as Mms5Connection).makeLatest(newrefname);
 		// create new connection from existing
-		const k_connection_new = await k_connection.clone(g_version_new.modify);
+		const k_connection_new = await k_connection.clone({ref:newrefname});
 
 		// save to document
 		await k_connection_new.save();
@@ -308,7 +293,7 @@
 				continue;
 			}
 
-			// prepare commit message
+			// prepare commit message //update
 			const s_verb = Date.parse(g_version_current.dateTime) < Date.parse(g_version_new.dateTime)? 'Updated': 'Changed';
 			const s_message = `
 				${s_verb} dataset version of  ${k_connection.label} from ${g_version_current.label} to ${g_version_new.label}
@@ -536,7 +521,7 @@
 						{#await fetch_version_info(k_connection)}
 							&nbsp; Loading...
 						{:then [g_current_version, s_hash]}
-						    &nbsp; {g_current_version.dateTime} &nbsp; <button>Update to Latest</button> &nbsp;
+						    &nbsp; {g_current_version.dateTime} &nbsp; <button on:click="{select_version_for(k_connection)}">Update to Latest</button> &nbsp;
 						<!-- bind:this={h_selects['@'+s_hash]} -->
 						{/await}
 

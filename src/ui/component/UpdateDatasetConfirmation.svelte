@@ -93,7 +93,7 @@
 
 	<div>
 		<p>
-			Are you sure you want to update <b>{k_connection.label}</b> to the <b>{g_version.data?.original_label || g_version.label}</b> extraction?
+			Are you sure you want to update <b>{k_connection.label}</b> to the <b>{g_version.dateTime}</b> extraction?
 			{1 === nl_tables? '1 table will be affected': `${nl_tables} tables will be affected ${1 === nl_pages? 'on 1 page': `across ${nl_pages} pages`}`}.
 		</p>
 
