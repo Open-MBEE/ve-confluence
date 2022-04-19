@@ -27,6 +27,8 @@ import type {SearcherMask} from '#/common/helper/sparql-code';
 import {
 	process,
 } from '#/common/static';
+
+import * as jose from 'jose';
 export interface ModelVersionDescriptor {
 	id: string;
 	label: string;
@@ -304,8 +306,13 @@ export class Mms5Connection extends SparqlConnection<Mms5Connection.Serialized> 
         }
 		if (window.sessionStorage.getItem('ve4-mms5token')) {
 			this._token = window.sessionStorage.getItem('ve4-mms5token');
-			this._k_endpoint.setAuth(this._token);
-            return;
+			const claims = jose.decodeJwt(this._token);
+			//check if token expired
+			if (claims.exp && claims.exp > Date.now()/1000) {
+				this._k_endpoint.setAuth(this._token);
+            	return;
+			}
+			console.log('mms5 token expired');
 		}
 		const res = await fetch(`${this.endpoint}/login`, {
             method: 'GET',
