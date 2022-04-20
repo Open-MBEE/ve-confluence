@@ -304,7 +304,9 @@ export abstract class QueryTable<
 
 		// no such param
 		if(!this.queryType.queryParametersPaths.map(sp => this._k_store.idPartSync(sp).join('.')).includes(si_param)) {
-			throw new Error(`No such parameter has the id '${si_param}'`);
+			// create param values list ad-hoc
+			this._h_param_values_lists[si_param] = new ParamValuesList([]);
+			// throw new Error(`No such parameter has the id '${si_param}'`);
 		}
 
 		// param not found in values

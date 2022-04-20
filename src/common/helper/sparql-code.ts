@@ -26,8 +26,16 @@ function attr(h_props: Hash, si_attr: string, s_attr_key: string) {
 	const sx_prop = h_props[si_attr] = `?_${si_attr}`;
 
 	return /* syntax: sparql */ `
-		${sx_prop} a rdf:Property ;
-			rdfs:label ${terse_lit(s_attr_key)} .
+		{
+			${sx_prop} a rdf:Property ;
+				rdfs:label ${terse_lit(s_attr_key)} .
+		} union {
+			${sx_prop}_decl a oslc:Property ;
+				dct:title ?title ;
+				oslc:propertyDefinition ${sx_prop} .
+
+				filter(str(?title) = ${terse_lit(s_attr_key)})
+		}
 
 		?artifact ${sx_prop} [rdfs:label ?${si_attr}Value] .
 	`;
@@ -91,8 +99,18 @@ export async function build_dng_select_param_query(this: MmsSparqlQueryTable, k_
 	}
 	// use property formatting for parameter
 	else {
-		a_bgp.push(`?_attr a rdf:Property ;
-				rdfs:label ${SparqlQueryHelper.literal(k_param.value)} .
+		a_bgp.push(`
+			{
+				?_attr a rdf:Property ;
+					rdfs:label ${SparqlQueryHelper.literal(k_param.value)} .
+			} union {
+				?_attr_decl a oslc:Property ;
+					dct:title ?title ;
+					oslc:propertyDefinition ?_attr .
+
+					filter(str(?title) = ${SparqlQueryHelper.literal(k_param.value)})
+			}
+
 			?artifact a oslc_rm:Requirement ;
 				?_attr [rdfs:label ?value] .
 		`);

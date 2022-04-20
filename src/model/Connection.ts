@@ -256,6 +256,7 @@ export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Se
 					mms:submitted ?commitDateTime ;
 					.
 			}
+			order by desc(?commitDateTime) limit 100
 		`) as unknown as CommitResult[];
 
 		// failed to match pattern

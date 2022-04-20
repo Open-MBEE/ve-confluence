@@ -55,10 +55,18 @@
 			const k_connection = (await k_query_table.fetchConnection()) as Mms5Connection;
 
 			const a_rows = await k_connection.execute(/* syntax: sparql */ `
-				select ?value (count(?req) as ?count) {
-					?_attr a rdf:Property ;
-						rdfs:label ${Sparql.literal(k_param_load.value)} .
 
+				select ?value (count(?req) as ?count) {
+					{
+						?_attr a rdf:Property ;
+							rdfs:label ${Sparql.literal(k_param_load.value)} .
+					} union {
+						?_attr_decl a oslc:Property ;
+							dct:title ?title ;
+							oslc:propertyDefinition ?_attr .
+
+						filter(str(?title) = ${Sparql.literal(k_param_load.value)})
+					}
 					?req a oslc_rm:Requirement ;
 						?_attr [rdfs:label ?value] .
 				}
