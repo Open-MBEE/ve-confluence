@@ -328,12 +328,13 @@
 		return hm_tables;
 	}
 
-	async function fetch_version_info(k_connection: Connection): Promise<[ModelVersionDescriptor, string]> {
+	async function fetch_version_info(k_connection: Connection): Promise<[ModelVersionDescriptor, ModelVersionDescriptor, string]> {
 		if(!connectionHasVersioning(k_connection)) {
 			throw new Error(`Connection does not support versioning`);
 		}
 		const g_version_current_raw = await k_connection.fetchCurrentVersion();
 		g_version_current = Object.assign({}, g_version_current_raw);
+		const g_version_latest = await k_connection.fetchLatestVersion();
 	
 		set_connection_properties(k_connection, {
 			status_mode: G_STATUS.CONNECTED,
@@ -341,6 +342,7 @@
 
 		return [
 			g_version_current,
+			g_version_latest,
 			k_connection.hash(),
 		];
 	}
@@ -520,8 +522,8 @@
 					<td class="cell-version">
 						{#await fetch_version_info(k_connection)}
 							&nbsp; Loading...
-						{:then [g_current_version, s_hash]}
-						    &nbsp; {g_current_version.dateTime} &nbsp; <button on:click="{select_version_for(k_connection)}">Update to Latest</button> &nbsp;
+						{:then [g_current_version, g_latest_version, s_hash]}
+						    &nbsp; {g_current_version.dateTime} &nbsp; <button disabled={g_current_version.dateTime === g_latest_version.dateTime} on:click="{select_version_for(k_connection)}">Update to Latest</button> &nbsp;
 						<!-- bind:this={h_selects['@'+s_hash]} -->
 						{/await}
 
