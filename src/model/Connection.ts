@@ -280,16 +280,15 @@ const MmsSparqlConnection_Assertion: VeOrmClass<MmsSparqlConnection.Serialized> 
 
 export namespace Mms5Connection {
 	export interface Serialized extends SparqlConnection.Serialized<'Mms5Connection'> {
-		org: string;
-        repo: string;
-        ref: string;
+		repoPath: string;
+		ref: string;
 	}
 }
 export class Mms5Connection extends SparqlConnection<Mms5Connection.Serialized> implements VersionedConnection {
     protected _token = '';
 	initSync(): void {
 		this._k_endpoint = new SparqlEndpoint({
-			endpoint: `${this.endpoint}/orgs/${this._gc_serialized.org}/repos/${this._gc_serialized.repo}/branches/${this._gc_serialized.ref}/query`,
+			endpoint: `${this.endpoint}${this._gc_serialized.repoPath}${this._gc_serialized.ref}/query`,
 			prefixes: this.prefixes,
 		});
 
@@ -331,7 +330,8 @@ export class Mms5Connection extends SparqlConnection<Mms5Connection.Serialized> 
 	}
 
 	async fetchVersionForRef(ref: string): Promise<ModelVersionDescriptor> {
-		const d_res = await fetch(`${this.endpoint}/orgs/${this._gc_serialized.org}/repos/${this._gc_serialized.repo}/query`, {
+		const refId = ref.split('/')[2];
+		const d_res = await fetch(`${this.endpoint}${this._gc_serialized.repoPath}/query`, {
 			method: 'POST',
 			mode: 'cors',
 			headers: {
@@ -340,8 +340,8 @@ export class Mms5Connection extends SparqlConnection<Mms5Connection.Serialized> 
 				'Authorization': `Bearer ${this._token}`,
 			},
 			body: `select  ?time  where {
-				?branch mms:id "${ref}" .
-				?branch mms:commit ?commit .
+				?ref mms:id "${refId}" .
+				?ref mms:commit ?commit .
 				?commit mms:submitted  ?time
 			} 
 			`,
@@ -374,7 +374,7 @@ export class Mms5Connection extends SparqlConnection<Mms5Connection.Serialized> 
 	}
 
 	async fetchLatestVersion(): Promise<ModelVersionDescriptor> {
-		return this.fetchVersionForRef('main');
+		return this.fetchVersionForRef('/branches/master');
 	}
 	async fetchVersions(): Promise<ModelVersionDescriptor[]> {
         await fetch('');
@@ -389,13 +389,13 @@ export class Mms5Connection extends SparqlConnection<Mms5Connection.Serialized> 
 	}
 
     async makeLatest(ref: string): Promise<ModelVersionDescriptor> {
-        await fetch(`${this.endpoint}/orgs/${this._gc_serialized.org}/repos/${this._gc_serialized.repo}/branches/${ref}`, {
+        await fetch(`${this.endpoint}${this._gc_serialized.repoPath}${ref}`, {
 			method: 'PUT',
 			mode: 'cors',
 			headers: {Authorization:`Bearer ${this._token}`},
             body: `
                 <>
-                    mms:ref <./main> ;
+                    mms:ref <../branches/master> ;
                     dct:title "latest"@en ;
                     .
             `,
