@@ -75,18 +75,27 @@
 			}
 			else {
 				queryString = /* syntax: sparql */ `
-					 select ?value (count(?req) as ?count) from <${k_connection.modelGraph}> {
-						 ?_attr a rdf:Property ;
-							  rdfs:label ${Sparql.literal(k_param_load.value)} .
+				select ?value (count(?req) as ?count) from <${k_connection.modelGraph}> {
+					{
+						?_attr a rdf:Property ;
+							rdfs:label ${Sparql.literal(k_param_load.value)} .
+					} union {
+						?_attr_decl a oslc:Property ;
+							dct:title ?title ;
+							oslc:propertyDefinition ?_attr .
 
-						 ?req a oslc_rm:Requirement ;
-							  ?_attr [rdfs:label ?value] .
-					 }
-					 group by ?value order by desc(?count)
-			`;
+						filter(str(?title) = ${Sparql.literal(k_param_load.value)})
+					}
+
+					?req a oslc_rm:Requirement ;
+						?_attr [rdfs:label ?value] .
+				}
+				group by ?value order by desc(?count)
+				`;
 			}
 
 			const a_rows = await k_connection.execute(queryString);
+
 
 			a_options = a_rows.map(({value:g_value, count:g_count}) => ({
 				count: +g_count.value,
