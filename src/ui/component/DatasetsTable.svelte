@@ -220,7 +220,7 @@
 		let c_pages_changed = 0;
 
 		// make new branch
-		const newrefname = g_version_new.dateTime.replace(/:/g, '_');
+		const newrefname = '/locks/' + g_version_new.dateTime.replace(/:/g, '_');
 		await (k_connection as Mms5Connection).makeLatest(newrefname);
 		// create new connection from existing
 		const k_connection_new = await k_connection.clone({ref:newrefname});
