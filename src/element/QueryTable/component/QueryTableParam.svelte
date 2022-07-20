@@ -76,16 +76,10 @@
 			else {
 				queryString = /* syntax: sparql */ `
 				select ?value (count(?req) as ?count) from <${k_connection.modelGraph}> {
-					{
-						?_attr a rdf:Property ;
-							rdfs:label ${Sparql.literal(k_param_load.value)} .
-					} union {
+					
 						?_attr_decl a oslc:Property ;
-							dct:title ?title ;
-							oslc:propertyDefinition ?_attr .
-
-						filter(str(?title) = ${Sparql.literal(k_param_load.value)})
-					}
+							dct:title ${Sparql.literal(k_param_load.value)}^^rdf:XMLLiteral ;
+							oslc:propertyDefinition ?_attr .					
 
 					?req a oslc_rm:Requirement ;
 						?_attr [rdfs:label ?value] .
