@@ -211,6 +211,15 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.table.basicParamsL3ChildrenAndL4s',
 					paramQueryBuilderPath: 'hardcoded#paramQueryBuilder.sparql.dng.default',
 				},
+				bid: {
+					label: 'By Requirement ID',
+					queryParametersPaths: [
+						'hardcoded#queryParameter.sparql.dng.id',
+					],
+					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.simple',
+					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.table.basicParams',
+					paramQueryBuilderPath: 'hardcoded#paramQueryBuilder.sparql.dng.default',
+				},
 				msrasr: {
 					label: 'MSR Appendix Subsystem Requirements',
 					queryParametersPaths: [
@@ -220,16 +229,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basic',
 					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.table.basicParamsL3ChildrenAndL4s',
 					paramQueryBuilderPath: 'hardcoded#paramQueryBuilder.sparql.dng.default',
-				},
-				// bid: {
-				// 	label: 'By Requirement ID',
-				// 	queryParametersPaths: [
-				// 		'hardcoded#queryParameter.sparql.dng.id',
-				// 	],
-				// 	queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.simple',
-				// 	queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.table.basicParams',
-				// 	paramQueryBuilderPath: 'hardcoded#paramQueryBuilder.sparql.dng.default',
-				// },
+				}
 			},
 		},
 	}),
