@@ -22,22 +22,16 @@ import type {
 
 const terse_lit = (s: string) => `"${s.replace(/[\r\n]+/g, '').replace(/"/g, '\\"')}"`;
 
-function attr(h_props: Hash, si_attr: string, s_attr_key: string) {
+function attr(h_props: Hash, si_attr: string, s_attr_key: string, has_many: boolean) {
 	const sx_prop = h_props[si_attr] = `?_${si_attr}`;
 
 	return /* syntax: sparql */ `
-		{
-			${sx_prop} a rdf:Property ;
-				rdfs:label ${terse_lit(s_attr_key)} .
-		} union {
+		
 			${sx_prop}_decl a oslc:Property ;
-				dct:title ?title ;
+				dct:title ${terse_lit(s_attr_key)}^^rdf:XMLLiteral ;
 				oslc:propertyDefinition ${sx_prop} .
 
-				filter(str(?title) = ${terse_lit(s_attr_key)})
-		}
-
-		?artifact ${sx_prop} [rdfs:label ?${si_attr}Value] .
+			?artifact ${sx_prop} [rdfs:label ?${si_attr}Value${has_many ? 's' : ''}] .
 	`;
 }
 
@@ -59,7 +53,18 @@ const H_NATIVE_DNG_PATTERNS: Record<string, string> = {
 		] .
 
 		?affectedSystem a oslc_rm:Requirement ;
-			dct:title ?affectedSystemValue ;
+			dct:title ?affectedSystemsValues ;
+			.
+	`,
+	allocatedSystems: /* syntax: sparql */ `
+		[
+			rdf:subject ?artifact ;
+			rdf:predicate <https://jpl.nasa.gov/msr/rm#linkType/Allocation> ;
+			rdf:object ?allocatedSystem ;
+		] .
+
+		?allocatedSystem a oslc_rm:Requirement ;
+			dct:title ?allocatedSystemsValues ;
 			.
 	`,
 	children: /* syntax: sparql */ `
@@ -100,16 +105,10 @@ export async function build_dng_select_param_query(this: MmsSparqlQueryTable, k_
 	// use property formatting for parameter
 	else {
 		a_bgp.push(`
-			{
-				?_attr a rdf:Property ;
-					rdfs:label ${SparqlQueryHelper.literal(k_param.value)} .
-			} union {
+			
 				?_attr_decl a oslc:Property ;
-					dct:title ?title ;
+					dct:title ${SparqlQueryHelper.literal(k_param.value)}^^rdf:XMLLiteral ;
 					oslc:propertyDefinition ?_attr .
-
-					filter(str(?title) = ${SparqlQueryHelper.literal(k_param.value)})
-			}
 
 			?artifact a oslc_rm:Requirement ;
 				?_attr [rdfs:label ?value] .
@@ -157,7 +156,7 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 
 	// each param
 	for(const {
-		key: si_param, label: s_label,
+		key: si_param, label: s_label, value: s_value,
 	} of await this.queryType.fetchParameters()) {
 		// fetch values list
 		const k_list = this.parameterValuesList(si_param);
@@ -167,7 +166,7 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 
 		// insert value filter
 		a_bgp.push(/* syntax: sparql */ `
-			${(si_param in H_NATIVE_DNG_PATTERNS)? '': attr(h_props, si_param, s_label)}
+			${(si_param in H_NATIVE_DNG_PATTERNS)? '': attr(h_props, si_param, s_value)}
 
 			values ?${si_param}Value {
 				${[...this.parameterValuesList(si_param)].map(k => terse_lit(k.value)).join(' ')}
@@ -205,7 +204,7 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 			// insert binding pattern fragment
 			a_bgp.push(/* syntax: sparql */ `
 				optional {
-					${attr(h_props, si_param, s_value)}
+					${attr(h_props, si_param, s_value, b_many)}
 				}
 			`);
 		}
