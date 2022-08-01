@@ -26,7 +26,6 @@ function attr(h_props: Hash, si_attr: string, s_attr_key: string, has_many: bool
 	const sx_prop = h_props[si_attr] = `?_${si_attr}`;
 
 	return /* syntax: sparql */ `
-		
 			${sx_prop}_decl a oslc:Property ;
 				dct:title ${terse_lit(s_attr_key)}^^rdf:XMLLiteral ;
 				oslc:propertyDefinition ${sx_prop} .
@@ -105,7 +104,6 @@ export async function build_dng_select_param_query(this: MmsSparqlQueryTable, k_
 	// use property formatting for parameter
 	else {
 		a_bgp.push(`
-			
 				?_attr_decl a oslc:Property ;
 					dct:title ${SparqlQueryHelper.literal(k_param.value)}^^rdf:XMLLiteral ;
 					oslc:propertyDefinition ?_attr .
@@ -125,6 +123,7 @@ export async function build_dng_select_param_query(this: MmsSparqlQueryTable, k_
 	return new SparqlSelectQuery({
 		select: [...a_selects],
 		bgp: /* syntax: sparql */ `
+			hint:Query hint:joinOrder "Ordered" .
 			?artifact a oslc_rm:Requirement ;
 				oslc:instanceShape [
 					dct:title "Requirement"^^rdf:XMLLiteral ;
@@ -226,6 +225,7 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 		count: '?artifact',
 		select: [...a_selects, ...a_aggregates],
 		bgp: /* syntax: sparql */ `
+			hint:Query hint:joinOrder "Ordered" .
 			?artifact a oslc_rm:Requirement ;
 				oslc:instanceShape [
 					dct:title "Requirement"^^rdf:XMLLiteral ;
@@ -267,6 +267,7 @@ export function dng_detailer_query(this: Mms5Connection, p_artifact: string): Sp
 			'?requirementTextValue',
 		],
 		bgp: /* syntax: sparql */ `
+			hint:Query hint:joinOrder "Ordered" .
 			?artifact a oslc_rm:Requirement ;
 				oslc:instanceShape [
 					dct:title "Requirement"^^rdf:XMLLiteral ;
@@ -363,6 +364,7 @@ export function dng_searcher_query(this: Mms5Connection, s_input: string, xm_typ
 			`(strLen(strBefore(lcase(?requirementNameValue), "${s_sanitized}")) as ?score)`,
 		],
 		bgp: /* syntax: sparql */ `
+			hint:Query hint:joinOrder "Ordered" .
 			?artifact a oslc_rm:Requirement ;
 				oslc:instanceShape [
 					dct:title "Requirement"^^rdf:XMLLiteral ;
