@@ -54,7 +54,7 @@ const H_REPLACE_IN = {
 			EDITOR_SUPPLEMENT_SRC: process.env.EDITOR_SUPPLEMENT_SRC,
 			VERSION: G_PACKAGE.version,
 			PRODUCTION: !B_DEV,
-			MMS5BASIC: process.env.MMS5BASIC
+			MMS5BASIC: process.env.MMS5_BASIC_AUTH
 		},
 	},
 	lang: yaml.load(fs.readFileSync(`./resource/${process.env.LANG_FILE || 'lang.yaml'}`))[process.env.LANG],
