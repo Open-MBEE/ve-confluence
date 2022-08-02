@@ -57,7 +57,10 @@
 			if('id' === k_param_load.key) {
 				queryString = /* syntax: sparql */`
 				select ?value ("1" as ?count) {
-					hint:Query hint:joinOrder "Ordered" .
+					optional {
+						hint:Query hint:joinOrder "Ordered" .
+						hint:Query hint:useDFE true .
+					}
 					?_attr a oslc_rm:Requirement ;
 						oslc:instanceShape
 							[
@@ -75,7 +78,10 @@
 			else {
 				queryString = /* syntax: sparql */ `
 				select ?value (count(?req) as ?count) {
-					hint:Query hint:joinOrder "Ordered" .
+					optional {
+						hint:Query hint:joinOrder "Ordered" .
+						hint:Query hint:useDFE true .
+					}
 						?_attr_decl a oslc:Property ;
 							dct:title ${Sparql.literal(k_param_load.value)}^^rdf:XMLLiteral ;
 							oslc:propertyDefinition ?_attr .					
