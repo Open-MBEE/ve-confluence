@@ -4,29 +4,29 @@
 	import {lang} from '#/common/static';
 
 	import Select from 'svelte-select';
-	
+
 	import type {
 		QueryParam,
 		QueryTable,
 	} from '#/element/QueryTable/model/QueryTable';
-	
+
 	import type {MmsSparqlConnection} from '#/model/Connection';
-	
+
 	import {Sparql} from '#/util/sparql-endpoint';
 
 	import type {ValuedLabeledObject} from '#/common/types';
-	
+
 	interface Option {
 		count: number;
 		state: number;
 		data: ValuedLabeledObject;
 	}
-	
+
 	const f_dispatch = createEventDispatcher();
 
 	export let k_param: QueryParam;
 	export let k_query_table: QueryTable;
-	
+
 	let k_values = k_query_table.parameterValuesList(k_param.key);
 	$: k_values = k_query_table.parameterValuesList(k_param.key);
 
@@ -53,17 +53,43 @@
 	async function load_param(k_param_load: QueryParam) {
 		if(k_query_table.type.startsWith('MmsSparql')) {
 			const k_connection = (await k_query_table.fetchConnection()) as MmsSparqlConnection;
+			let queryString: string;
+			if('id' === k_param_load.key) {
+				queryString = /* syntax: sparql */`
+				select ?value ("1" as ?count) from <${k_connection.modelGraph}> {
+					?_attr a oslc_rm:Requirement ;
+						oslc:instanceShape
+							[
+								dct:title "Requirement"^^rdf:XMLLiteral ;
+							] ;
+					.
 
-			const a_rows = await k_connection.execute(/* syntax: sparql */ `
+					filter not exists {
+						?collection a oslc_rm:RequirementCollection ;
+							oslc_rm:uses ?_attr ;
+						.
+					}
+					?_attr dct:identifier ?value .
+				} order by asc(?value)
+			`;
+			}
+			else {
+				queryString = /* syntax: sparql */ `
 				select ?value (count(?req) as ?count) from <${k_connection.modelGraph}> {
-					?_attr a rdf:Property ;
-						rdfs:label ${Sparql.literal(k_param_load.value)} .
+					
+						?_attr_decl a oslc:Property ;
+							dct:title ${Sparql.literal(k_param_load.value)}^^rdf:XMLLiteral ;
+							oslc:propertyDefinition ?_attr .					
 
 					?req a oslc_rm:Requirement ;
 						?_attr [rdfs:label ?value] .
 				}
 				group by ?value order by desc(?count)
-			`);
+				`;
+			}
+
+			const a_rows = await k_connection.execute(queryString);
+
 
 			a_options = a_rows.map(({value:g_value, count:g_count}) => ({
 				count: +g_count.value,
@@ -232,6 +258,8 @@
 			isMulti={true}
 			isClearable={false}
 			showIndicator={true}
+			isVirtualList={true}
+			itemHeight={10}
 			indicatorSvg={/* syntax: html */ `
 				<svg width="7" height="5" viewBox="0 0 7 5" fill="none" xmlns="http://www.w3.org/2000/svg">
 					<path d="M3.5 4.5L0.468911 0.75L6.53109 0.75L3.5 4.5Z" fill="#333333"/>

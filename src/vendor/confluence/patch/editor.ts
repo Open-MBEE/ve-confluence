@@ -68,9 +68,9 @@ export const decode_macro_parameters = (sx_params: string) => sx_params.split(/\
 function adjust_virgin_macro(dm_node: HTMLElement) {
 	// get macro id attribute
 	const si_macro = dm_node.getAttribute('data-macro-id');
-
+	const si_parameters = dm_node.getAttribute('data-macro-parameters');
 	// macro element
-	if('TABLE' === dm_node.tagName && 'html' === dm_node.getAttribute('data-macro-name') && si_macro?.startsWith('ve-')) {
+	if('TABLE' === dm_node.tagName && 'html' === dm_node.getAttribute('data-macro-name') && si_parameters?.includes('ve-mention')) {
 		// remove background-image
 		dm_node.style.backgroundImage = 'none';
 

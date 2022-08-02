@@ -35,6 +35,11 @@ For example, on \*nix, create a `.env` file:
 #!/bin/bash
 export SPARQL_ENDPOINT='https://graph.xyz.org/sparql'
 export DOORS_NG_PREFIX='https://jazz.xyz.org/rm/web#'
+export LANG='en_US'
+export LANG_FILE='lang.yaml'
+export CYPRESS_CRASH_REPORTS=0
+export EDITOR_SUPPLEMENT_SRC='http://localhost:3001/public/build/editor.dev.js'
+export NODE_ENV='development'
 ```
 
 To build the output javascript bundle:
@@ -74,12 +79,11 @@ The project is configured in such a way that importing files can be done relativ
 
 (function() {
     const dm_script=document.createElement('script');
-    dm_script.src='http://localhost:3001/public/build/bundle.js';
+    dm_script.src='http://localhost:3001/public/build/viewer.dev.js';
     document.body.appendChild(dm_script)
 })();
 
 ```
 3. Edit the appropriate substitutions in the script for the include and exclude URLs
-4. Open a terminal in the project root directory and run `$ python -m SimpleHTTPServer 3001`
+4. Open a terminal in the project root directory and run `$ python -m SimpleHTTPServer 3001` or Python 3 `$ python -m http.server 3001`
 5. Open the wiki to a sample page and click the Tampermonkey extension to reload the page and enable the script
-
