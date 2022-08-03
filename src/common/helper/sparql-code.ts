@@ -123,10 +123,9 @@ export async function build_dng_select_param_query(this: MmsSparqlQueryTable, k_
 	return new SparqlSelectQuery({
 		select: [...a_selects],
 		bgp: /* syntax: sparql */ `
-		    optional {
-				hint:Query hint:joinOrder "Ordered" .
-				hint:Query hint:useDFE true .
-			}
+			hint:Query hint:joinOrder "Ordered" .
+			#hint:Query hint:useDFE true .
+			
 			?artifact a oslc_rm:Requirement ;
 				oslc:instanceShape [
 					dct:title "Requirement"^^rdf:XMLLiteral ;
@@ -228,10 +227,9 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 		count: '?artifact',
 		select: [...a_selects, ...a_aggregates],
 		bgp: /* syntax: sparql */ `
-			optional {
-				hint:Query hint:joinOrder "Ordered" .
-				hint:Query hint:useDFE true .
-			}
+			hint:Query hint:joinOrder "Ordered" .
+			#hint:Query hint:useDFE true .
+			
 			?artifact a oslc_rm:Requirement ;
 				oslc:instanceShape [
 					dct:title "Requirement"^^rdf:XMLLiteral ;
@@ -273,10 +271,9 @@ export function dng_detailer_query(this: Mms5Connection, p_artifact: string): Sp
 			'?requirementTextValue',
 		],
 		bgp: /* syntax: sparql */ `
-			optional {
-				hint:Query hint:joinOrder "Ordered" .
-				hint:Query hint:useDFE true .
-			}
+			hint:Query hint:joinOrder "Ordered" .
+			#hint:Query hint:useDFE true .
+			
 			?artifact a oslc_rm:Requirement ;
 				oslc:instanceShape [
 					dct:title "Requirement"^^rdf:XMLLiteral ;
@@ -373,10 +370,9 @@ export function dng_searcher_query(this: Mms5Connection, s_input: string, xm_typ
 			`(strLen(strBefore(lcase(?requirementNameValue), "${s_sanitized}")) as ?score)`,
 		],
 		bgp: /* syntax: sparql */ `
-			optional {
-				hint:Query hint:joinOrder "Ordered" .
-				hint:Query hint:useDFE true .
-			}
+			hint:Query hint:joinOrder "Ordered" .
+			#hint:Query hint:useDFE true .
+			
 			?artifact a oslc_rm:Requirement ;
 				oslc:instanceShape [
 					dct:title "Requirement"^^rdf:XMLLiteral ;
