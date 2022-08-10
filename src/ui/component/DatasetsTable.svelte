@@ -296,7 +296,7 @@
 			// prepare commit message //update
 			const s_verb = Date.parse(g_version_current.dateTime) < Date.parse(g_version_new.dateTime)? 'Updated': 'Changed';
 			const s_message = `
-				${s_verb} dataset version of  ${k_connection.label} from ${g_version_current.label} to ${g_version_new.label}
+				${s_verb} dataset version of  ${k_connection.label} from ${g_version_current.dateTime} to ${g_version_new.dateTime}
 				which affected ${c_tables_changed} tables
 			`.replace(/\t/, '').trim();
 
@@ -328,7 +328,7 @@
 		return hm_tables;
 	}
 
-	async function fetch_version_info(k_connection: Connection): Promise<[ModelVersionDescriptor, ModelVersionDescriptor, string]> {
+	async function fetch_version_info(k_connection: Connection): Promise<[ModelVersionDescriptor, ModelVersionDescriptor, string, string, string]> {
 		if(!connectionHasVersioning(k_connection)) {
 			throw new Error(`Connection does not support versioning`);
 		}
@@ -340,10 +340,18 @@
 			status_mode: G_STATUS.CONNECTED,
 		});
 
+			// parse datetime string
+		let dt_version = new Date(g_version_latest.dateTime);
+		let dt_version_current = new Date(g_version_current_raw.dateTime);
+			// update display version
+		let s_latest_display = `${dt_version.toDateString()} @${dt_version.toLocaleTimeString()}`;
+		let s_current_display = `${dt_version_current.toDateString()} @${dt_version_current.toLocaleTimeString()}`;
 		return [
 			g_version_current,
 			g_version_latest,
 			k_connection.hash(),
+			s_current_display,
+			s_latest_display,
 		];
 	}
 
@@ -522,8 +530,8 @@
 					<td class="cell-version">
 						{#await fetch_version_info(k_connection)}
 							&nbsp; Loading...
-						{:then [g_current_version, g_latest_version, s_hash]}
-						    &nbsp; {g_current_version.dateTime} &nbsp; <button disabled={g_current_version.dateTime === g_latest_version.dateTime} on:click="{select_version_for(k_connection)}">Update to Latest</button> &nbsp;
+						{:then [g_current_version, g_latest_version, s_hash, s_current_version, s_latest_version]}
+						    &nbsp; {s_current_version} &nbsp; <button disabled={g_current_version.dateTime === g_latest_version.dateTime} on:click="{select_version_for(k_connection)}">Update to Latest</button> &nbsp;
 						<!-- bind:this={h_selects['@'+s_hash]} -->
 						{/await}
 

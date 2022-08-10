@@ -185,7 +185,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					value: 'Capturing Document',
 				},
 				requirementWorkflow: {
-					label: 'Workflow',
+					label: 'Maturity',
 					value: 'State (Requirement Workflow)',
 				},
 				id: {
@@ -199,7 +199,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 	queryType: auto_key<QueryType.Serialized>({
 		sparql: {
 			dng: {
-				afsr: {
+				/*afsr: {
 					label: 'Appendix Flight Systems Requirements',
 					queryParametersPaths: [
 						'hardcoded#queryParameter.sparql.dng.sysvac',
@@ -218,7 +218,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basic',
 					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.table.basicParamsL3ChildrenAndL4s',
 					paramQueryBuilderPath: 'hardcoded#paramQueryBuilder.sparql.dng.default',
-				},
+				},*/
 				bid: {
 					label: 'By Requirement ID',
 					queryParametersPaths: [
@@ -338,7 +338,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 				},
 				workflow: {
 					value: 'State (Requirement Workflow)',
-					label: "Workflow", // inherit from value
+					label: "Maturity", // inherit from value
 					source: 'attribute',
 					hasMany: false,
 					cell: (g: QueryRow) => plain`${escape_html(g.workflowValue?.value || '')}`,

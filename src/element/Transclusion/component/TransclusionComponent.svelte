@@ -143,7 +143,15 @@
 		const k_connection = k_model.connection;
 		if('Mms5Connection' === k_connection.type) {
 			const g_version = await (k_connection as unknown as Mms5Connection).fetchCurrentVersion();
-			s_display_version = g_version.label;
+			// parse datetime string
+			let dt_version = new Date(g_version.dateTime);
+
+			// invalid date; replace with now
+			if('Invalid Date' === dt_version.toString()) {
+				dt_version = new Date();
+			}
+			// update display version
+			s_display_version = `${dt_version.toDateString()}, ${dt_version.toLocaleTimeString()}`;
 		}
 	});
 </script>
