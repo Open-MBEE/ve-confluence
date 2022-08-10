@@ -176,7 +176,7 @@ const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 						key: si_key,
 						uuid: si_uuid,
 						group: 'dng',
-						queryTypePath: 'hardcoded#queryType.sparql.dng.afsr',
+						queryTypePath: 'hardcoded#queryType.sparql.dng.bid',
 						connectionPath: 'document#connection.sparql.mms.dng',
 						parameterValues: {},
 					},
