@@ -959,7 +959,7 @@ export class ConfluenceDocument extends ConfluenceEntity<DocumentMetadata> {
 						`id=${this._si_cover_page}`,
 						`ancestor=${this._si_cover_page}`,
 					].join(' or ')+')',
-					`text~"${sr_path}"`,
+					`macro=span`, //`text~"${sr_path}"` text isn't reliable in returning all expected pages, right now only used for table
 				].join(' and '),
 				expand: 'body.storage',
 				limit: '1000',
