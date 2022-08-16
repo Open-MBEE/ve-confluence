@@ -63,6 +63,7 @@ export class SparqlEndpoint {
 	_kl_fetch: AsyncLockPool;
 	_sq_prefixes: string;
 	_k_helper: SparqlQueryHelper;
+	_token = '';
 
 	constructor(gc_init: SparqlEndpointConfig) {
 		this._p_endpoint = gc_init.endpoint;
@@ -74,20 +75,8 @@ export class SparqlEndpoint {
 		this._k_helper = new SparqlQueryHelper(gc_init.variables || {});
 	}
 
-	async auth(): Promise<void> {
-		// authenticate to access the named graph
-		await fetch(`${this._p_endpoint}/auth`, {
-			method: 'POST',
-			mode: 'cors',
-			headers: {
-				'Content-Type': 'application/json',
-				'Accept': 'application/json',
-			},
-			body: JSON.stringify({
-				href: document.location.href,
-				cookie: document.cookie,
-			}),
-		});
+	setAuth(token: string) {
+		this._token = token;
 	}
 
 	// submit SPARQL SELECT query
@@ -116,10 +105,11 @@ export class SparqlEndpoint {
 				method: 'POST',
 				mode: 'cors',
 				headers: {
-					'Content-Type': 'application/x-www-form-urlencoded',
+					'Content-Type': 'application/sparql-query',
 					'Accept': 'application/sparql-results+json',
+					'Authorization': `Bearer ${this._token}`,
 				},
-				body: new URLSearchParams({query:`${this._sq_prefixes}\n${sq_select}`}),
+				body: `${this._sq_prefixes}\n${sq_select}`,
 				signal: w_abort_signal,
 			});
 		}

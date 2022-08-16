@@ -10,7 +10,7 @@
 		faHistory,
 	} from '@fortawesome/free-solid-svg-icons';
 
-	import type {MmsSparqlConnection} from '#/model/Connection';
+	import type {Mms5Connection} from '#/model/Connection';
 
 	import type {TypedString} from '#/util/strings';
 
@@ -141,9 +141,17 @@
 		dm_link.addEventListener('mouseover', set_position);
 
 		const k_connection = k_model.connection;
-		if('MmsSparqlConnection' === k_connection.type) {
-			const g_version = await (k_connection as unknown as MmsSparqlConnection).fetchCurrentVersion();
-			s_display_version = g_version.label;
+		if('Mms5Connection' === k_connection.type) {
+			const g_version = await (k_connection as unknown as Mms5Connection).fetchCurrentVersion();
+			// parse datetime string
+			let dt_version = new Date(g_version.dateTime);
+
+			// invalid date; replace with now
+			if('Invalid Date' === dt_version.toString()) {
+				dt_version = new Date();
+			}
+			// update display version
+			s_display_version = `${dt_version.toDateString()}, ${dt_version.toLocaleTimeString()}`;
 		}
 	});
 </script>

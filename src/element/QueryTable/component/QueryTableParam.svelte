@@ -9,9 +9,9 @@
 		QueryParam,
 		QueryTable,
 	} from '#/element/QueryTable/model/QueryTable';
-
-	import type {MmsSparqlConnection} from '#/model/Connection';
-
+	
+	import type {Mms5Connection} from '#/model/Connection';
+	
 	import {Sparql} from '#/util/sparql-endpoint';
 
 	import type {ValuedLabeledObject} from '#/common/types';
@@ -52,11 +52,14 @@
 
 	async function load_param(k_param_load: QueryParam) {
 		if(k_query_table.type.startsWith('MmsSparql')) {
-			const k_connection = (await k_query_table.fetchConnection()) as MmsSparqlConnection;
+			const k_connection = (await k_query_table.fetchConnection()) as Mms5Connection;
 			let queryString: string;
 			if('id' === k_param_load.key) {
 				queryString = /* syntax: sparql */`
-				select ?value ("1" as ?count) from <${k_connection.modelGraph}> {
+				select ?value ("1" as ?count) {
+					hint:Query hint:joinOrder "Ordered" .
+					#hint:Query hint:useDFE true .
+					
 					?_attr a oslc_rm:Requirement ;
 						oslc:instanceShape
 							[
@@ -64,10 +67,8 @@
 							] ;
 					.
 
-					filter not exists {
-						?collection a oslc_rm:RequirementCollection ;
-							oslc_rm:uses ?_attr ;
-						.
+					filter exists {
+						?_attr jazz_nav:parent ?parent .
 					}
 					?_attr dct:identifier ?value .
 				} order by asc(?value)
@@ -75,7 +76,9 @@
 			}
 			else {
 				queryString = /* syntax: sparql */ `
-				select ?value (count(?req) as ?count) from <${k_connection.modelGraph}> {
+				select ?value (count(?req) as ?count) {
+					hint:Query hint:joinOrder "Ordered" .
+					#hint:Query hint:useDFE true .
 					
 						?_attr_decl a oslc:Property ;
 							dct:title ${Sparql.literal(k_param_load.value)}^^rdf:XMLLiteral ;

@@ -36,6 +36,8 @@
 
 	const nl_tables = a_table_sets.flatMap(h => Object.values(h)).length;
 	const nl_pages = hm_tables.size;
+	let dt_version = new Date(g_version.dateTime);
+	let s_latest_display = `${dt_version.toDateString()} @${dt_version.toLocaleTimeString()}`;
 
 	function close() {
 		g_modal_context.close();
@@ -93,7 +95,7 @@
 
 	<div>
 		<p>
-			Are you sure you want to update <b>{k_connection.label}</b> to the <b>{g_version.data?.original_label || g_version.label}</b> extraction?
+			Are you sure you want to update <b>{k_connection.label}</b> to the <b>{s_latest_display}</b> extraction?
 			{1 === nl_tables? '1 table will be affected': `${nl_tables} tables will be affected ${1 === nl_pages? 'on 1 page': `across ${nl_pages} pages`}`}.
 		</p>
 

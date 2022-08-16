@@ -353,7 +353,7 @@
 			sparql: {
 				mms: {
 					dng: {
-						type: 'MmsSparqlConnection',
+						type: 'MmsSparqlConnection',// TODO fix
 						label: 'DNG Requirements',
 						alias: 'DNG',
 						endpoint: 'https://ced-uat.jpl.nasa.gov/sparql',
@@ -370,22 +370,22 @@
 
 	const H_PATHS_MSR = {
 		connection: {
-			sparql: {
+			sparql: { 
 				mms: {
-					dng: {
-						type: 'MmsSparqlConnection',
-						label: 'DNG Requirements',
-						alias: 'DNG',
-						endpoint: 'https://ced-uat.jpl.nasa.gov/sparql',
-						modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/Model.Mars_Sample_Return.2022-04-01T20-31-50_318Z',
-						metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/Metadata.Mars_Sample_Return',
-						contextPath: 'hardcoded#queryContext.sparql.dng.common',
-						searchPath: 'hardcoded#queryBuilder.sparql.dng.search.basic',
-						detailPath: 'hardcoded#queryBuilder.sparql.dng.detail.basic',
-					},
-				},
+			dng: {
+				type: 'Mms5Connection',
+				label: 'DNG Requirements',
+				alias: 'DNG',
+				endpoint: 'https://mms5-test.jpl.nasa.gov',
+				repoPath: '/orgs/dngmdk/repos/msr',
+				ref: '/locks/test',
+				contextPath: 'hardcoded#queryContext.sparql.dng.common',
+				searchPath: 'hardcoded#queryBuilder.sparql.dng.search.basic',
+				detailPath: 'hardcoded#queryBuilder.sparql.dng.detail.basic',
 			},
-		},
+				},
+			}
+		}
 	};
 
 

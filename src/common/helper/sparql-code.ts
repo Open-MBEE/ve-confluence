@@ -3,7 +3,7 @@ import type {
 	MmsSparqlQueryTable,
 } from '#/element/QueryTable/model/QueryTable';
 
-import type {MmsSparqlConnection} from '#/model/Connection';
+import type {Mms5Connection} from '#/model/Connection';
 
 import {
 	ode,
@@ -26,7 +26,6 @@ function attr(h_props: Hash, si_attr: string, s_attr_key: string, has_many: bool
 	const sx_prop = h_props[si_attr] = `?_${si_attr}`;
 
 	return /* syntax: sparql */ `
-		
 			${sx_prop}_decl a oslc:Property ;
 				dct:title ${terse_lit(s_attr_key)}^^rdf:XMLLiteral ;
 				oslc:propertyDefinition ${sx_prop} .
@@ -105,7 +104,6 @@ export async function build_dng_select_param_query(this: MmsSparqlQueryTable, k_
 	// use property formatting for parameter
 	else {
 		a_bgp.push(`
-			
 				?_attr_decl a oslc:Property ;
 					dct:title ${SparqlQueryHelper.literal(k_param.value)}^^rdf:XMLLiteral ;
 					oslc:propertyDefinition ?_attr .
@@ -122,22 +120,20 @@ export async function build_dng_select_param_query(this: MmsSparqlQueryTable, k_
 		`);
 	}
 
-	const k_connection = await this.fetchConnection();
-
 	return new SparqlSelectQuery({
 		select: [...a_selects],
-		from: `<${k_connection.modelGraph}>`,
 		bgp: /* syntax: sparql */ `
+			hint:Query hint:joinOrder "Ordered" .
+			#hint:Query hint:useDFE true .
+			
 			?artifact a oslc_rm:Requirement ;
 				oslc:instanceShape [
 					dct:title "Requirement"^^rdf:XMLLiteral ;
 				] ;
 			.
 			# exclude requirements that are part of a requirement document
-			filter not exists {
-				?collection a oslc_rm:RequirementCollection ;
-					oslc_rm:uses ?artifact ;
-					.
+			filter exists {
+				?artifact jazz_nav:parent ?parent .
 			}
 			${a_bgp.join('\n')}
 		`,
@@ -227,13 +223,13 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 		}
 	}
 
-	const k_connection = await this.fetchConnection();
-
 	return new SparqlSelectQuery({
 		count: '?artifact',
 		select: [...a_selects, ...a_aggregates],
-		from: `<${k_connection.modelGraph}>`,
 		bgp: /* syntax: sparql */ `
+			hint:Query hint:joinOrder "Ordered" .
+			#hint:Query hint:useDFE true .
+			
 			?artifact a oslc_rm:Requirement ;
 				oslc:instanceShape [
 					dct:title "Requirement"^^rdf:XMLLiteral ;
@@ -241,10 +237,8 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 				.
 
 			# exclude requirements that are part of a requirement document
-			filter not exists {
-				?collection a oslc_rm:RequirementCollection ;
-					oslc_rm:uses ?artifact ;
-					.
+			filter exists {
+				?artifact jazz_nav:parent ?parent .
 			}
 
 			${a_bgp.join('\n')}
@@ -269,15 +263,17 @@ export enum SearcherMask {
 	ALL = 0xffff,
 }
 
-export function dng_detailer_query(this: MmsSparqlConnection, p_artifact: string): SparqlSelectQuery {
+export function dng_detailer_query(this: Mms5Connection, p_artifact: string): SparqlSelectQuery {
 	return new SparqlSelectQuery({
 		select: [
 			'?idValue',
 			'?requirementNameValue',
 			'?requirementTextValue',
 		],
-		from: `<${this.modelGraph}>`,
 		bgp: /* syntax: sparql */ `
+			hint:Query hint:joinOrder "Ordered" .
+			#hint:Query hint:useDFE true .
+			
 			?artifact a oslc_rm:Requirement ;
 				oslc:instanceShape [
 					dct:title "Requirement"^^rdf:XMLLiteral ;
@@ -285,10 +281,8 @@ export function dng_detailer_query(this: MmsSparqlConnection, p_artifact: string
 				.
 
 			# exclude requirements that are part of a requirement document
-			filter not exists {
-				?collection a oslc_rm:RequirementCollection ;
-					oslc_rm:uses ?artifact ;
-					.
+			filter exists {
+				?artifact jazz_nav:parent ?parent .
 			}
 			
 			${H_NATIVE_DNG_PATTERNS.id}
@@ -304,7 +298,7 @@ export function dng_detailer_query(this: MmsSparqlConnection, p_artifact: string
 	});
 }
 
-export function dng_searcher_query(this: MmsSparqlConnection, s_input: string, xm_types?: number): SparqlSelectQuery {
+export function dng_searcher_query(this: Mms5Connection, s_input: string, xm_types?: number): SparqlSelectQuery {
 	// criteria for searching
 	const h_criteria = {
 		1: [],
@@ -375,8 +369,10 @@ export function dng_searcher_query(this: MmsSparqlConnection, s_input: string, x
 			'?requirementNameValue',
 			`(strLen(strBefore(lcase(?requirementNameValue), "${s_sanitized}")) as ?score)`,
 		],
-		from: `<${this.modelGraph}>`,
 		bgp: /* syntax: sparql */ `
+			hint:Query hint:joinOrder "Ordered" .
+			#hint:Query hint:useDFE true .
+			
 			?artifact a oslc_rm:Requirement ;
 				oslc:instanceShape [
 					dct:title "Requirement"^^rdf:XMLLiteral ;
@@ -384,12 +380,9 @@ export function dng_searcher_query(this: MmsSparqlConnection, s_input: string, x
 				.
 
 			# exclude requirements that are part of a requirement document
-			filter not exists {
-				?collection a oslc_rm:RequirementCollection ;
-					oslc_rm:uses ?artifact ;
-					.
+			filter exists {
+				?artifact jazz_nav:parent ?parent .
 			}
-			
 			${H_NATIVE_DNG_PATTERNS.id}
 
 			${H_NATIVE_DNG_PATTERNS.requirementName}

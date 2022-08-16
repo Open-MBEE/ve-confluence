@@ -22,7 +22,7 @@ import {
 
 import XhtmlDocument, {XHTMLDocument} from './xhtml-document';
 
-import type {MmsSparqlConnection} from '#/model/Connection';
+import type {Mms5Connection} from '#/model/Connection';
 
 import {G_META} from '#/common/meta';
 
@@ -91,11 +91,7 @@ export interface DocumentMetadata extends JsonMetadataShape<'Document'> {
 	schema: '1.0';
 	paths: {
 		connection?: {
-			sparql?: {
-				mms?: {
-					dng?: MmsSparqlConnection.Serialized;
-				};
-			};
+			[key: string]: Mms5Connection.Serialized; 
 		};
 	};
 }
@@ -963,7 +959,7 @@ export class ConfluenceDocument extends ConfluenceEntity<DocumentMetadata> {
 						`id=${this._si_cover_page}`,
 						`ancestor=${this._si_cover_page}`,
 					].join(' or ')+')',
-					`text~"${sr_path}"`,
+					`macro=span`, //`text~"${sr_path}"` text isn't reliable in returning all expected pages, right now only used for table
 				].join(' and '),
 				expand: 'body.storage',
 				limit: '1000',

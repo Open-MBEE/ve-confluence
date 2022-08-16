@@ -139,9 +139,11 @@ function init_bindings() {
 
 				// create new mention
 				const k_mention = Mention.fromConception(g_context, d_doc_editor, {
-					connectionPath: 'document#connection.sparql.mms.dng',
+					connectionPath: 'document#connection.sparql.mms.dng', //TODO
 				});
+				k_mention.ready().then(() =>{
 
+				
 				// listen for overlay
 				k_mention._fk_overlay = () => {
 					if(!g_autocomplete_active) {
@@ -278,6 +280,7 @@ function init_bindings() {
 				// else {
 				// 	dm_inserted.insertAdjacentElement('afterend', dd('p', {}, [dm_span]));
 				// }
+			});
 			}
 			// anything else
 			else {

@@ -12,7 +12,7 @@ import type {VeoPathTarget} from '#/common/veo';
 
 import {
 	Connection,
-	MmsSparqlConnection,
+	Mms5Connection,
 } from '#/model/Connection';
 
 import {
@@ -188,7 +188,7 @@ export class Mention {
 		const d_doc_wysiwyg = (qs(document, 'iframe#wysiwygTextarea_ifr') as HTMLIFrameElement).contentDocument!;
 		const k_precacher = Mention.fromConception(g_context, d_doc_wysiwyg);
 
-		await k_precacher.ready;
+		await k_precacher.ready();
 
 		for(const s_char0 of range('0', '9')) {
 			void precache(s_char0);
@@ -241,7 +241,7 @@ export class Mention {
 				value: '',
 				format: '',
 			},
-			connectionPath: 'document#connection.sparql.mms.dng',
+			connectionPath: 'document#connection.sparql.mms.dng', //TODO
 			...gc_transclusion,
 		});
 	}
@@ -375,13 +375,12 @@ export class Mention {
 				this.displayNode,
 			],
 		});
-
-		// retro_fit(this._dm_shadow);
-
-		void this._init(gc_session.ready);
 	}
 
-	protected async _init(fk_ready: MentionConfig['ready']): Promise<void> {
+	async init(): Promise<void> {
+		if (this._b_ready) {
+			return;
+		}
 		let c_retries = 0;
 		const n_max_retrires = 100;
 		while(!this.initOverlay() && c_retries < n_max_retrires) {
@@ -408,9 +407,8 @@ export class Mention {
 
 		for(const [sp_connection, gc_connection] of ode(h_connections)) {
 			switch(gc_connection.type) {
-				case 'MmsSparqlConnection': {
-					const k_connection = await VeOdm.createFromSerialized(MmsSparqlConnection, sp_connection, gc_connection as MmsSparqlConnection.Serialized, g_context);
-
+				case 'Mms5Connection': {
+					const k_connection = await VeOdm.createFromSerialized(Mms5Connection, sp_connection, gc_connection as Mms5Connection.Serialized, g_context);
 					// push as separate channels
 					this._add_channel(sp_connection, k_connection, {
 						types: SearcherMask.ID_EXACT | SearcherMask.ID_START,
@@ -576,14 +574,10 @@ export class Mention {
 	}
 
 
-	get ready(): void | Promise<void> {
+	ready(): Promise<void> {
 		// ready to go
 		if(this._b_ready) return;
-
-		// have to wait
-		return new Promise((fk_ready) => {
-			this._fk_ready = fk_ready;
-		});
+		return this.init();
 	}
 
 	get transclusion(): Transclusion {

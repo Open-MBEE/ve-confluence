@@ -1,6 +1,6 @@
 {
   "name": "ve4",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "start": "echo Started",
@@ -59,7 +59,8 @@
     "svelte-tabs": "^1.1.0",
     "svelte-virtual-scroll-list": "^1.0.8",
     "xmldom": "^0.6.0",
-    "xpath": "0.0.32"
+    "xpath": "0.0.32",
+    "jose": "~4.6.2"
   },
   "engines": {
     "node": ">=14.0"

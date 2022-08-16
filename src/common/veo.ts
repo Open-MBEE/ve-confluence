@@ -1,5 +1,4 @@
 import type {
-	DotFragment,
 	Labeled,
 	PrimitiveValue,
 	TypedLabeledObject,
@@ -15,8 +14,7 @@ import type {
 	TableQueryBuilder} from '#/element/QueryTable/model/QueryTable';
 
 import type {
-	MmsSparqlConnection,
-	PlainSparqlConnection,
+	Mms5Connection,
 	SparqlQueryContext,
 	SparqlSearcher,
 } from '#/model/Connection';
@@ -34,14 +32,7 @@ export const NL_PATH_FRAGMENTS = 5;
 export type VeoPathStruct = {
 	document: {
 		connection: {
-			sparql: {
-				mms: {
-					dng: MmsSparqlConnection.Serialized;
-				};
-				plain: {
-					helix: PlainSparqlConnection.Serialized;
-				};
-			};
+			[key: string]: Mms5Connection.Serialized;
 		};
 	};
 	page: {

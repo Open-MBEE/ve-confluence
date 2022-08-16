@@ -25,7 +25,7 @@ import {
 import {
 	Connection,
 	SparqlConnection,
-	MmsSparqlConnection,
+	Mms5Connection,
 	PlainSparqlConnection,
 } from '#/model/Connection';
 
@@ -508,12 +508,13 @@ export namespace MmsSparqlQueryTable {
 export class MmsSparqlQueryTable<
 	Group extends DotFragment=DotFragment,
 > extends SparqlQueryTable<MmsSparqlQueryTable.Serialized<Group>> {
-	async fetchConnection(): Promise<MmsSparqlConnection> {
+	async fetchConnection(): Promise<Mms5Connection> {
 		const sp_connection = this._gc_serialized.connectionPath;
 		const gc_serialized = await this._k_store.resolve(sp_connection);
-		return new MmsSparqlConnection(sp_connection, gc_serialized as MmsSparqlConnection.Serialized, this._g_context);
+		const res = new Mms5Connection(sp_connection, gc_serialized as Mms5Connection.Serialized, this._g_context);
+		await res.ready();
+		return res;
 	}
 }
-
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const MmsSparqlQueryTable_Assertion: VeOrmClass<MmsSparqlQueryTable.Serialized> = MmsSparqlQueryTable;
