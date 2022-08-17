@@ -387,9 +387,17 @@ export class Mms5Connection extends SparqlConnection<Mms5Connection.Serialized> 
             },
         }];
 	}
-
+	async refExists(ref: string): Promise<boolean> {
+		const result = await fetch(`${this.endpoint}${this._gc_serialized.repoPath}${ref}`, {
+			method: 'GET',
+			mode: 'cors',
+			cache: 'no-store',
+			headers: {Authorization:`Bearer ${this._token}`},
+		});
+		return result.ok;
+	}
     async makeLatest(ref: string): Promise<ModelVersionDescriptor> {
-        await fetch(`${this.endpoint}${this._gc_serialized.repoPath}${ref}`, {
+        const result = await fetch(`${this.endpoint}${this._gc_serialized.repoPath}${ref}`, {
 			method: 'PUT',
 			mode: 'cors',
 			headers: {Authorization:`Bearer ${this._token}`},
@@ -400,6 +408,10 @@ export class Mms5Connection extends SparqlConnection<Mms5Connection.Serialized> 
                     .
             `,
 		});
+		if (!result.ok) {
+			console.log(result);
+			throw 'Lock create failed';
+		}
         return {
             id: ref,
             label: 's_label',
