@@ -410,7 +410,7 @@ export class Mms5Connection extends SparqlConnection<Mms5Connection.Serialized> 
 		});
 		if (!result.ok) {
 			console.log(result);
-			throw 'Lock create failed';
+			throw new Error('Lock create failed');
 		}
         return {
             id: ref,

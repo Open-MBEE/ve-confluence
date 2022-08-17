@@ -228,7 +228,7 @@
 			await (k_connection as Mms5Connection).makeLatest(newrefname);
 		}
 		// create new connection from existing
-		const k_connection_new = await k_connection.clone({ref:newrefname});
+		const k_connection_new: Connection = await k_connection.clone({ref:newrefname});
 
 		// save to document
 		await k_connection_new.save();
@@ -261,7 +261,7 @@
 				const {
 					rows: a_rows,
 					contents: k_contents_update,
-				} = await (k_odm as unknown as QueryTable).exportResultsToCxhtml(k_connection, yn_anchor, k_contents);
+				} = await (k_odm as unknown as QueryTable).exportResultsToCxhtml(k_connection_new, yn_anchor, k_contents);
 
 				// build new page
 				const sx_page_update = k_contents_update.toString();

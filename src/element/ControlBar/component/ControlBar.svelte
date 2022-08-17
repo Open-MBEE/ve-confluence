@@ -714,8 +714,8 @@
 												Convert this page to become the document cover page of a new document:
 											{/if}
 										</h4>
-										<button class="ve-button-primary" on:click={() => k_document? create_document(H_PATHS_CLIPPER): reset_document(H_PATHS_CLIPPER)}>Clipper preset</button>
-										<button class="ve-button-primary" on:click={() => k_document? create_document(H_PATHS_MSR): reset_document(H_PATHS_MSR)}>MSR preset</button>
+										<!--<button class="ve-button-primary" on:click={() => k_document? create_document(H_PATHS_CLIPPER): reset_document(H_PATHS_CLIPPER)}>Clipper preset</button> -->
+										<button class="ve-button-primary" on:click={() => k_document? reset_document(H_PATHS_MSR): create_document(H_PATHS_MSR)}>MSR preset</button>
 									</div>
 								</section>
 								<section>
