@@ -25,7 +25,9 @@
 	import {
 		VeOdm,
 	} from '#/model/Serializable';
-
+import {
+	ObjectStore
+} from '#/model/ObjectStore';
 
 	import {
 		faCheckCircle,
@@ -42,6 +44,7 @@
 	import {
 		ConfluencePage,
 	} from '#/vendor/confluence/module/confluence';
+	import XhtmlDocument, {XHTMLDocument} from '#/vendor/confluence/module/xhtml-document';
 
 	import type {PageMap} from '#/vendor/confluence/module/confluence';
 
@@ -235,7 +238,7 @@
 
 		// each page
 		const hm_tables = g_data.tables;
-		for(const [g_page, h_odms] of hm_tables) {
+		for(const [g_page, h_odms] of hm_tables) { //don't use h_odms here, reinstantiate them, otherwise node replacement won't work because the anchor and doc aren't connected
 			// download page
 			const k_page = ConfluencePage.fromBasicPageInfo(g_page);
 
@@ -249,19 +252,29 @@
 
 			// cache page contents
 			let sx_page = k_contents.toString();
+			// started copy some lines from ConfluenceDocument.findPathTags
+			let k_store_page = g_context.store;
+			if(g_context.page.pageId !== g_page.id) {
+				k_store_page = new ObjectStore({
+					page: new ConfluencePage(g_page.id, g_page.title),
+				});
+			}
+			const k_doc = new XHTMLDocument(sx_page);
+			const sq_select = `//ac:parameter[@ac:name="id"][starts-with(text(),"page#elements.serialized.queryTable")]`;
+			const a_parameters = k_doc.select(sq_select) as Node[];  // eslint-disable-line @typescript-eslint/no-unnecessary-type-assertion
+			// TODO do the same for transclusions
 
-			// each table
-			for(const sp_table in h_odms) {
-				const {
-					odm: k_odm,
-					anchor: yn_anchor,
-				} = h_odms[sp_table];
+			for(const ym_param of a_parameters) { //tables
+				const sp_element = ym_param.textContent!;
 
+				const gc_serialized = await ('page' === ObjectStore.locationPart(sp_element)? k_store_page: g_context.store).resolve(sp_element);
+				let k_odm = await VeOdm.createFromSerialized<Serialized, InstanceType>(MmsSparqlQueryTable, sp_element, gc_serialized as unknown as Serialized, g_context);
+				let yn_anchor = ym_param.parentNode!;
 				// clone page contents
 				const {
 					rows: a_rows,
 					contents: k_contents_update,
-				} = await (k_odm as unknown as QueryTable).exportResultsToCxhtml(k_connection_new, yn_anchor, k_contents);
+				} = await (k_odm as unknown as QueryTable).exportResultsToCxhtml(k_connection_new, yn_anchor, k_doc);
 
 				// build new page
 				const sx_page_update = k_contents_update.toString();

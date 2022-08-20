@@ -743,7 +743,7 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 		};
 	}
 
-	async fetchContentAsXhtmlDocument(): Promise<{versionNumber: ConfluenceApi.PageVersionNumber; document: ConfluenceXhtmlDocument}> {
+	async fetchContentAsXhtmlDocument(): Promise<{versionNumber: ConfluenceApi.PageVersionNumber; document: XhtmlDocument}> {
 		const {
 			versionNumber: n_version,
 			value: sx_value,
@@ -959,7 +959,7 @@ export class ConfluenceDocument extends ConfluenceEntity<DocumentMetadata> {
 						`id=${this._si_cover_page}`,
 						`ancestor=${this._si_cover_page}`,
 					].join(' or ')+')',
-					`macro=span`, //`text~"${sr_path}"` text isn't reliable in returning all expected pages, right now only used for table
+					`macro in (span, html)`, //`text~"${sr_path}"` text isn't reliable in returning all expected pages, right now only used for table
 				].join(' and '),
 				expand: 'body.storage',
 				limit: '1000',
@@ -984,6 +984,7 @@ export class ConfluenceDocument extends ConfluenceEntity<DocumentMetadata> {
 			const k_doc = new XHTMLDocument(sx_page);
 			const sq_select = `//ac:parameter[@ac:name="id"][starts-with(text(),"${sr_path}")]`;
 			const a_parameters = k_doc.select(sq_select) as Node[];  // eslint-disable-line @typescript-eslint/no-unnecessary-type-assertion
+			// TODO do the same for transclusions
 
 			// page path
 			const h_page: OdmMap<Serialized, InstanceType> = {};
