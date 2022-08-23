@@ -3,9 +3,6 @@
 		lang,
 	} from '#/common/static';
 
-	import type {
-		MmsSparqlQueryTable,
-	} from '#/element/QueryTable/model/QueryTable';
 
 	import type {
 		Connection,
@@ -26,16 +23,15 @@
 
 	export let g_version: ModelVersionDescriptor;
 	
-	export let hm_tables: PageMap<MmsSparqlQueryTable.Serialized, MmsSparqlQueryTable>;
+	export let hm_tables: PageMap;
 
 	export let confirm: () => void;
 
 	export let cancel: () => void;
 
-	const a_table_sets = [...hm_tables.values()];
-
-	const nl_tables = a_table_sets.flatMap(h => Object.values(h)).length;
-	const nl_pages = hm_tables.size;
+	const nl_tables = hm_tables.tables;
+	const nl_pages = hm_tables.pages.length;
+	const nl_cfs = hm_tables.cfs;
 	let dt_version = new Date(g_version.dateTime);
 	let s_latest_display = `${dt_version.toDateString()} @${dt_version.toLocaleTimeString()}`;
 
@@ -96,7 +92,7 @@
 	<div>
 		<p>
 			Are you sure you want to update <b>{k_connection.label}</b> to the <b>{s_latest_display}</b> extraction?
-			{1 === nl_tables? '1 table will be affected': `${nl_tables} tables will be affected ${1 === nl_pages? 'on 1 page': `across ${nl_pages} pages`}`}.
+			{nl_tables} table(s) and {nl_cfs} mention(s) will be affected across {nl_pages} page(s).
 		</p>
 
 		<p>

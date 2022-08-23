@@ -52,6 +52,7 @@ import {
 		MmsSparqlQueryTable,
 		QueryTable,
 	} from '#/element/QueryTable/model/QueryTable';
+	import {Transclusion} from '#/element/Transclusion/model/Transclusion';
 
 
 	import UpdateDatasetConfirmation from './UpdateDatasetConfirmation.svelte';
@@ -59,9 +60,10 @@ import {
 
 	type CustomDataProperties = {
 		status_mode: G_STATUS;
-		tables: PageMap<MmsSparqlQueryTable.Serialized, MmsSparqlQueryTable>;
+		info: PageMap;
 		tables_touched_count: number;
 		tables_changed_count: number;
+		cfs_touched_count: number;
 		pages_touched_count: number;
 		pages_changed_count: number;
 	};
@@ -111,9 +113,10 @@ import {
 		for(const k_connection of A_CONNECTIONS) {
 			hmw_connections.set(k_connection, {
 				status_mode: G_STATUS.CONNECTING,
-				tables: new Map(),
+				info: {pages: [], tables: 0, cfs: 0},
 				tables_touched_count: 0,
 				tables_changed_count: 0,
+				cfs_touched_count: 0,
 				pages_touched_count: 0,
 				pages_changed_count: 0,
 			});
@@ -152,7 +155,7 @@ import {
 				g_modal_context,
 				k_connection,
 				g_version: g_version_new,
-				hm_tables: hmw_connections.get(k_connection)?.tables,
+				hm_tables: hmw_connections.get(k_connection)?.info,
 
 				// upon confirmation
 				async confirm() {
@@ -220,9 +223,9 @@ import {
 
 		// counters
 		let c_tables_touched = 0;
-		let c_tables_changed = 0;
 		let c_pages_touched = 0;
 		let c_pages_changed = 0;
+		let c_cfs_touched = 0;
 
 		// make new branch
 		const newrefname = '/locks/' + g_version_new.dateTime.replace(/:/g, '_');
@@ -233,12 +236,8 @@ import {
 		// create new connection from existing
 		const k_connection_new: Connection = await k_connection.clone({ref:newrefname});
 
-		// save to document
-		await k_connection_new.save();
-
 		// each page
-		const hm_tables = g_data.tables;
-		for(const [g_page, h_odms] of hm_tables) { //don't use h_odms here, reinstantiate them, otherwise node replacement won't work because the anchor and doc aren't connected
+		for(const g_page of g_data.info.pages) { // TODO this should just requery all pages to prevent potential outdated data/conflicts
 			// download page
 			const k_page = ConfluencePage.fromBasicPageInfo(g_page);
 
@@ -247,66 +246,56 @@ import {
 				document: k_contents,
 			} = await k_page.fetchContentAsXhtmlDocument();
 
-			// count how many tables change on this page
-			let c_tables_changed_local = 0;
-
 			// cache page contents
 			let sx_page = k_contents.toString();
-			// started copy some lines from ConfluenceDocument.findPathTags
 			let k_store_page = g_context.store;
 			if(g_context.page.pageId !== g_page.id) {
 				k_store_page = new ObjectStore({
-					page: new ConfluencePage(g_page.id, g_page.title),
+					page: k_page,
 				});
 			}
 			const k_doc = new XHTMLDocument(sx_page);
+			// update tables
 			const sq_select = `//ac:parameter[@ac:name="id"][starts-with(text(),"page#elements.serialized.queryTable")]`;
 			const a_parameters = k_doc.select(sq_select) as Node[];  // eslint-disable-line @typescript-eslint/no-unnecessary-type-assertion
-			// TODO do the same for transclusions
-
-			for(const ym_param of a_parameters) { //tables
+			for(const ym_param of a_parameters) {
 				const sp_element = ym_param.textContent!;
 
 				const gc_serialized = await ('page' === ObjectStore.locationPart(sp_element)? k_store_page: g_context.store).resolve(sp_element);
 				let k_odm = await VeOdm.createFromSerialized<Serialized, InstanceType>(MmsSparqlQueryTable, sp_element, gc_serialized as unknown as Serialized, g_context);
 				let yn_anchor = ym_param.parentNode!;
 				// clone page contents
-				const {
-					rows: a_rows,
-					contents: k_contents_update,
-				} = await (k_odm as unknown as QueryTable).exportResultsToCxhtml(k_connection_new, yn_anchor, k_doc);
-
-				// build new page
-				const sx_page_update = k_contents_update.toString();
-
-				// nothing changed
-				if(sx_page_update === sx_page) {
-					// update tables touched
-					set_connection_properties(k_connection, {
-						tables_touched_count: ++c_tables_touched,
-					});
-				}
-				// something changed
-				else {
-					c_tables_changed_local += 1;
-					sx_page = sx_page_update;
-					k_contents = k_contents_update;
-
-					// update tables changed
-					set_connection_properties(k_connection, {
-						tables_touched_count: ++c_tables_touched,
-						tables_changed_count: ++c_tables_changed,
-					});
-				}
+				await (k_odm as unknown as QueryTable).exportResultsToCxhtml(k_connection_new, yn_anchor, k_doc);
+				// update tables touched
+				set_connection_properties(k_connection, {
+					tables_touched_count: ++c_tables_touched,
+				});
 			}
-
-			// nothing changed
-			if(!c_tables_changed_local) {
+			// update transclusions
+			const sq_selectCf = `//ac:parameter[@ac:name="id"][starts-with(text(),"embedded#elements.serialized.transclusion")]`;
+			const a_parametersCf = k_doc.select(sq_selectCf) as Node[]; // eslint-disable-line @typescript-eslint/no-unnecessary-type-assertion
+			for(const ym_param of a_parametersCf) { //Cfs
+				let cdataNode: CDATASection = ym_param.parentNode!.childNodes.item(3).childNodes.item(0) as CDATASection;
+				let cdataDoc = new XHTMLDocument(cdataNode.data);
+				let script = cdataDoc.select('//script') as Node[];
+				let serialized = JSON.parse(script[0].textContent.replace(/\\n|\\t/g, ''));
+				let cf: Transclusion = new Transclusion(`transient.transclusion.random`, serialized as Transclusion.Serialized, g_context);
+				await cf.ready();
+				cf.setConnection(k_connection_new);
+				let cfstring = await cf.fetchDisplayText();
+				let display = cdataDoc.select('//span[@class="ve-transclusion-display"]')[0].childNodes.item(0) as Text;
+				display.replaceData(0, display.data.length, cfstring);
+				cdataNode.replaceData(0, cdataNode.data.length, cdataDoc.toString());
+				set_connection_properties(k_connection, {
+					cfs_touched_count: ++c_cfs_touched,
+				});
+			}
+			let sx_new_page = k_doc.toString();
+			if (sx_page === sx_new_page) {
 				// update pages touched
 				set_connection_properties(k_connection, {
 					pages_touched_count: ++c_pages_touched,
 				});
-
 				// continue iterating pages
 				continue;
 			}
@@ -314,12 +303,12 @@ import {
 			// prepare commit message //update
 			const s_verb = Date.parse(g_version_current.dateTime) < Date.parse(g_version_new.dateTime)? 'Updated': 'Changed';
 			const s_message = `
-				${s_verb} dataset version of  ${k_connection.label} from ${g_version_current.dateTime} to ${g_version_new.dateTime}
-				which affected ${c_tables_changed} tables
+				${s_verb} dataset version of ${k_connection.label} from ${g_version_current.dateTime} to ${g_version_new.dateTime}
+				which affected ${c_tables_touched} tables
 			`.replace(/\t/, '').trim();
 
 			// post content
-			const g_response = await k_page.postContent(k_contents, s_message);
+			const g_response = await k_page.postContent(k_doc, s_message);
 
 			// update pages touched/changed
 			set_connection_properties(k_connection, {
@@ -336,12 +325,14 @@ import {
 		// hide warning
 		dm_warning.style.visibility = 'hidden';
 		dm_warning.innerHTML = '&nbsp;';
+		// save to document
+		await k_connection_new.save(); // update metadata after all pages are updated
 	}
 
-	async function locate_tables(k_connection: Connection): Promise<PageMap<MmsSparqlQueryTable.Serialized, MmsSparqlQueryTable>> {
-		const hm_tables = await g_context.document.findPathTags<MmsSparqlQueryTable.Serialized, MmsSparqlQueryTable>('page#elements.serialized.queryTable', g_context, MmsSparqlQueryTable);
+	async function locate_tables(k_connection: Connection): Promise<PageMap> {
+		const hm_tables = await g_context.document.findPathTags();
 		set_connection_properties(k_connection, {
-			tables: hm_tables,
+			info: hm_tables,
 		});
 		return hm_tables;
 	}
@@ -538,6 +529,8 @@ import {
 				<th>Data Type</th>
 				<th>Version</th>
 				<th>Tables</th>
+				<th>Mentions</th>
+				<th>Pages</th>
 				<th>&nbsp;</th>
 			</tr>
 		</thead>
@@ -549,7 +542,7 @@ import {
 						{#await fetch_version_info(k_connection)}
 							&nbsp; Loading...
 						{:then [g_current_version, g_latest_version, s_hash, s_current_version, s_latest_version]}
-						    &nbsp; {s_current_version} &nbsp; <button disabled={g_current_version.dateTime === g_latest_version.dateTime} on:click="{select_version_for(k_connection)}">Update to Latest</button> &nbsp;
+						    &nbsp; {s_current_version} &nbsp; <button disabled={g_current_version.dateTime === g_latest_version.dateTime || b_read_only} on:click="{select_version_for(k_connection)}">Update to Latest</button> &nbsp;
 						<!-- bind:this={h_selects['@'+s_hash]} -->
 						{/await}
 
@@ -557,15 +550,13 @@ import {
 							<ContextDummy on:acquire={modal_context_acquired} />
 						</Modal>
 					</td>
-					<td class="cell-align-center">
-						{#await locate_tables(k_connection)}
-							Counting...
-						{:then h_tags}
-							{#key hmw_connections}
-								{[...hmw_connections.get(k_connection)?.tables.values() || []].reduce((c_out, h_values) => c_out+Object.values(h_values).length, 0)}
-							{/key}
-						{/await}
-					</td>
+					{#await locate_tables(k_connection)}
+					<td class="cell-align-center"></td><td class="cell-align-center"></td><td class="cell-align-center"></td>
+					{:then info}
+					<td class="cell-align-center">{info.tables}</td>
+					<td class="cell-align-center">{info.cfs}</td>
+					<td class="cell-align-center">{info.pages.length}</td>
+					{/await}
 					<td class="cell-no-border">
 						<!-- bind:this={h_sources[k_connection.path].status_elmt} -->
 						{#key hmw_connections}
@@ -584,14 +575,20 @@ import {
 										<span class="status">
 											<Fa icon={faCircleNotch} class="fa-spin" />
 											<span class="text">
-												{g_data?.tables_touched_count}/{g_data?.tables.size} Updating Tables
+												{g_data?.tables_touched_count}/{g_data?.info.tables} Tables
+											</span>
+											<span class="text">
+												{g_data?.cfs_touched_count}/{g_data?.info.cfs} Cfs
+											</span>
+											<span class="text">
+												{g_data?.pages_touched_count}/{g_data?.info.pages.length} Pages
 											</span>
 										</span>
 									{:else if G_STATUS.UPDATED === xc_status_mode}
 										<span class="status">
 											<Fa icon={faCheckCircle} />
 											<span class="text">
-												{g_data?.tables_touched_count}/{g_data?.tables.size} Tables Updated
+												{g_data?.pages_touched_count}/{g_data?.info.pages.length} Pages Processed
 											</span>
 										</span>
 									{/if}

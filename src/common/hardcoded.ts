@@ -351,7 +351,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					cell: (g: QueryRow) => xhtml`<ul>${
 						g.childrenValue.value
 							.split(/\0/g)
-							.map((s, i) => /* syntax: html*/ `<li><a href="${g.children.value.split(/\0/g)[i]}">${escape_html(s)}</a></li>`)
+							.map((s, i) => /* syntax: html*/ `<li><a href="${g.childrenValue.value.split(/\0/g)[i]}">${escape_html(s)}</a></li>`)
 							.join('')
 					}</ul>`,
 				},

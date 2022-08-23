@@ -248,11 +248,11 @@ export type OdmMap<
 	anchor: Node;
 }>;
 
-export type PageMap<
-	Serialized extends Serializable=Serializable,
-	InstanceType extends VeOdm<Serialized>=VeOdm<Serialized>,
-> = Map<ConfluenceApi.BasicPage, OdmMap<Serialized, InstanceType>>;
-
+export type PageMap = {
+	pages: ConfluenceApi.PageWithContent[],
+	cfs: number,
+	tables: number
+}
 
 export async function confluence_get_json<Data extends JsonObject>(pr_path: string, gc_get?: FetchConfig): Promise<Response<Data>> {
 	// complete path with API
@@ -758,7 +758,7 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 	async postContent(k_contents: XhtmlDocument, s_message='', s_title=this.pageTitle): Promise<Response<JsonObject>> {
 		const {
 			versionNumber: n_version,
-		} = await this.fetchContentAsXhtmlDocument();
+		} = await this.fetchContentAsString(true);
 
 		const s_contents = k_contents.toString();
 
@@ -946,10 +946,9 @@ export class ConfluenceDocument extends ConfluenceEntity<DocumentMetadata> {
 		return !!(await this.fetchMetadataBundle(b_force))?.data;
 	}
 
-	async findPathTags<
-		Serialized extends Serializable=Serializable,
-		InstanceType extends VeOdm<Serialized>=VeOdm<Serialized>,
-	>(sr_path: VeoPathTarget, g_context: Context, dc_class: VeOdmConstructor<Serialized, InstanceType>=VeOdm as unknown as VeOdmConstructor<Serialized, InstanceType>): Promise<PageMap<Serialized, InstanceType>> {
+	private tableRegex = /page#elements.serialized.queryTable/g; // each has 2
+	private cfRegex = /embedded#elements.serialized.transclusion/g; //each has 3
+	async findPathTags(): Promise<PageMap> {
 		const g_response = await confluence_get_json(`/content/search`, {
 			search: {
 				cql: [
@@ -968,41 +967,29 @@ export class ConfluenceDocument extends ConfluenceEntity<DocumentMetadata> {
 
 		const g_search = g_response.data as ConfluenceApi.ContentResponse<ConfluenceApi.PageWithContent>;
 
-		const h_hits: PageMap<Serialized, InstanceType> = new Map();
+		const pages: ConfluenceApi.PageWithContent[] = [];
+		let tables = 0;
+		let cfs = 0;
 
 		for(const g_page of g_search.results) {
 			const sx_page = g_page.body.storage.value;
-
-			// create new store for page if element belongs to child page
-			let k_store_page = g_context.store;
-			if(g_context.page.pageId !== g_page.id) {
-				k_store_page = new ObjectStore({
-					page: new ConfluencePage(g_page.id, g_page.title),
-				});
+			let pageTables = sx_page.match(this.tableRegex) || [];
+			if (pageTables.length > 0) {
+				tables += pageTables.length / 2;
 			}
-
-			const k_doc = new XHTMLDocument(sx_page);
-			const sq_select = `//ac:parameter[@ac:name="id"][starts-with(text(),"${sr_path}")]`;
-			const a_parameters = k_doc.select(sq_select) as Node[];  // eslint-disable-line @typescript-eslint/no-unnecessary-type-assertion
-			// TODO do the same for transclusions
-
-			// page path
-			const h_page: OdmMap<Serialized, InstanceType> = {};
-			h_hits.set(g_page, h_page);
-
-			for(const ym_param of a_parameters) {
-				const sp_element = ym_param.textContent!;
-
-				const gc_serialized = await ('page' === ObjectStore.locationPart(sp_element)? k_store_page: g_context.store).resolve(sp_element);
-
-				h_page[sp_element] = {
-					odm: await VeOdm.createFromSerialized<Serialized, InstanceType>(dc_class, sp_element, gc_serialized as unknown as Serialized, g_context),
-					anchor: ym_param.parentNode!,
-				};
+			let pageCfs = sx_page.match(this.cfRegex) || [];
+			if (pageCfs.length > 0) {
+				cfs += pageCfs.length / 3;
+			}
+			if (pageTables.length > 0 || pageCfs.length > 0) {
+				pages.push(g_page);
 			}
 		}
-
-		return h_hits;
+		return {
+			pages,
+			tables,
+			cfs
+		}
 	}
 
 	async fetchUserHasUpdatePermissions(): Promise<boolean> {
