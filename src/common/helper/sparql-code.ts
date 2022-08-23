@@ -167,7 +167,7 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 
 		// insert value filter
 		a_bgp.push(/* syntax: sparql */ `
-			${(si_param in H_NATIVE_DNG_PATTERNS)? '': attr(h_props, si_param, s_value)}
+			${(si_param in H_NATIVE_DNG_PATTERNS)? '': attr(h_props, si_param, s_value, false)}
 
 			values ?${si_param}Value {
 				${[...this.parameterValuesList(si_param)].map(k => terse_lit(k.value)).join(' ')}
@@ -213,12 +213,6 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 		else if('native' === s_source) {
 			if(si_param in H_NATIVE_DNG_PATTERNS) {
 				a_bgp.push(H_NATIVE_DNG_PATTERNS[si_param]);
-
-				if('children' === si_param) {
-					a_aggregates.push(/* syntax: sparql */ `
-						(group_concat(distinct ?${si_param}; separator='\\u0000') as ?${si_param})
-					`);
-				}
 			}
 		}
 	}

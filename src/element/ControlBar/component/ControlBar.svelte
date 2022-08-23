@@ -675,7 +675,7 @@
 					{#if k_document}
 						<TabPanel>
 							<div class="tab-body">
-								<p>New updates are available every Friday at 10:00 PM</p>
+								<p>New updates are available every morning</p>
 								<DatasetsTable {g_context} {b_read_only}></DatasetsTable>
 							</div>
 						</TabPanel>
