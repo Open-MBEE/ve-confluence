@@ -211,7 +211,7 @@ import {
 		// show warning
 		dm_warning.style.visibility = 'visible';
 		dm_warning.innerText = 'Do not close this webpage until updates are complete.';
-	
+
 		// set status mode
 		set_connection_properties(k_connection, {
 			status_mode: G_STATUS.UPDATING,
@@ -243,29 +243,27 @@ import {
 
 			// fetch xhtml contents
 			let {
-				document: k_contents,
+				document: k_doc,
 			} = await k_page.fetchContentAsXhtmlDocument();
 
 			// cache page contents
-			let sx_page = k_contents.toString();
-			let k_store_page = g_context.store;
-			if(g_context.page.pageId !== g_page.id) {
-				k_store_page = new ObjectStore({
-					page: k_page,
-				});
-			}
-			const k_doc = new XHTMLDocument(sx_page);
+			let sx_page = k_doc.toString();
 			// update tables
-			const sq_select = `//ac:parameter[@ac:name="id"][starts-with(text(),"page#elements.serialized.queryTable")]`;
+			const sq_select = `//ac:parameter[@ac:name="id"][starts-with(text(),"embedded#elements.serialized.queryTable")]`;
 			const a_parameters = k_doc.select(sq_select) as Node[];  // eslint-disable-line @typescript-eslint/no-unnecessary-type-assertion
 			for(const ym_param of a_parameters) {
 				const sp_element = ym_param.textContent!;
-
-				const gc_serialized = await ('page' === ObjectStore.locationPart(sp_element)? k_store_page: g_context.store).resolve(sp_element);
-				let k_odm = await VeOdm.createFromSerialized<Serialized, InstanceType>(MmsSparqlQueryTable, sp_element, gc_serialized as unknown as Serialized, g_context);
+				// find gc_serialized
+				let cdataNode: CDATASection = ym_param.parentNode!.childNodes.item(2).childNodes.item(1).childNodes.item(0).childNodes.item(0) as CDATASection;
+				let cdataDoc = new XHTMLDocument(cdataNode.data);
+				let script = cdataDoc.select('//script');
+				let serialized = JSON.parse(script[0].textContent.replace(/\\n|\\t/g, ''));
+				let k_odm: QueryTable = new MmsSparqlQueryTable(sp_element, serialized, g_context);
+				await k_odm.ready();
+				//let k_odm = await VeOdm.createFromSerialized<Serialized, InstanceType>(MmsSparqlQueryTable, sp_element, serialized as unknown as Serialized, g_context);
 				let yn_anchor = ym_param.parentNode!;
 				// clone page contents
-				await (k_odm as unknown as QueryTable).exportResultsToCxhtml(k_connection_new, yn_anchor, k_doc);
+				await k_odm.exportResultsToCxhtml(k_connection_new, yn_anchor, k_doc);
 				// update tables touched
 				set_connection_properties(k_connection, {
 					tables_touched_count: ++c_tables_touched,
@@ -277,7 +275,7 @@ import {
 			for(const ym_param of a_parametersCf) { //Cfs
 				let cdataNode: CDATASection = ym_param.parentNode!.childNodes.item(3).childNodes.item(0) as CDATASection;
 				let cdataDoc = new XHTMLDocument(cdataNode.data);
-				let script = cdataDoc.select('//script') as Node[];
+				let script = cdataDoc.select('//script');
 				let serialized = JSON.parse(script[0].textContent.replace(/\\n|\\t/g, ''));
 				let cf: Transclusion = new Transclusion(`transient.transclusion.random`, serialized as Transclusion.Serialized, g_context);
 				await cf.ready();
@@ -344,7 +342,7 @@ import {
 		const g_version_current_raw = await k_connection.fetchCurrentVersion();
 		g_version_current = Object.assign({}, g_version_current_raw);
 		const g_version_latest = await k_connection.fetchLatestVersion();
-	
+
 		set_connection_properties(k_connection, {
 			status_mode: G_STATUS.CONNECTED,
 		});
@@ -375,7 +373,7 @@ import {
 		margin: 1em 0;
 		border-spacing: 3pt;
 		border-collapse: collapse;
-		
+
 		thead {
 			line-height: 10px;
 

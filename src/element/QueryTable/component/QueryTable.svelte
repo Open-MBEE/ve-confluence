@@ -69,7 +69,7 @@
 	 */
 	export let b_published = false;
 
-	
+
 	let dm_display: HTMLElement;
 
 	// shows/hides the table results
@@ -96,7 +96,7 @@
 	// whether or not there are any filters applied
 	let b_filtered = false;
 
-	// 
+	//
 	// $: b_changed = '' !== si_query_hash_previous && (!b_published || b_changed_published_parameters);
 	$: b_changed = b_published? si_query_hash_previous !== si_query_hash_published: '' !== si_query_hash_previous;
 	// let b_not_changed = '' === si_query_hash_previous || (b_published && !b_changed_published_parameters)
@@ -302,9 +302,6 @@
 		const {
 			page: k_page,
 		} = k_model.getContext();
-
-		// commit query table state
-		const g_payload = await k_model.save(`Auto-saved from user table publish`);
 
 		const {
 			rows: a_rows,

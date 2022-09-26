@@ -165,7 +165,7 @@ const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 
 	'CAE CED Table Element': ([, g_struct]: [HTMLElement, Record<string, unknown>]) => {
 		const si_uuid = (g_struct.uuid as string) || uuid_v4().replace(/_/g, '-');
-		const si_key = `page#elements.serialized.queryTable.${si_uuid}`;
+		const si_key = `embedded#elements.serialized.queryTable.${si_uuid}`;
 
 		return {
 			component: QueryTable,
@@ -439,14 +439,14 @@ export async function main(): Promise<void> {
 	// interpret rendered elements
 	{
 		// xpath query for rendered elements
-		const a_macros = k_source.select<Node>(`//ac:structured-macro[@ac:name="span"][child::${SX_PARAMETER_ID_PAGE_ELEMENT}]`);
+		const a_macros = k_source.select<Node>(`//ac:structured-macro[@ac:name="span"][child::${SX_PARAMETER_ID_EMBEDDED_ELEMENT}]`);
 
 		// translate into ve paths
 		const a_paths = a_macros.map(yn => [xpathSelect1<Text>(`./ac:parameter[@ac:name="id"]/text()`, yn).data, yn] as [string, Node]);
 
 		// resolve serialized element
 		for(const [sp_element, yn_directive] of a_paths) {
-			const gc_element = await K_OBJECT_STORE.resolve(sp_element);
+			//const gc_element = await K_OBJECT_STORE.resolve(sp_element);
 
 			// correlate to live DOM element
 			const a_spans = qsa(dm_main, `span[id="${sp_element}"]`);
@@ -457,7 +457,15 @@ export async function main(): Promise<void> {
 			}
 
 			const dm_render = a_spans[0] as HTMLElement;
+			const id = sp_element.split('.')[3];
+			const a_scripts = qsa(dm_main, `script[data-ve-eid="${id}"]`);
+			if (1 !== a_scripts.length) {
+				throw new Error(`Expected 1 script for id=${id} but found ${a_scripts.length}`);
+			}
+			const dm_script = a_scripts[0];
+			const gc_element = JSON.parse(dm_script.textContent || '{}') as Serializable;
 
+			// get gc_element
 			// select adjacent element
 			let dm_anchor = dm_render.parentElement!.nextSibling as HTMLElement;
 			if(!dm_anchor && 'SPAN' === dm_render.parentElement?.nodeName) {
