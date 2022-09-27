@@ -254,7 +254,8 @@ import {
 			for(const ym_param of a_parameters) {
 				const sp_element = ym_param.textContent!;
 				// find gc_serialized
-				let cdataNode: CDATASection = ym_param.parentNode!.childNodes.item(2).childNodes.item(1).childNodes.item(0).childNodes.item(0) as CDATASection;
+				let cdataNode: CDATASection = ym_param.parentElement.querySelector('*|rich-text-body > *|structured-macro[*|name="html"] > *|plain-text-body').childNodes.item(0) as CDATASection;
+				//let cdataNode: CDATASection = ym_param.parentNode!.childNodes.item(2).childNodes.item(1).childNodes.item(0).childNodes.item(0) as CDATASection;
 				let cdataDoc = new XHTMLDocument(cdataNode.data);
 				let script = cdataDoc.select('//script');
 				let serialized = JSON.parse(script[0].textContent.replace(/\\n|\\t/g, ''));
@@ -273,7 +274,8 @@ import {
 			const sq_selectCf = `//ac:parameter[@ac:name="id"][starts-with(text(),"embedded#elements.serialized.transclusion")]`;
 			const a_parametersCf = k_doc.select(sq_selectCf) as Node[]; // eslint-disable-line @typescript-eslint/no-unnecessary-type-assertion
 			for(const ym_param of a_parametersCf) { //Cfs
-				let cdataNode: CDATASection = ym_param.parentNode!.childNodes.item(3).childNodes.item(0) as CDATASection;
+				//let cdataNode: CDATASection = ym_param.parentNode!.childNodes.item(3).childNodes.item(0) as CDATASection;
+				let cdataNode: CDATASection = ym_param.parentElement.querySelector('*|plain-text-body').childNodes.item(0) as CDATASection;
 				let cdataDoc = new XHTMLDocument(cdataNode.data);
 				let script = cdataDoc.select('//script');
 				let serialized = JSON.parse(script[0].textContent.replace(/\\n|\\t/g, ''));
