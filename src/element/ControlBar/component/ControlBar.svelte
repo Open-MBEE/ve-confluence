@@ -88,12 +88,12 @@
 	let sx_page_content_editted: string | Error;
 	$: b_page_content_valid = sx_page_content_editted && !(sx_page_content_editted instanceof Error);
 	$: b_page_content_writable = b_page_json_valid && (new ConfluenceXhtmlDocument(sx_page_content_editted as string)).toString() !== sx_page_content_remote;
-	
+
 	const dm_sidebar = qs(document.body, '.ia-fixed-sidebar') as HTMLDivElement;
 	const dm_sidebar_scrollable = (qs(dm_sidebar, '.ia-scrollable-section') as HTMLDivElement);
 	const n_pre_scrolltop = dm_sidebar.scrollTop || 0;
 
-	let is_chrome = !!window.chrome && (!!window.chrome.webstore || !!window.chrome.runtime);
+	let is_chrome = !!window.chrome;
 	let show_warning = !is_chrome;
 	$: warning = show_warning;
 

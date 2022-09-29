@@ -380,7 +380,7 @@ export abstract class QueryTable<
 		]);
 		const id = this.path.split('.')[3];
 		// wrap in confluence macro
-		const yn_macro = ConfluencePage.annotatedSpan({
+		const yn_macro = ConfluencePage.annotatedDiv({
 			params: {
 				id: this.path,
 			},

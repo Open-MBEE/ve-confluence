@@ -566,7 +566,7 @@ export class ConfluenceXhtmlDocument extends XhtmlDocument {
 }
 
 export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
-	static annotatedSpan(gc_macro: MacroConfig, k_contents: XhtmlDocument): Node {
+	static annotatedDiv(gc_macro: MacroConfig, k_contents: XhtmlDocument): Node {
 		const f_builder = k_contents.builder();
 
 		let yn_body;
@@ -593,7 +593,7 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 		}
 
 		return f_builder('ac:structured-macro', {
-			'ac:name': 'span',
+			'ac:name': 'div',
 			'ac:schema-version': '1',
 			'ac:macro-id': `${gc_macro.uuid || uuid_v4().replace(/_/g, '-')}`,
 		}, [
@@ -602,7 +602,7 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 			}, [s_value])),
 			f_builder('ac:parameter', {
 				'ac:name': 'atlassian-macro-output-type',
-			}, ['INLINE']),
+			}, ['BLOCK']),
 			yn_body,
 		]);
 	}
