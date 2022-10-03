@@ -231,7 +231,7 @@ function render_component(g_bundle: ViewBundle, b_hide_anchor = false) {
 	// hide anchor
 	if(b_hide_anchor) {
 		if(dm_anchor) {
-			(g_bundle.render || dm_anchor).style.display = 'none';
+			dm_anchor.style.display = 'none';
 		}
 	}
 
@@ -248,6 +248,7 @@ function render_component(g_bundle: ViewBundle, b_hide_anchor = false) {
 		props: {
 			...g_bundle.props || {},
 			yn_directive: g_bundle.node,
+			dm_anchor: dm_anchor
 			// ...GM_CONTEXT,
 		},
 	});

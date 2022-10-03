@@ -55,7 +55,7 @@
 	/**
 	 * The HTML element to which this view element is anchored
 	 */
-	export let dm_anchor = document.createElement('div');
+	export let dm_anchor: Element; //this is the published table div or the confluence init link
 
 	/**
 	 * An optional XHTML node that should be replaced when publishing this table to the page
@@ -96,10 +96,8 @@
 	// whether or not there are any filters applied
 	let b_filtered = false;
 
-	//
-	// $: b_changed = '' !== si_query_hash_previous && (!b_published || b_changed_published_parameters);
-	$: b_changed = b_published? si_query_hash_previous !== si_query_hash_published: '' !== si_query_hash_previous;
-	// let b_not_changed = '' === si_query_hash_previous || (b_published && !b_changed_published_parameters)
+	// table edited
+	$: b_changed = b_published? si_query_hash_previous !== si_query_hash_published : '' !== si_query_hash_previous;
 
 	// once the component mounts
 	onMount(async() => {
@@ -133,9 +131,6 @@
 			// update display version
 			s_display_version = `${dt_version.toDateString()} @${dt_version.toLocaleTimeString()}`;
 		}
-
-		// render table
-		await render();
 	});
 
 	const A_DUMMY_TABLE_ROWS = [{}, {}, {}];
@@ -153,17 +148,12 @@
 
 	g_source = {label:'DNG Requirements'};
 
-	$: dm_anchor.style.display = b_published && b_display_preview? 'none' :'block';
-
-	// hide the published table while editing
 	$: {
-		if('DIV' === dm_display?.nextElementSibling?.tagName) {
-			(dm_display.nextElementSibling as HTMLElement).style.display = b_published && b_display_preview? 'none' :'block';
-		}
+		dm_anchor.style.display = (dm_anchor.localName === 'a' || (b_published && b_display_preview)) ? 'none' :'block';
 	}
 
 	// anchor provided
-	if(dm_anchor) {
+	if (dm_anchor) {
 		// remove any top margin from table
 		dm_anchor.style.marginTop = '0px';
 	}
@@ -183,7 +173,7 @@
 		b_busy_loading = false;
 
 		// redo query hash
-		si_query_hash_previous = k_model.hash();
+		si_query_hash_previous = '';
 
 		s_status_info = 'PREVIEW (0 results)';
 		xc_info_mode = G_INFO_MODES.PREVIEW;
@@ -255,7 +245,7 @@
 
 	function toggle_parameters() {
 		// do not allow closing while pending edits
-		if(b_published && b_changed) return;
+		if(b_published && b_changed && b_display_parameters) return;
 
 		// toggle parameters display
 		b_display_parameters = !b_display_parameters;
@@ -272,7 +262,7 @@
 		// table is published; show the preview
 		if(b_published) b_display_preview = true;
 
-		void render();
+		render();
 
 		// allow toggle to trigger svelte change to dom
 		queueMicrotask(() => {
@@ -429,7 +419,7 @@
 				}
 			}
 		}
-
+/*
 		&.published:not(.changed) {
 			&.expanded {
 				.config {
@@ -473,7 +463,7 @@
 					color: var(--ve-color-dark-text);
 				}
 			}
-		}
+		}*/
 
 		.config {
 			.transition(background-color 0.5s ease-out;);
