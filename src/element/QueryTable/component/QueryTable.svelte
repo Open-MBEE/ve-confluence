@@ -667,7 +667,7 @@
 					{/if}
 				</span>
 			</div>
-
+			{#if b_display_parameters}
 			<div class="config-body" bind:this={dm_parameters} style="display:{b_display_parameters ? 'block' : 'none'};">
 				<div class="query-type">
 					<span class="label">Query Type</span>
@@ -698,6 +698,7 @@
 					{/await}
 				</div>
 			</div>
+			{/if}
 			{#if b_display_preview}
 				<div class="table-wrap" class:busy={b_busy_loading}>
 					<!-- svelte-ignore a11y-resolved -->
