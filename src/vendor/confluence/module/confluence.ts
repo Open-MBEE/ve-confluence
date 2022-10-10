@@ -518,7 +518,18 @@ export function editorMacro(gc_macro: EditorMacroConfig): HTMLElement {
 	], d_doc);
 }
 
-
+export function wrapInHtmlMacro(s_content: string, k_contents: XhtmlDocument): Node {
+	const f_builder = k_contents.builder();
+	return f_builder('ac:structured-macro', {
+		'ac:name': 'html',
+		'ac:schema-version': '1',
+		'ac:macro-id': uuid_v4().replace(/_/g, '-'),
+	}, [
+		f_builder('ac:plain-text-body', {}, [
+			k_contents.createCDATA(s_content),
+		])
+	])
+}
 export function wrapCellInHtmlMacro(s_html: string, k_contents: XhtmlDocument): Node {
 	const f_builder = k_contents.builder();
 
@@ -555,7 +566,7 @@ export class ConfluenceXhtmlDocument extends XhtmlDocument {
 }
 
 export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
-	static annotatedSpan(gc_macro: MacroConfig, k_contents: XhtmlDocument): Node {
+	static annotatedDiv(gc_macro: MacroConfig, k_contents: XhtmlDocument): Node {
 		const f_builder = k_contents.builder();
 
 		let yn_body;
@@ -582,7 +593,7 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 		}
 
 		return f_builder('ac:structured-macro', {
-			'ac:name': 'span',
+			'ac:name': 'div',
 			'ac:schema-version': '1',
 			'ac:macro-id': `${gc_macro.uuid || uuid_v4().replace(/_/g, '-')}`,
 		}, [
@@ -591,7 +602,7 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 			}, [s_value])),
 			f_builder('ac:parameter', {
 				'ac:name': 'atlassian-macro-output-type',
-			}, ['INLINE']),
+			}, ['BLOCK']),
 			yn_body,
 		]);
 	}
@@ -946,7 +957,7 @@ export class ConfluenceDocument extends ConfluenceEntity<DocumentMetadata> {
 		return !!(await this.fetchMetadataBundle(b_force))?.data;
 	}
 
-	private tableRegex = /page#elements.serialized.queryTable/g; // each has 2
+	private tableRegex = /embedded#elements.serialized.queryTable/g; // each has 2
 	private cfRegex = /embedded#elements.serialized.transclusion/g; //each has 3
 	async findPathTags(): Promise<PageMap> {
 		const g_response = await confluence_get_json(`/content/search`, {

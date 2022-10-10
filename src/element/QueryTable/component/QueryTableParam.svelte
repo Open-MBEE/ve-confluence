@@ -171,13 +171,13 @@
 		align-self: center;
 		margin-bottom: 2px;
 	}
-
+/*
 	:global(.published:not(.changed)) {
 		.param-label {
 			color: var(--ve-color-dark-text);
 		}
 	}
-
+*/
 	.param-label {
 		color: var(--ve-color-light-text);
 		margin-right: 6em;

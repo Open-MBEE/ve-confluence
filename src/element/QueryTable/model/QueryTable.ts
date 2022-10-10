@@ -35,6 +35,7 @@ import {
 	autoCursorMutate,
 	ConfluencePage,
 	wrapCellInHtmlMacro,
+	wrapInHtmlMacro
 } from '#/vendor/confluence/module/confluence';
 
 import XHTMLDocument from '#/vendor/confluence/module/xhtml-document';
@@ -249,6 +250,14 @@ function sanitize_false_directives(sx_html: string): string {
 	const d_doc = d_parser.parseFromString(sx_html, 'text/html');
 	const a_links = d_doc.querySelectorAll(`a[href^="${process.env.DOORS_NG_PREFIX || ''}"]`);
 	a_links.forEach(yn_link => yn_link.setAttribute('data-ve4', '{}'));
+	const nodes_with_style = d_doc.querySelectorAll('*[style]');
+	nodes_with_style.forEach((node) => {
+		const style = node.getAttribute('style');
+		const fixedStyle = style!.replace(/(width:|height:).+?(;[\s]?|$)/g, '');
+		node.setAttribute('style', fixedStyle);
+	});
+	const nodes_with_width = d_doc.querySelectorAll('*[width]');
+	nodes_with_width.forEach(node => node.removeAttribute('width'));
 	return d_doc.body.innerHTML;
 }
 
@@ -305,7 +314,8 @@ export abstract class QueryTable<
 		// no such param
 		if(!this.queryType.queryParametersPaths.map(sp => this._k_store.idPartSync(sp).join('.')).includes(si_param)) {
 			// create param values list ad-hoc
-			this._h_param_values_lists[si_param] = new ParamValuesList([]);
+			const a_values = this._gc_serialized.parameterValues[si_param] = [];
+			this._h_param_values_lists[si_param] = new ParamValuesList(a_values);
 			// throw new Error(`No such parameter has the id '${si_param}'`);
 		}
 
@@ -369,20 +379,15 @@ export abstract class QueryTable<
 				])),
 			]),
 		]);
-
+		const id = this.path.split('.')[3];
 		// wrap in confluence macro
-		const yn_macro = ConfluencePage.annotatedSpan({
+		const yn_macro = ConfluencePage.annotatedDiv({
 			params: {
 				id: this.path,
 			},
 			body: [
-				ConfluencePage.annotatedSpan({
-					params: {
-						style: 'display:none',
-						class: 've-cql-search-tag',
-					},
-					body: f_builder('p', {}, [this.path]),
-				}, k_contents),
+				wrapInHtmlMacro('<script type="application/json" data-ve-eid="' + id + '" data-ve-type="table-metadata">' +
+					JSON.stringify(this._gc_serialized) + '</script>', k_contents),
 				yn_table,
 			],
 			autoCursor: true,

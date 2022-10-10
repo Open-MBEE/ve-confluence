@@ -101,6 +101,12 @@ function adjust_virgin_macro(dm_node: HTMLElement) {
 				}
 			}
 		}
+	} else if('TABLE' === dm_node.tagName && 'div' === dm_node.getAttribute('data-macro-name') && si_parameters?.includes('queryTable')) {
+		let tr = dm_node.querySelector('tr')!;
+		tr.style.display = 'none';
+		if (!tr.nextElementSibling) {
+			$(tr.parentElement!).append('<tr><td>Please edit table in viewer mode.</td></tr>');
+		}
 	}
 	return false;
 }
@@ -341,6 +347,7 @@ if (document.readyState === "complete") {
     document.addEventListener("load", onReady);
 }
 async function onReady() {
+	$(window).off('beforeunload'); //prevent unsaved prompt in certain cases
 	d_doc_editor = (document.getElementById('wysiwygTextarea_ifr') as HTMLIFrameElement)?.contentDocument!;
 	if (!d_doc_editor) {
 		throw new Error('editor not found');

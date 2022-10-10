@@ -165,7 +165,7 @@ const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
 
 	'CAE CED Table Element': ([, g_struct]: [HTMLElement, Record<string, unknown>]) => {
 		const si_uuid = (g_struct.uuid as string) || uuid_v4().replace(/_/g, '-');
-		const si_key = `page#elements.serialized.queryTable.${si_uuid}`;
+		const si_key = `embedded#elements.serialized.queryTable.${si_uuid}`;
 
 		return {
 			component: QueryTable,
@@ -231,7 +231,7 @@ function render_component(g_bundle: ViewBundle, b_hide_anchor = false) {
 	// hide anchor
 	if(b_hide_anchor) {
 		if(dm_anchor) {
-			(g_bundle.render || dm_anchor).style.display = 'none';
+			dm_anchor.style.display = 'none';
 		}
 	}
 
@@ -248,11 +248,14 @@ function render_component(g_bundle: ViewBundle, b_hide_anchor = false) {
 		props: {
 			...g_bundle.props || {},
 			yn_directive: g_bundle.node,
+			dm_anchor: dm_anchor
 			// ...GM_CONTEXT,
 		},
 	});
 }
-
+function getJsonFromScript(text: string) {
+	return text.replace('//<![CDATA[', '').replace('//]]>', '');
+}
 export async function main(): Promise<void> {
 	if('object' !== typeof lang?.basic) {
 		throw new Error(`ERROR: No lang file defined! Did you forget to set the environment variables when building?`);
@@ -439,30 +442,35 @@ export async function main(): Promise<void> {
 	// interpret rendered elements
 	{
 		// xpath query for rendered elements
-		const a_macros = k_source.select<Node>(`//ac:structured-macro[@ac:name="span"][child::${SX_PARAMETER_ID_PAGE_ELEMENT}]`);
+		const a_macros = k_source.select<Node>(`//ac:structured-macro[@ac:name="div"][child::${SX_PARAMETER_ID_EMBEDDED_ELEMENT}]`);
 
 		// translate into ve paths
 		const a_paths = a_macros.map(yn => [xpathSelect1<Text>(`./ac:parameter[@ac:name="id"]/text()`, yn).data, yn] as [string, Node]);
 
 		// resolve serialized element
 		for(const [sp_element, yn_directive] of a_paths) {
-			const gc_element = await K_OBJECT_STORE.resolve(sp_element);
+			//const gc_element = await K_OBJECT_STORE.resolve(sp_element);
 
 			// correlate to live DOM element
-			const a_spans = qsa(dm_main, `span[id="${sp_element}"]`);
+			const a_divs = qsa(dm_main, `div[id="${sp_element}"]`);
 
 			// incorrect match
-			if(1 !== a_spans.length) {
-				throw new Error(`Expected exactly 1 annotated span element on page with id="${sp_element}" but found ${a_spans.length}`);
+			if(1 !== a_divs.length) {
+				throw new Error(`Expected exactly 1 annotated div element on page with id="${sp_element}" but found ${a_divs.length}`);
 			}
 
-			const dm_render = a_spans[0] as HTMLElement;
+			const dm_render = a_divs[0] as HTMLElement;
+			const id = sp_element.split('.')[3];
+			const a_scripts = qsa(dm_main, `script[data-ve-eid="${id}"]`);
+			if (1 !== a_scripts.length) {
+				throw new Error(`Expected 1 script for id=${id} but found ${a_scripts.length}`);
+			}
+			const dm_script = a_scripts[0];
+			const gc_element = JSON.parse(getJsonFromScript(dm_script.textContent!) || '{}') as Serializable;
 
+			// get gc_element
 			// select adjacent element
-			let dm_anchor = dm_render.parentElement!.nextSibling as HTMLElement;
-			if(!dm_anchor && 'SPAN' === dm_render.parentElement?.nodeName) {
-				dm_anchor = dm_render.parentElement.parentElement!.nextElementSibling as HTMLElement;
-			}
+			let dm_anchor = dm_render.querySelector('div.table-wrap') as HTMLElement;
 
 			// model and component class
 			let dc_model!: VeOdmConstructor<Serializable, VeOdm<Serializable>>;
@@ -508,7 +516,7 @@ export async function main(): Promise<void> {
 						k_model,
 						b_published: true,
 					},
-				}, true);
+				}, false);
 			}
 		}
 	}

@@ -1,10 +1,5 @@
 import xpath, {SelectedValue} from 'xpath';
 
-import {
-	DOMParser as XmlDom_DOMParser,
-	XMLSerializer as XmlDom_XMLSerializer,
-} from 'xmldom';
-
 type Hash = Record<string, string>;
 
 // prefix to use for all generated view IDs
@@ -63,7 +58,7 @@ export class XHTMLDocument {
 	constructor(sx_doc='') {
 		this._sx_doc = sx_doc.replace(/&nbsp;/g, '&#160;');
 
-		this._y_doc = (new XmlDom_DOMParser()).parseFromString(`<xml ${SX_NAMESPACES}>${this._sx_doc}</xml>`, 'application/xml');
+		this._y_doc = (new DOMParser()).parseFromString(`<xml ${SX_NAMESPACES}>${this._sx_doc}</xml>`, 'application/xml');
 	}
 
 	get root(): Node {
@@ -121,7 +116,7 @@ export class XHTMLDocument {
 	}
 
 	toString(): string {
-		return new XmlDom_XMLSerializer()
+		return new XMLSerializer()
 			.serializeToString(this.root)
 			.replace(/^\s*<xml[^>]*>\s*|\s*<\/xml>\s*$/g, '');
 	}
