@@ -334,7 +334,7 @@ export abstract class QueryTable<
 	}
 
 
-	async exportResultsToCxhtml(this: QueryTable, k_connection: Connection, yn_anchor: Node, k_contents=this.getContext().source): Promise<{rows: QueryRow[]; contents: XHTMLDocument}> {
+	async exportResultsToCxhtml(this: QueryTable, k_connection: Connection, yn_anchor: Node, published: boolean, k_contents=this.getContext().source): Promise<{rows: QueryRow[]; contents: XHTMLDocument}> {
 		// fetch query builder
 		const k_query = await this.fetchQueryBuilder();
 
@@ -392,7 +392,28 @@ export abstract class QueryTable<
 			],
 			autoCursor: true,
 		}, k_contents);
-
+		const filter = ConfluencePage.tableFilter({
+			params: {
+				hideControls: 'false',
+				hidelabels: 'false',
+				sparkName: 'Sparkline',
+				hidePane: 'Filtration panel',
+				disableSave: 'false',
+				rowsPerPage: '40',
+				separator: 'Point (.)',
+				sparkline: 'false',
+				hideColumns: 'false',
+				datepattern: 'dd M yy',
+				disabled: 'false',
+				enabledInEditor: 'false',
+				globalFilter: 'false',
+				updateSelectOptions: 'false',
+				worklog: '365|5|8|y w d h m|y w d h m',
+				isOR: 'AND'
+			},
+			body: yn_macro,
+			autoCursor: true,
+		}, k_contents);
 		// use anchor
 		if(yn_anchor) {
 			// replace node
@@ -406,9 +427,9 @@ export abstract class QueryTable<
 					yn_replace = yn_replace.parentNode;
 				}
 			}
-
+			const replacement = published ? yn_macro : filter;
 			// replace node
-			yn_replace.parentNode?.replaceChild(yn_macro, yn_replace);
+			yn_replace.parentNode?.replaceChild(replacement, yn_replace);
 
 			// auto cusor mutate
 			autoCursorMutate(yn_macro, k_contents);

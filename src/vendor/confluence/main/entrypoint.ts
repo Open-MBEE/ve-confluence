@@ -359,7 +359,42 @@ export async function main(): Promise<void> {
 			render_component(g_bundle, true);
 		}
 	}
-
+	//find initial nexus tables
+	{
+		// xpath query for rendered elements
+		const a_macros = k_source.select<Node>(`//ac:structured-macro[@ac:name="cae-ced-table"]`);
+		const a_divs = qsa(dm_main, '.ced-table-init');
+		if (a_macros.length != a_divs.length) {
+			console.log('table counts don\'t match');
+		}
+		for (let i = 0; i < a_macros.length; i++) {
+			const dm_anchor = a_divs[i];
+			const si_uuid = uuid_v4().replace(/_/g, '-');
+			const si_key = `embedded#elements.serialized.queryTable.${si_uuid}`;
+			const k_model = await new MmsSparqlQueryTable(si_key,
+				{
+					type: 'MmsSparqlQueryTable',
+					key: si_key,
+					uuid: si_uuid,
+					group: 'dng',
+					queryTypePath: 'hardcoded#queryType.sparql.dng.bid',
+					connectionPath: 'document#connection.sparql.mms.dng',
+					parameterValues: {},
+				},
+				G_CONTEXT
+			).ready();
+			// inject component
+			render_component({
+				component: QueryTable,
+				anchor: dm_anchor,
+				node: a_macros[i],
+				props: {
+					k_model,
+					b_published: false,
+				},
+			}, false);
+		}
+	}
 	// interpret published elements
 	{
 		// xpath query for rendered elements

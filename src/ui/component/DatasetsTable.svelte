@@ -264,7 +264,7 @@ import {
 				//let k_odm = await VeOdm.createFromSerialized<Serialized, InstanceType>(MmsSparqlQueryTable, sp_element, serialized as unknown as Serialized, g_context);
 				let yn_anchor = ym_param.parentNode!;
 				// clone page contents
-				await k_odm.exportResultsToCxhtml(k_connection_new, yn_anchor, k_doc);
+				await k_odm.exportResultsToCxhtml(k_connection_new, yn_anchor, true, k_doc);
 				// update tables touched
 				set_connection_properties(k_connection, {
 					tables_touched_count: ++c_tables_touched,
