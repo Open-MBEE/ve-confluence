@@ -362,7 +362,7 @@ export abstract class QueryTable<
 
 							// sanitization changed string (making it HTML) or it already was HTML; wrap in HTML macro
 							if(sx_sanitize !== sx_cell || 'text/html' === ksx_cell.contentType) {
-								a_nodes.push(wrapCellInHtmlMacro(sx_sanitize, k_contents));
+								a_nodes.push(wrapInHtmlMacro(sx_sanitize, k_contents));
 							}
 							// update cell
 							else {
@@ -381,7 +381,8 @@ export abstract class QueryTable<
 		]);
 		const id = this.path.split('.')[3];
 		// wrap in confluence macro
-		const yn_macro = ConfluencePage.annotatedDiv({
+		const yn_macro = ConfluencePage.richTextBodyMacro({
+			name: 'div',
 			params: {
 				id: this.path,
 			},
@@ -390,9 +391,10 @@ export abstract class QueryTable<
 					JSON.stringify(this._gc_serialized) + '</script>', k_contents),
 				yn_table,
 			],
-			autoCursor: true,
+			autoCursor: false,
 		}, k_contents);
-		const filter = ConfluencePage.tableFilter({
+		const filter = ConfluencePage.richTextBodyMacro({
+			name: 'table-filter',
 			params: {
 				hideControls: 'false',
 				hidelabels: 'false',
@@ -412,7 +414,7 @@ export abstract class QueryTable<
 				isOR: 'AND'
 			},
 			body: yn_macro,
-			autoCursor: true,
+			autoCursor: false,
 		}, k_contents);
 		// use anchor
 		if(yn_anchor) {

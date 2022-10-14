@@ -399,6 +399,7 @@ export abstract class ConfluenceEntity<MetadataType extends PageOrDocumentMetada
 }
 
 export interface MacroConfig {
+	name: string;
 	uuid?: string;
 	params?: Hash;
 	body: Node | Node[] | string;
@@ -566,7 +567,7 @@ export class ConfluenceXhtmlDocument extends XhtmlDocument {
 }
 
 export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
-	static tableFilter(gc_macro: MacroConfig, k_contents: XhtmlDocument): Node {
+	static richTextBodyMacro(gc_macro: MacroConfig, k_contents: XhtmlDocument): Node {
 		const f_builder = k_contents.builder();
 		let yn_body;
 		{
@@ -591,44 +592,7 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 			yn_body = f_builder('ac:rich-text-body', {}, a_nodes);
 		}
 		return f_builder('ac:structured-macro', {
-			'ac:name': 'table-filter',
-			'ac:schema-version': '1',
-			'ac:macro-id': `${gc_macro.uuid || uuid_v4().replace(/_/g, '-')}`,
-		}, [
-			...oderac(gc_macro.params || {}, (si_param, s_value) => f_builder('ac:parameter', {
-				'ac:name': si_param,
-			}, [s_value])),
-			yn_body,
-		]);
-	}
-	static annotatedDiv(gc_macro: MacroConfig, k_contents: XhtmlDocument): Node {
-		const f_builder = k_contents.builder();
-
-		let yn_body;
-		{
-			const z_body = gc_macro.body;
-			let a_nodes = [];
-
-			if(Array.isArray(z_body)) {
-				a_nodes = gc_macro.autoCursor
-					? [
-						...z_body.flatMap(yn => [autoCursorNode(f_builder), yn]),
-						autoCursorNode(f_builder),
-					]
-					: z_body;
-			}
-			else if('string' === typeof z_body) {
-				a_nodes = gc_macro.autoCursor? [autoCursorNode(f_builder), z_body, autoCursorNode(f_builder)]: [z_body];
-			}
-			else {
-				a_nodes = gc_macro.autoCursor? autoCursor(z_body, k_contents): [z_body];
-			}
-
-			yn_body = f_builder('ac:rich-text-body', {}, a_nodes);
-		}
-
-		return f_builder('ac:structured-macro', {
-			'ac:name': 'div',
+			'ac:name': gc_macro.name,
 			'ac:schema-version': '1',
 			'ac:macro-id': `${gc_macro.uuid || uuid_v4().replace(/_/g, '-')}`,
 		}, [
