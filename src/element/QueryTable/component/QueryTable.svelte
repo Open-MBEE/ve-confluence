@@ -628,7 +628,6 @@
 		<div class="controls">
 			<span class="label">
 				Connected Data Table {g_source ? `with ${g_source.label}` : ''}
-				<Fa icon={faQuestionCircle} />
 			</span>
 			<span class="buttons">
 				{#if b_published}

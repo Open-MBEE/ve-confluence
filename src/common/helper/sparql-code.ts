@@ -261,9 +261,12 @@ export function dng_detailer_query(this: Mms5Connection, p_artifact: string): Sp
 			'?requirementTextValue',
 		],
 		bgp: /* syntax: sparql */ `
+		
 			hint:Query hint:joinOrder "Ordered" .
 			#hint:Query hint:useDFE true .
-			
+			values ?artifact {
+				<${p_artifact}>
+			}
 			?artifact a oslc_rm:Requirement ;
 				oslc:instanceShape [
 					dct:title "Requirement"^^rdf:XMLLiteral ;
@@ -280,10 +283,6 @@ export function dng_detailer_query(this: Mms5Connection, p_artifact: string): Sp
 			${H_NATIVE_DNG_PATTERNS.requirementName}
 
 			${H_NATIVE_DNG_PATTERNS.requirementText}
-
-			values ?artifact {
-				<${p_artifact}>
-			}
 		`,
 	});
 }
