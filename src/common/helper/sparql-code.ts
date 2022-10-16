@@ -123,7 +123,7 @@ export async function build_dng_select_param_query(this: MmsSparqlQueryTable, k_
 	return new SparqlSelectQuery({
 		select: [...a_selects],
 		bgp: /* syntax: sparql */ `
-			hint:Query hint:joinOrder "Ordered" .
+			#hint:Query hint:joinOrder "Ordered" .
 			#hint:Query hint:useDFE true .
 			
 			?artifact a oslc_rm:Requirement ;
@@ -167,11 +167,10 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 
 		// insert value filter
 		a_bgp.push(/* syntax: sparql */ `
-			${(si_param in H_NATIVE_DNG_PATTERNS)? '': attr(h_props, si_param, s_value, false)}
-
 			values ?${si_param}Value {
 				${[...this.parameterValuesList(si_param)].map(k => terse_lit(k.value)).join(' ')}
 			}
+			${(si_param in H_NATIVE_DNG_PATTERNS)? '': attr(h_props, si_param, s_value, false)}
 		`);
 	}
 
@@ -221,7 +220,7 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 		count: '?artifact',
 		select: [...a_selects, ...a_aggregates],
 		bgp: /* syntax: sparql */ `
-			hint:Query hint:joinOrder "Ordered" .
+			#hint:Query hint:joinOrder "Ordered" .
 			#hint:Query hint:useDFE true .
 			
 			?artifact a oslc_rm:Requirement ;
@@ -234,15 +233,12 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 			filter exists {
 				?artifact jazz_nav:parent ?parent .
 			}
-
-			${a_bgp.join('\n')}
-
 			${sq_bgp || ''}
+			${a_bgp.join('\n')}
 		`,
 		group: a_aggregates.length ? a_selects.join(' ') : null,
 		sort: [
 			...a_selects.includes('?idValue')? ['asc(?idValue)']: [],
-			'asc(?artifact)',
 		],
 	});
 }
@@ -364,7 +360,7 @@ export function dng_searcher_query(this: Mms5Connection, s_input: string, xm_typ
 			`(strLen(strBefore(lcase(?requirementNameValue), "${s_sanitized}")) as ?score)`,
 		],
 		bgp: /* syntax: sparql */ `
-			hint:Query hint:joinOrder "Ordered" .
+			#hint:Query hint:joinOrder "Ordered" .
 			#hint:Query hint:useDFE true .
 			
 			?artifact a oslc_rm:Requirement ;

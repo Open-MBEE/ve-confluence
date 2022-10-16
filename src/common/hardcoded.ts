@@ -184,7 +184,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 				capturingDocument: {
 					value: 'Capturing Document',
 				},
-				requirementWorkflow: {
+				workflow: {
 					label: 'Maturity',
 					value: 'State (Requirement Workflow)',
 				},
@@ -232,7 +232,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					label: 'MSR Appendix Subsystem Requirements',
 					queryParametersPaths: [
 						'hardcoded#queryParameter.sparql.dng.capturingDocument',
-						'hardcoded#queryParameter.sparql.dng.requirementWorkflow',
+						'hardcoded#queryParameter.sparql.dng.workflow',
 					],
 					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basicMsr',
 					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.table.basicParamsL3ChildrenAndL4s',
@@ -242,7 +242,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					label: 'MSR Appendix Flight System Requirements',
 					queryParametersPaths: [
 						'hardcoded#queryParameter.sparql.dng.capturingDocument',
-						'hardcoded#queryParameter.sparql.dng.requirementWorkflow',
+						'hardcoded#queryParameter.sparql.dng.workflow',
 					],
 					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basicWithChildrenMsr',
 					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.table.basicParamsL3',
