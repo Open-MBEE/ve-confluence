@@ -102,7 +102,7 @@ function adjust_virgin_macro(dm_node: HTMLElement) {
 			}
 		}
 	} else if('TABLE' === dm_node.tagName && 'div' === dm_node.getAttribute('data-macro-name') && si_parameters?.includes('queryTable')) {
-		let tr = dm_node.querySelector('tr')!;
+		let tr = dm_node.childNodes[0].childNodes[0] as HTMLElement; //querySelector('tr')!;
 		tr.style.display = 'none';
 		if (!tr.nextElementSibling) {
 			$(tr.parentElement!).append('<tr><td>Please edit table in viewer mode.</td></tr>');
@@ -207,11 +207,13 @@ function init_editor() {
 	qsa(dm_body, 'table').forEach((dm_node) => {
 		adjust_virgin_macro(dm_node as HTMLElement);
 	});
-
+	qsa(dm_body, 'div.tablefilter-pagination').forEach((dm_node) => {
+		dm_node.style.display = 'none';
+	})
     // check for mentions
 	for(const dm_mention of qsa(d_doc_editor, '.ve-mention') as HTMLElement[]) {
 		dm_mention.contentEditable = 'false';
-	}	
+	}
 }
 function editor_content_updated(a_nodes=qsa(d_doc_editor, 'body>*') as HTMLElement[]) {
 	for(const dm_node of a_nodes) {
