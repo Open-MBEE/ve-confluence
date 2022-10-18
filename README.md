@@ -1,4 +1,4 @@
-# View Editor 4
+# View Editor
 
 An extensible, multi-environment view and widget UI for querying and transcluding model elements for Systems Engineering documents.
 
