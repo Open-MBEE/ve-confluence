@@ -320,8 +320,8 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					value: 'Allocated System',
 					label: 'Allocated System', // inherit from value
 					source: 'attribute',
-					hasMany: false,
-					cell: (g: QueryRow) => plain`${escape_html(g.allocatedSystemsValue?.value || '')}`,
+					hasMany: true,
+					cell: unordered_list('allocatedSystemsValue'),
 				},
 				maturity: {
 					value: 'Maturity',
