@@ -228,7 +228,7 @@ export async function main(): Promise<void> {
 	//find initial tables
 	{
 		// xpath query for rendered elements
-		const a_macros = k_source.select<Node>(`//ac:structured-macro[@ac:name="cae-nexus-table"]`);
+		const a_macros = k_source.select<Node>(`//ac:structured-macro[@ac:name="ve-table"]`);
 		const a_divs = qsa(dm_main, '.ve-table-init');
 		if (a_macros.length != a_divs.length) {
 			console.log('table counts don\'t match');

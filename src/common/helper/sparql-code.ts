@@ -44,28 +44,6 @@ const H_NATIVE_DNG_PATTERNS: Record<string, string> = {
 	requirementText: /* syntax: sparql */ `
 		?artifact jazz_rm:primaryText ?requirementTextValue .
 	`,
-	affectedSystems: /* syntax: sparql */ `
-		[
-			rdf:subject ?artifact ;
-			rdf:predicate <https://jpl.nasa.gov/msr/rm#linkType/Allocation> ;
-			rdf:object ?affectedSystem ;
-		] .
-
-		?affectedSystem a oslc_rm:Requirement ;
-			dct:title ?affectedSystemsValues ;
-			.
-	`,
-	allocatedSystems: /* syntax: sparql */ `
-		[
-			rdf:subject ?artifact ;
-			rdf:predicate <https://jpl.nasa.gov/msr/rm#linkType/Allocation> ;
-			rdf:object ?allocatedSystem ;
-		] .
-
-		?allocatedSystem a oslc_rm:Requirement ;
-			dct:title ?allocatedSystemsValues ;
-			.
-	`,
 	children: /* syntax: sparql */ `
 		optional {
 			?children a oslc_rm:Requirement ;
@@ -76,69 +54,8 @@ const H_NATIVE_DNG_PATTERNS: Record<string, string> = {
 	`,
 };
 
-const H_NATIVE_DNG_PARAMS: Record<string, string> = {
-	id: /* syntax: sparql */ `
-		?artifact dct:identifier ?value .
-	`,
-	requirementName: /* syntax: sparql */ `
-		?artifact dct:title ?value .
-	`,
-};
-
 interface BuildConfig {
 	bgp?: SparqlString;
-}
-
-export async function build_dng_select_param_query(this: MmsSparqlQueryTable, k_param: QueryParam, s_seach_text?: string): Promise<SparqlSelectQuery> {
-	const a_bgp: string[] = [];
-
-	const a_selects = [
-		'?value',
-		'(count(?artifact) as ?count)',
-	];
-
-	// get format for native parameters
-	if(k_param.key in H_NATIVE_DNG_PARAMS) {
-		a_bgp.push(H_NATIVE_DNG_PARAMS[k_param.key]);
-	}
-	// use property formatting for parameter
-	else {
-		a_bgp.push(`
-				?_attr_decl a oslc:Property ;
-					dct:title ${SparqlQueryHelper.literal(k_param.value)}^^rdf:XMLLiteral ;
-					oslc:propertyDefinition ?_attr .
-
-			?artifact a oslc_rm:Requirement ;
-				?_attr [rdfs:label ?value] .
-		`);
-	}
-
-	// add filter for searching for parameters
-	if(s_seach_text) {
-		a_bgp.push(`
-			filter contains(lcase(?value),"${s_seach_text.toLowerCase().replace(/"/g, '\\"').replace(/\n/g, '')}") 
-		`);
-	}
-
-	return new SparqlSelectQuery({
-		select: [...a_selects],
-		bgp: /* syntax: sparql */ `
-			#hint:Query hint:joinOrder "Ordered" .
-			#hint:Query hint:useDFE true .
-			
-			?artifact a oslc_rm:Requirement ;
-				oslc:instanceShape [
-					dct:title "Requirement"^^rdf:XMLLiteral ;
-				] ;
-			.
-			# exclude requirements that are part of a requirement document
-			filter exists {
-				?artifact jazz_nav:parent ?parent .
-			}
-			${a_bgp.join('\n')}
-		`,
-		group: '?value order by desc(?count)',
-	});
 }
 
 export async function build_dng_select_query_from_params(this: MmsSparqlQueryTable, gc_build?: BuildConfig): Promise<SparqlSelectQuery> {
@@ -212,6 +129,11 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 		else if('native' === s_source) {
 			if(si_param in H_NATIVE_DNG_PATTERNS) {
 				a_bgp.push(H_NATIVE_DNG_PATTERNS[si_param]);
+				if ('children' === si_param) {
+					a_aggregates.push(`
+						(group_concat(distinct ?children; separator='\\u0000') as ?childrenArtifact)
+					`)
+				}
 			}
 		}
 	}
@@ -359,7 +281,7 @@ export function dng_searcher_query(this: Mms5Connection, s_input: string, xm_typ
 			`(strLen(strBefore(lcase(?requirementNameValue), "${s_sanitized}")) as ?score)`,
 		],
 		bgp: /* syntax: sparql */ `
-			#hint:Query hint:joinOrder "Ordered" .
+			hint:Query hint:joinOrder "Ordered" .
 			#hint:Query hint:useDFE true .
 			
 			?artifact a oslc_rm:Requirement ;
