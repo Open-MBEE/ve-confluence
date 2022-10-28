@@ -46,8 +46,8 @@ const H_NATIVE_DNG_PATTERNS: Record<string, string> = {
 	`,
 	children: /* syntax: sparql */ `
 		optional {
-			?children a oslc_rm:Requirement ;
-				ibm_type:Decomposition ?artifact ;
+			?children ibm_type:Decomposition ?artifact ;
+				a oslc_rm:Requirement ;
 				dct:title ?childrenValues ;
 				.
 		}
