@@ -48,21 +48,10 @@ static_css += /* syntax: css */ `
 		vertical-align: middle;
 	}
 
-	.observes-inline {
-		display: inline;
-	}
-
-	.propagates-inline+* {
-		display: inline;
-	}
-
 	.ve-transclusion-display {
 		padding-left: 3px;
 	}
 
-	.mce-visual-caret {
-		display: none !important;
-	}
 `;
 
 export const static_js = '';

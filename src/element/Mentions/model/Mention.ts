@@ -33,8 +33,6 @@ import Fa from 'svelte-fa';
 
 import {
 	dd,
-	decode_attr,
-	encode_attr,
 	parse_html,
 	qs,
 	remove_all_children,
@@ -62,10 +60,7 @@ import MentionOverlay from '#/element/Mentions/component/MentionOverlay.svelte';
 import {Transclusion} from '#/element/Transclusion/model/Transclusion';
 
 import {
-	editorAutoCursor,
 	editorMacro,
-	retro_fit,
-	SI_EDITOR_SYNC_KEY,
 } from '#/vendor/confluence/module/confluence';
 
 import AsyncLockPool from '#/util/async-lock-pool';
@@ -626,7 +621,7 @@ export class Mention {
 		// bind event listeners
 		void this.bindEventListeners();
 
-		// 
+		//
 		await this._enter_attribute_selector(p_item);
 
 		// query for rendered content
