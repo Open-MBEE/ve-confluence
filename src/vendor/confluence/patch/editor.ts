@@ -160,6 +160,7 @@ function init_page_element(dm_node: HTMLTableElement, gc_element: Serializable) 
 	});
 }
 function onEditorChange()  {
+	d_doc_editor.body.querySelectorAll('p[data-mce-caret]').forEach(p => p.remove());
 	// remove stale observes-inline classes
 	d_doc_editor.body.querySelectorAll('p.observes-inline').forEach((p) => {
 		if (!p.nextElementSibling?.classList.contains('ve-inline-macro')) {
