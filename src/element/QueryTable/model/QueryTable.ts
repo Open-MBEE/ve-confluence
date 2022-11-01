@@ -34,7 +34,6 @@ import type {TypedString} from '#/util/strings';
 import {
 	autoCursorMutate,
 	ConfluencePage,
-	wrapCellInHtmlMacro,
 	wrapInHtmlMacro
 } from '#/vendor/confluence/module/confluence';
 
@@ -109,7 +108,7 @@ export class ParamValuesList {
 
 export namespace QueryParam {
 	export interface Serialized extends TypedKeyedPrimitive<'QueryParam'> {
-		sortPath: VeoPath.SortFunction | null;
+		sortPath: VeoPathTarget | null;
 		value: string;
 		label?: string;
 	}
@@ -126,7 +125,7 @@ export class QueryParam extends VeOdmKeyed<QueryParam.Serialized> {
 
 	get sort(): undefined | CompareFunction<Labeled> {
 		if(this._gc_serialized.sortPath) {
-			return this._k_store.resolveSync<CompareFunction<Labeled>>(
+			return this._k_store.resolveSync<VeoPathTarget, CompareFunction<Labeled>>(
 				this._gc_serialized.sortPath
 			);
 		}
@@ -240,10 +239,6 @@ export namespace QueryTable {
 		parameterValues: Record<string, QueryParamValue.Serialized[]>;
 	}
 }
-
-
-const N_QUERY_TABLE_BUILD_RESULTS_LIMIT = 1 << 10;
-
 
 function sanitize_false_directives(sx_html: string): string {
 	const d_parser = new DOMParser();

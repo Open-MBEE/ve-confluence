@@ -33,8 +33,6 @@ import Fa from 'svelte-fa';
 
 import {
 	dd,
-	decode_attr,
-	encode_attr,
 	parse_html,
 	qs,
 	remove_all_children,
@@ -62,10 +60,7 @@ import MentionOverlay from '#/element/Mentions/component/MentionOverlay.svelte';
 import {Transclusion} from '#/element/Transclusion/model/Transclusion';
 
 import {
-	editorAutoCursor,
 	editorMacro,
-	retro_fit,
-	SI_EDITOR_SYNC_KEY,
 } from '#/vendor/confluence/module/confluence';
 
 import AsyncLockPool from '#/util/async-lock-pool';
@@ -120,21 +115,6 @@ const query_row_to_display_row = (h_row: QueryRow, k_connection: Connection): Ro
 	uri: h_row.artifact.value,
 	source: k_connection,
 });
-
-function macro_parameters_from_string(sx_params: string): Hash {
-	return sx_params.split(/\|/g).reduce((h_out, s_pair) => {
-		const [si_key, s_value] = s_pair.split('=');
-		return {
-			...h_out,
-			[si_key]: s_value,
-		};
-	}, {}) as Hash;
-}
-
-function macro_parameters_to_string(h_params: Hash): string {
-	return oderac(h_params, (si_key: string, s_value: string) => `${si_key}=${s_value}`).join('|');
-}
-
 
 function* range(s_from: string, s_to: string) {
 	for(let i_char=s_from.codePointAt(0)!, i_to=s_to.codePointAt(0)!; i_char<i_to; i_char++) {
@@ -626,7 +606,7 @@ export class Mention {
 		// bind event listeners
 		void this.bindEventListeners();
 
-		// 
+		//
 		await this._enter_attribute_selector(p_item);
 
 		// query for rendered content

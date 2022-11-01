@@ -1,5 +1,4 @@
 import type {
-	QueryParam,
 	MmsSparqlQueryTable,
 } from '#/element/QueryTable/model/QueryTable';
 
@@ -11,7 +10,6 @@ import {
 
 import {
 	NoOpSparqlSelectQuery,
-	SparqlQueryHelper,
 	SparqlSelectQuery,
 } from '../../util/sparql-endpoint';
 
