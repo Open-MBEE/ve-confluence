@@ -163,7 +163,8 @@ function onEditorChange()  {
 	d_doc_editor.body.querySelectorAll('p[data-mce-caret]').forEach(p => p.remove());
 	// remove stale observes-inline classes
 	d_doc_editor.body.querySelectorAll('p.observes-inline').forEach((p) => {
-		if (!p.nextElementSibling?.classList.contains('ve-inline-macro')) {
+		if (!p.nextElementSibling?.classList.contains('ve-inline-macro') &&
+			!p.previousElementSibling?.classList.contains('ve-inline-macro')) {
 			p.classList.remove('observes-inline');
 		}
 	});
@@ -175,6 +176,7 @@ function onEditorChange()  {
 		}
 		if (table.nextElementSibling?.tagName === 'P') {
 			table.nextElementSibling?.classList.add('auto-cursor-target');
+			table.nextElementSibling?.classList.add('observes-inline');
 		}
 	});
 }
@@ -484,9 +486,7 @@ function addTinymceCss() {
 // add tinymce static css
 	d_doc_editor.head.appendChild(dd('style', {}, [`
 		${static_css}
-		.observes-inline {
-			display: inline;
-		}
+		
 		.ve-inline-macro + p {
 			display: inline;
 		}

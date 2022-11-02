@@ -51,6 +51,9 @@ static_css += /* syntax: css */ `
 	.ve-transclusion-display {
 		padding-left: 3px;
 	}
+	.observes-inline {
+		display: inline;
+	}
 
 `;
 
