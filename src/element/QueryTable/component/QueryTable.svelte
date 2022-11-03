@@ -287,7 +287,6 @@
 
 	async function publish_table() {
 		xc_info_mode = G_INFO_MODES.LOADING;
-
 		// get page content as xhtml document
 		const {
 			page: k_page,
@@ -296,7 +295,7 @@
 		const {
 			rows: a_rows,
 			contents: k_contents,
-		} = await k_model.exportResultsToCxhtml(k_connection, yn_directive);
+		} = await k_model.exportResultsToCxhtml(k_connection, yn_directive, b_published);
 
 		// prepare commit message
 		let s_commit_message = '';
@@ -629,7 +628,6 @@
 		<div class="controls">
 			<span class="label">
 				Connected Data Table {g_source ? `with ${g_source.label}` : ''}
-				<Fa icon={faQuestionCircle} />
 			</span>
 			<span class="buttons">
 				{#if b_published}

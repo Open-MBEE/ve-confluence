@@ -32,7 +32,6 @@ import {
 } from '#/util/strings';
 
 import {
-	build_dng_select_param_query,
 	build_dng_select_query_from_params,
 	dng_detailer_query,
 	dng_searcher_query,
@@ -184,7 +183,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 				capturingDocument: {
 					value: 'Capturing Document',
 				},
-				requirementWorkflow: {
+				workflow: {
 					label: 'Maturity',
 					value: 'State (Requirement Workflow)',
 				},
@@ -207,7 +206,6 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					],
 					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basicWithChildren',
 					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.table.basicParamsL3',
-					paramQueryBuilderPath: 'hardcoded#paramQueryBuilder.sparql.dng.default',
 				},
 				asr: {
 					label: 'Appendix Subsystem Requirements',
@@ -217,7 +215,6 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					],
 					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basic',
 					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.table.basicParamsL3ChildrenAndL4s',
-					paramQueryBuilderPath: 'hardcoded#paramQueryBuilder.sparql.dng.default',
 				},*/
 				bid: {
 					label: 'By Requirement ID',
@@ -226,27 +223,24 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					],
 					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.simple',
 					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.table.basicParams',
-					paramQueryBuilderPath: 'hardcoded#paramQueryBuilder.sparql.dng.default',
 				},
 				msrasr: {
 					label: 'MSR Appendix Subsystem Requirements',
 					queryParametersPaths: [
 						'hardcoded#queryParameter.sparql.dng.capturingDocument',
-						'hardcoded#queryParameter.sparql.dng.requirementWorkflow',
+						'hardcoded#queryParameter.sparql.dng.workflow',
 					],
 					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basicMsr',
 					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.table.basicParamsL3ChildrenAndL4s',
-					paramQueryBuilderPath: 'hardcoded#paramQueryBuilder.sparql.dng.default',
 				},
 				msrafr: {
 					label: 'MSR Appendix Flight System Requirements',
 					queryParametersPaths: [
 						'hardcoded#queryParameter.sparql.dng.capturingDocument',
-						'hardcoded#queryParameter.sparql.dng.requirementWorkflow',
+						'hardcoded#queryParameter.sparql.dng.workflow',
 					],
 					queryFieldGroupPath: 'hardcoded#queryFieldGroup.sparql.dng.basicWithChildrenMsr',
 					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.table.basicParamsL3',
-					paramQueryBuilderPath: 'hardcoded#paramQueryBuilder.sparql.dng.default',
 				}
 			},
 		},
@@ -323,11 +317,11 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					cell: (g: QueryRow) => plain`${escape_html(g.affectedSystemsValue?.value || '')}`,
 				},
 				allocatedSystems: {
-					value: 'Allocated Systems',
-					label: 'Allocated Systems', // inherit from value
+					value: 'Allocated System',
+					label: 'Allocated System', // inherit from value
 					source: 'attribute',
 					hasMany: true,
-					cell: (g: QueryRow) => plain`${escape_html(g.allocatedSystemsValue?.value || '')}`,
+					cell: unordered_list('allocatedSystemsValue'),
 				},
 				maturity: {
 					value: 'Maturity',
@@ -351,21 +345,13 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					cell: (g: QueryRow) => xhtml`<ul>${
 						g.childrenValue.value
 							.split(/\0/g)
-							.map((s, i) => /* syntax: html*/ `<li><a href="${g.childrenValue.value.split(/\0/g)[i]}">${escape_html(s)}</a></li>`)
+							.map((s, i) => /* syntax: html*/ `<li><a href="${g.childrenArtifact.value.split(/\0/g)[i]}">${escape_html(s)}</a></li>`)
 							.join('')
 					}</ul>`,
 				},
 			},
 		},
 	}),
-
-	paramQueryBuilder: {
-		sparql: {
-			dng: {
-				default: build_dng_select_param_query,
-			},
-		},
-	},
 
 	queryContext: {
 		sparql: {

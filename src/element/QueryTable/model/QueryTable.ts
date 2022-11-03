@@ -34,7 +34,6 @@ import type {TypedString} from '#/util/strings';
 import {
 	autoCursorMutate,
 	ConfluencePage,
-	wrapCellInHtmlMacro,
 	wrapInHtmlMacro
 } from '#/vendor/confluence/module/confluence';
 
@@ -109,7 +108,7 @@ export class ParamValuesList {
 
 export namespace QueryParam {
 	export interface Serialized extends TypedKeyedPrimitive<'QueryParam'> {
-		sortPath: VeoPath.SortFunction | null;
+		sortPath: VeoPathTarget | null;
 		value: string;
 		label?: string;
 	}
@@ -126,7 +125,7 @@ export class QueryParam extends VeOdmKeyed<QueryParam.Serialized> {
 
 	get sort(): undefined | CompareFunction<Labeled> {
 		if(this._gc_serialized.sortPath) {
-			return this._k_store.resolveSync<CompareFunction<Labeled>>(
+			return this._k_store.resolveSync<VeoPathTarget, CompareFunction<Labeled>>(
 				this._gc_serialized.sortPath
 			);
 		}
@@ -241,10 +240,6 @@ export namespace QueryTable {
 	}
 }
 
-
-const N_QUERY_TABLE_BUILD_RESULTS_LIMIT = 1 << 10;
-
-
 function sanitize_false_directives(sx_html: string): string {
 	const d_parser = new DOMParser();
 	const d_doc = d_parser.parseFromString(sx_html, 'text/html');
@@ -334,7 +329,7 @@ export abstract class QueryTable<
 	}
 
 
-	async exportResultsToCxhtml(this: QueryTable, k_connection: Connection, yn_anchor: Node, k_contents=this.getContext().source): Promise<{rows: QueryRow[]; contents: XHTMLDocument}> {
+	async exportResultsToCxhtml(this: QueryTable, k_connection: Connection, yn_anchor: Node, published: boolean, k_contents=this.getContext().source): Promise<{rows: QueryRow[]; contents: XHTMLDocument}> {
 		// fetch query builder
 		const k_query = await this.fetchQueryBuilder();
 
@@ -362,7 +357,7 @@ export abstract class QueryTable<
 
 							// sanitization changed string (making it HTML) or it already was HTML; wrap in HTML macro
 							if(sx_sanitize !== sx_cell || 'text/html' === ksx_cell.contentType) {
-								a_nodes.push(wrapCellInHtmlMacro(sx_sanitize, k_contents));
+								a_nodes.push(wrapInHtmlMacro(sx_sanitize, k_contents));
 							}
 							// update cell
 							else {
@@ -381,7 +376,8 @@ export abstract class QueryTable<
 		]);
 		const id = this.path.split('.')[3];
 		// wrap in confluence macro
-		const yn_macro = ConfluencePage.annotatedDiv({
+		const yn_macro = ConfluencePage.richTextBodyMacro({
+			name: 'div',
 			params: {
 				id: this.path,
 			},
@@ -390,9 +386,31 @@ export abstract class QueryTable<
 					JSON.stringify(this._gc_serialized) + '</script>', k_contents),
 				yn_table,
 			],
-			autoCursor: true,
+			autoCursor: false,
 		}, k_contents);
-
+		const filter = ConfluencePage.richTextBodyMacro({
+			name: 'table-filter',
+			params: {
+				hideControls: 'false',
+				hidelabels: 'false',
+				sparkName: 'Sparkline',
+				hidePane: 'Filtration panel',
+				disableSave: 'false',
+				rowsPerPage: '40',
+				separator: 'Point (.)',
+				sparkline: 'false',
+				hideColumns: 'false',
+				datepattern: 'dd M yy',
+				disabled: 'false',
+				enabledInEditor: 'false',
+				globalFilter: 'false',
+				updateSelectOptions: 'false',
+				worklog: '365|5|8|y w d h m|y w d h m',
+				isOR: 'AND'
+			},
+			body: yn_macro,
+			autoCursor: false,
+		}, k_contents);
 		// use anchor
 		if(yn_anchor) {
 			// replace node
@@ -406,9 +424,9 @@ export abstract class QueryTable<
 					yn_replace = yn_replace.parentNode;
 				}
 			}
-
+			const replacement = published ? yn_macro : filter;
 			// replace node
-			yn_replace.parentNode?.replaceChild(yn_macro, yn_replace);
+			yn_replace.parentNode?.replaceChild(replacement, yn_replace);
 
 			// auto cusor mutate
 			autoCursorMutate(yn_macro, k_contents);

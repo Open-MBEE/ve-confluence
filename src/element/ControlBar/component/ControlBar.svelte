@@ -370,15 +370,15 @@
 
 	const H_PATHS_MSR = {
 		connection: {
-			sparql: { 
+			sparql: {
 				mms: {
 			dng: {
 				type: 'Mms5Connection',
 				label: 'DNG Requirements',
 				alias: 'DNG',
-				endpoint: 'https://mms5-test.jpl.nasa.gov',
+				endpoint: 'https://mms5.jpl.nasa.gov',
 				repoPath: '/orgs/dngmdk/repos/msr',
-				ref: '/locks/test',
+				ref: '/locks/initial',
 				contextPath: 'hardcoded#queryContext.sparql.dng.common',
 				searchPath: 'hardcoded#queryBuilder.sparql.dng.search.basic',
 				detailPath: 'hardcoded#queryBuilder.sparql.dng.detail.basic',

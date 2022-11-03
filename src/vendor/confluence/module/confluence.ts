@@ -399,6 +399,7 @@ export abstract class ConfluenceEntity<MetadataType extends PageOrDocumentMetada
 }
 
 export interface MacroConfig {
+	name: string;
 	uuid?: string;
 	params?: Hash;
 	body: Node | Node[] | string;
@@ -566,9 +567,8 @@ export class ConfluenceXhtmlDocument extends XhtmlDocument {
 }
 
 export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
-	static annotatedDiv(gc_macro: MacroConfig, k_contents: XhtmlDocument): Node {
+	static richTextBodyMacro(gc_macro: MacroConfig, k_contents: XhtmlDocument): Node {
 		const f_builder = k_contents.builder();
-
 		let yn_body;
 		{
 			const z_body = gc_macro.body;
@@ -591,9 +591,8 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 
 			yn_body = f_builder('ac:rich-text-body', {}, a_nodes);
 		}
-
 		return f_builder('ac:structured-macro', {
-			'ac:name': 'div',
+			'ac:name': gc_macro.name,
 			'ac:schema-version': '1',
 			'ac:macro-id': `${gc_macro.uuid || uuid_v4().replace(/_/g, '-')}`,
 		}, [
@@ -969,7 +968,7 @@ export class ConfluenceDocument extends ConfluenceEntity<DocumentMetadata> {
 						`id=${this._si_cover_page}`,
 						`ancestor=${this._si_cover_page}`,
 					].join(' or ')+')',
-					`macro in (span, html)`, //`text~"${sr_path}"` text isn't reliable in returning all expected pages, right now only used for table
+					`macro in (div, html)`, //`text~"${sr_path}"` text isn't reliable in returning all expected pages, right now only used for table
 				].join(' and '),
 				expand: 'body.storage',
 				limit: '1000',

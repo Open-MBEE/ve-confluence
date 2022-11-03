@@ -1,0 +1,16 @@
+Macro Name: ve-table
+Macro Title: This is what users see as the macro
+Macro Body Processing: No macro body
+
+Text below the dotted line is the macro template code
+-----------------------------------------------------
+## Macro title: This is what users see as the macro
+## Macro has a body: N
+## Body processing: Selected body processing option
+## Output: Block
+##
+## Developed by: My Name
+## Date created: dd/mm/yyyy
+## Installed by: My Name
+## @noparams
+<div><div class="ve-table-init"></div></div>

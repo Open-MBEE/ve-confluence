@@ -79,13 +79,12 @@
 				select ?value (count(?req) as ?count) {
 					hint:Query hint:joinOrder "Ordered" .
 					#hint:Query hint:useDFE true .
-					
+
 						?_attr_decl a oslc:Property ;
 							dct:title ${Sparql.literal(k_param_load.value)}^^rdf:XMLLiteral ;
-							oslc:propertyDefinition ?_attr .					
+							oslc:propertyDefinition ?_attr .
 
-					?req a oslc_rm:Requirement ;
-						?_attr [rdfs:label ?value] .
+					?req ?_attr [rdfs:label ?value] .
 				}
 				group by ?value order by desc(?count)
 				`;
