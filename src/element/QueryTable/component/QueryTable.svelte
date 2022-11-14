@@ -72,6 +72,10 @@
 
 	let dm_display: HTMLElement;
 
+	let dm_preview: HTMLElement;
+
+	let dm_anchor_parent: HTMLElement;
+
 	// shows/hides the table results
 	let b_display_preview = !b_published;
 
@@ -243,6 +247,31 @@
 		xc_info_mode = G_INFO_MODES.PREVIEW;
 	}
 
+	function toggle_pagination_controls() {
+		// show/hide pagination controls for preview/edit mode table
+		if(dm_preview) {
+			// get pagination controls div (appears immediately after the preview table div)
+			let preview_sibling = dm_preview.nextElementSibling;
+			if(preview_sibling) {
+				let display_attribute = b_display_parameters ? "display: block;" : "display: none;";
+				preview_sibling.setAttribute("style", display_attribute);
+			}
+		}
+
+		// show/hide pagination controls for view mode table
+		// keep track of table div parent element
+		let dm_parent = dm_anchor.parentElement;
+		if(dm_parent) {
+			dm_anchor_parent = dm_parent
+		}
+
+		if(dm_anchor_parent) {
+			// remove the table div from DOM whenever in preview mode
+			// add table div back to DOM when out of preview
+			b_display_parameters ? dm_anchor.remove() : dm_anchor_parent.appendChild(dm_anchor);
+		}
+	}
+
 	function toggle_parameters() {
 		// do not allow closing while pending edits
 		if(b_published && b_changed && b_display_parameters) return;
@@ -250,11 +279,13 @@
 		// toggle parameters display
 		b_display_parameters = !b_display_parameters;
 
+		// show/hide table pagination controls
+		toggle_pagination_controls();
+
 		// parameters should not be showing
 		if(!b_display_parameters) {
 			// table is published; hide the preview
 			if(b_published) b_display_preview = false;
-
 			// done
 			return;
 		}
@@ -349,6 +380,9 @@
 		if(b_published) {
 			b_display_preview = false;
 		}
+
+		// show/hide table pagination controls
+		toggle_pagination_controls();
 
 		// clear preview
 		clear_preview();
@@ -698,7 +732,7 @@
 			</div>
 			{/if}
 			{#if b_display_preview}
-				<div class="table-wrap" class:busy={b_busy_loading}>
+				<div class="table-wrap" class:busy={b_busy_loading} bind:this={dm_preview}>
 					<!-- svelte-ignore a11y-resolved -->
 					<table class="wrapped confluenceTable tablesorter tablesorter-default stickyTableHeaders" role="grid" style="padding: 0px;" resolved="">
 						<colgroup>
