@@ -11,6 +11,22 @@ export const SR_HASH_VE_PAGE_EDIT_MODE = '#editor';
 
 export const P_SRC_EDITOR_SUPPLEMENT = process.env.EDITOR_SUPPLEMENT_SRC;
 
+function wait() {
+	// clear all timeouts
+	{
+		let i_timer = window.setTimeout(() => {}, 0);  // eslint-disable-line @typescript-eslint/no-empty-function
+		while(i_timer--) {
+			window.clearTimeout(i_timer);
+		}
+	}
+	// clear all intervals
+	{
+		let i_interval = window.setInterval(() => {}, 1000*60*60*24*365);  // eslint-disable-line @typescript-eslint/no-empty-function
+		while(i_interval--) {
+			window.clearInterval(i_interval);
+		}
+	}
+}
 export async function inject_frame(p_href: string): Promise<void> {
 	// mimic loading UI
 	{
@@ -38,6 +54,7 @@ export async function inject_frame(p_href: string): Promise<void> {
 			}
 		}
 	}
+    wait(); // clear stuff confluence might be doing
 	// open, write and close document
 	{
 		document.open();
