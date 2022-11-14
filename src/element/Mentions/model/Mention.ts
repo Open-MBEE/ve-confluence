@@ -101,7 +101,7 @@ export class MacroDestroyedError extends Error {
 }
 
 // debounce time in ms
-const XT_DEBOUNCE = 350;
+const XT_DEBOUNCE = 1000;
 
 // global precache
 const H_PRECACHE: Record<string, Scenario> = {};
@@ -760,7 +760,7 @@ export class Mention {
 		// needs to happen synchronously before setting group vars
 		this.postMessage('render_search', [s_term]);
 
-		return this.search(s_term);
+		return this.search(s_term, true);
 	}
 
 	get macroDom(): HTMLElement {

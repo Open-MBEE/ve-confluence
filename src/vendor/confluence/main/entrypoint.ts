@@ -7,8 +7,6 @@ import type {
 	ConfluenceXhtmlDocument,
 } from '#/vendor/confluence/module/confluence';
 
-import G_META from '#/common/meta';
-
 import {
 	process,
 	lang,
@@ -34,7 +32,6 @@ import ControlBar from '#/element/ControlBar/component/ControlBar.svelte';
 
 import QueryTable from '#/element/QueryTable/component/QueryTable.svelte';
 
-
 import {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
 
 
@@ -54,6 +51,7 @@ import {
 
 import {
 	inject_frame,
+	SR_HASH_VE_PAGE_EDIT_MODE
 } from './inject-frame';
 
 import {Transclusion} from '#/element/Transclusion/model/Transclusion';
@@ -159,7 +157,7 @@ function render_component(g_bundle: ViewBundle, b_hide_anchor = false) {
 function getJsonFromScript(text: string) {
 	return text.replace('//<![CDATA[', '').replace('//]]>', '');
 }
-export async function main(): Promise<void> {
+async function main(): Promise<void> {
 	if('object' !== typeof lang?.basic) {
 		throw new Error(`ERROR: No lang file defined! Did you forget to set the environment variables when building?`);
 	}
@@ -353,105 +351,37 @@ export async function main(): Promise<void> {
 }
 
 const H_HASH_TRIGGERS: Record<string, (de_hash_change?: HashChangeEvent) => Promise<void>> = {
-	async 'load-editor'() {
-		// apply beta changes
+	async 'editor'() {
 		replace_edit_button();
-
-		if(!p_original_edit_link) {
+		if (!p_original_edit_link) {
 			throw new Error(`Original page edit button link was never captured`);
 		}
 		return await inject_frame(p_original_edit_link);
 	},
-
 	async 'admin'(de_hash_change?: HashChangeEvent) {
-		if(de_hash_change && de_hash_change.oldURL !== de_hash_change.newURL) {
+		if (de_hash_change && de_hash_change.oldURL !== de_hash_change.newURL) {
 			location.reload();
 		}
-
 		await Promise.resolve();
-	},
-
-	async 'beta'() {
-		const m_path = /^(.*[^+])\+*$/.exec(location.pathname);
-		if(m_path) {
-			const s_expect = m_path[1]+'+';
-			if(location.pathname !== s_expect) {
-				location.href = s_expect+'#beta';
-				return;
-			}
-		}
-		else {
-			console.error(`Unmatchable pathname: ${location.pathname}`);
-		}
-
-		// update version info
-		kv_control_bar.$set({s_app_version:`${process.env.VERSION}-beta`});
-
-		// // apply beta changes
-		// replace_edit_button();
-
-		await Promise.resolve();
-	},
-
-	async 'noop'() {
-		const dm_edit = qs(dm_main, 'a#editPageLink')! as HTMLAnchorElement;
-		dm_edit.href = '#noop';
-
-		await Promise.resolve();
-	},
+	}
 };
 
-
 let p_original_edit_link = '';
-const S_VE_PATCHED = 'vePatched';
-type MutableHistory = History & {
-	[S_VE_PATCHED]: boolean;
-}
 
 function replace_edit_button() {
-	// history not yet patched
-	if(!(history as MutableHistory)[S_VE_PATCHED]) {
-		(history as MutableHistory)[S_VE_PATCHED] = true;
-		const f_push = history.pushState;
-		history.pushState = (w_state: unknown, s_title: string, p_url: string) => {
-			// edit mode
-			if(/^\/pages\/editpage\.action/.test(p_url)) {
-				const p_load_editor = location.pathname+'+++#editor';
-				queueMicrotask(() => {
-					location.href = p_load_editor;
-				});
-
-				setTimeout(() => {
-					location.href = p_load_editor;
-				}, 200);
-				return;
-			}
-
-			// default
-			f_push.call(history, w_state, s_title, p_url);
-		};
-
-		// window.addEventListener('beforeunload', () => {
-		// 	debugger;
-		// });
-	}
-
 	// already replaced
-	if(p_original_edit_link) return;
+	if (p_original_edit_link) return;
 
 	const dm_edit = qs(dm_main, 'a#editPageLink')! as HTMLAnchorElement;
 	p_original_edit_link = dm_edit.href;
-	dm_edit.href = '#load-editor';
-
+	dm_edit.href = SR_HASH_VE_PAGE_EDIT_MODE;
 	// remove all event listeners
 	const dm_clone = dm_edit.cloneNode(true);
 	dm_edit.parentNode?.replaceChild(dm_clone, dm_edit);
-	
 }
 
 function hash_updated(de_hash_change?: HashChangeEvent): void {
 	const a_hashes = location.hash.slice(1).split(/:/g);
-
 	for(const si_hash of a_hashes) {
 		if(si_hash in H_HASH_TRIGGERS) {
 			void H_HASH_TRIGGERS[si_hash](de_hash_change);
@@ -459,86 +389,24 @@ function hash_updated(de_hash_change?: HashChangeEvent): void {
 	}
 }
 
-const H_PATH_SUFFIX_TO_HASH: Record<string, string> = {
-	'+': 'beta',
-	'++': 'admin',
-	'+++': 'load-editor',
-};
-
 function dom_ready() {
-	// apply beta changes
 	replace_edit_button();
-
+	if (location.hash === SR_HASH_VE_PAGE_EDIT_MODE) {
+		hash_updated();
+		return;
+	}
+	// kickoff main
+	void main();
 	// listen for hash change
 	window.addEventListener('hashchange', hash_updated as (de: Event) => void);
-
-	INTERPRET_LOCATION: {
-		let si_page_title = location.pathname;
-
-		// viewpage.action
-		if(location.pathname.endsWith('viewpage.action')) {
-			const y_params = new URLSearchParams(location.search);
-
-			// normalize viewpage URL
-			si_page_title = encodeURIComponent(y_params.get('title')!).replace(/%20/g, '+');
-
-			// replace URL with page title version
-			history.replaceState(null, '', `/display/${y_params.get('spaceKey')!}/${si_page_title}`);
-		}
-		// doeditpage.action
-		else if(location.pathname.endsWith('doeditpage.action')) {
-			// normalize viewpage URL
-			si_page_title = encodeURIComponent(G_META.page_title).replace(/%20/g, '+');
-
-			// redirect to view page
-			location.href = `/display/${G_META.space_key}/${si_page_title}`;
-		}
-
-		// special url indication
-		const m_special = /(\++)$/.exec(si_page_title);
-		if(m_special) {
-			const s_suffix = m_special[1];
-
-			// suffix is mapped
-			if(s_suffix in H_PATH_SUFFIX_TO_HASH) {
-				// lookup corresponding hash
-				const s_set_hash = H_PATH_SUFFIX_TO_HASH[s_suffix];
-
-				// resolve hash parts
-				const as_parts = new Set(location.hash.slice(1).split(/:/g).filter(s => s));
-
-				// hash already set
-				if(as_parts.has(s_set_hash)) {
-					// manually trigger hash update
-					hash_updated();
-				}
-				// hash not set
-				else {
-					// prepend new hash part and update hash, allowing listener to trigger handler
-					location.hash = '#'+[s_set_hash, ...as_parts].join(':');
-				}
-
-				// exit location interpretter block
-				break INTERPRET_LOCATION;
-			}
-		}
-
-		// trigger update
-		hash_updated();
-	}
 }
 
 // entry point
 {
-	// kickoff main
-	void main();
-
 	// document is already loaded
-	if(['complete', 'interactive', 'loaded'].includes(document.readyState)) {
+	if (['complete', 'interactive', 'loaded'].includes(document.readyState)) {
 		dom_ready();
-	}
-	// dom content not yet loaded; add event listener
-	else {
+	} else { // dom content not yet loaded; add event listener
 		document.addEventListener('DOMContentLoaded', () => {
 			dom_ready();
 		}, false);
