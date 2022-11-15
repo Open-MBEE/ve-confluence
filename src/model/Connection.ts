@@ -9,6 +9,7 @@ import type {
 	SparqlString,
 	QueryRow,
 	TypedLabeledObject,
+	SparqlBindings,
 } from '#/common/types';
 
 import SparqlEndpoint, {
@@ -304,13 +305,14 @@ export class Mms5Connection extends SparqlConnection<Mms5Connection.Serialized> 
             this._k_endpoint.setAuth(this._token);
             return;
         }
-		if (window.sessionStorage.getItem('ve4-mms5token')) {
-			this._token = window.sessionStorage.getItem('ve4-mms5token');
+		const tokenName = `ve4-mms5token-${this.endpoint}`;
+		if (window.sessionStorage.getItem(tokenName)) {
+			this._token = window.sessionStorage.getItem(tokenName)!;
 			const claims = jose.decodeJwt(this._token);
 			//check if token expired
 			if (claims.exp && claims.exp > Date.now()/1000) {
 				this._k_endpoint.setAuth(this._token);
-            	return;
+				return;
 			}
 			console.log('mms5 token expired');
 		}
@@ -322,7 +324,7 @@ export class Mms5Connection extends SparqlConnection<Mms5Connection.Serialized> 
         const token: string = (await res.json()).token;
         this._token = token;
         this._k_endpoint.setAuth(token);
-		window.sessionStorage.setItem('ve4-mms5token', this._token);
+		window.sessionStorage.setItem(tokenName, this._token);
     }
 
 	async execute(sq_query: SparqlString, fk_controller?: (d_controller: AbortController) => void): Promise<QueryRow[]> {
@@ -346,7 +348,7 @@ export class Mms5Connection extends SparqlConnection<Mms5Connection.Serialized> 
 			} 
 			`,
 		});
-		
+
 		// response not ok
 		if(!d_res.ok) {
 			throw new Error(
