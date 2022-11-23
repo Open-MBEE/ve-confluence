@@ -26,6 +26,9 @@
 
 	export let k_param: QueryParam;
 	export let k_query_table: QueryTable;
+	export let b_busy_loading: boolean;
+	export let b_publishing: boolean;
+	export let b_param_values_loading: boolean;
 
 	let k_values = k_query_table.parameterValuesList(k_param.key);
 	$: k_values = k_query_table.parameterValuesList(k_param.key);
@@ -48,10 +51,11 @@
 
 	let e_query: Error | null = null;
 
-	let xc_load = XC_LOAD_NOT;
+	export let xc_load = XC_LOAD_NOT;
 
 	async function load_param(k_param_load: QueryParam) {
 		if(k_query_table.type.startsWith('MmsSparql')) {
+			b_param_values_loading = true;
 			const k_connection = (await k_query_table.fetchConnection()) as Mms5Connection;
 			let queryString: string;
 			if('id' === k_param_load.key) {
@@ -105,6 +109,7 @@
 			if(k_param.sort) {
 				a_options = a_options.map(g_opt => g_opt.data).sort(k_param.sort).map(g_data => a_options.find(g_opt => g_opt.data.value === g_data.value)) as Option[];
 			}
+			b_param_values_loading = false;
 		}
 	}
 
@@ -164,6 +169,7 @@
 		width: 100%;
 		height: 0px;
 		margin-top: 4px;
+		border-bottom: none;
 	}
 
 	[class^="param-"] {
@@ -239,28 +245,61 @@
 		:global(.multiSelectItem) {
 			margin: 3px 0 3px 4px;
 		}
+
+		:global(.param-values-loading) {
+			background: rgba(255, 255, 255, 0.1) !important;
+			border-color: var(--ve-color-medium-text) !important;
+			color: var(--ve-color-medium-light-text) !important;
+			border: 0.5px solid;
+			padding-left: 6px;
+		}
+	}
+
+	.active {
+		:global(.param-selection) {
+			background: var(--ve-color-medium-light-text) !important;
+			border-color: var(--ve-color-medium-light-text) !important;
+			color: var(--ve-color-medium-light-text) !important;
+			border: 0.5px solid;
+			padding-left: 6px;
+		}
+		:global(.param-selection > .multiSelectItem) {
+			background: var(--ve-color-medium-text) !important;
+			color: var(--ve-color-button-light) !important;			
+		}
+
+		// :global(.param-selection > input::placeholder) {
+		// 	color: var(--ve-color-dark-text) !important;			
+		// }
 	}
 </style>
 
 
 <hr>
 <legend class="param-label">
-	<span>{k_param.label}</span>
+	<span>{k_param.label}:</span>
 </legend>
-<span class="param-values">
+<span class="param-values" class:active={b_busy_loading || b_publishing}>
 	{#if XC_LOAD_NOT === xc_load}
-		<p>{lang.basic.loading_pending}</p>
+		<Select
+			value={lang.basic.loading_pending}
+			isDisabled={true}
+			containerClasses="param-values-loading"
+		>
+		</Select>
 	{:else if XC_LOAD_ERROR === xc_load}
 		<p style="color:red;">{lang.basic.loading_failed}</p>
 	{:else}
 		<Select
 			items={a_options.map(g_opt => g_opt.data)}
 			value={a_init_values.length? a_init_values: null}
-			placeholder="Select Attribute Value(s)"
+			placeholder="Select Value"
 			isMulti={true}
 			isClearable={false}
+			isDisabled={b_busy_loading || b_publishing}
 			showIndicator={true}
 			isVirtualList={true}
+			containerClasses={"param-selection"}
 			itemHeight={10}
 			indicatorSvg={/* syntax: html */ `
 				<svg width="7" height="5" viewBox="0 0 7 5" fill="none" xmlns="http://www.w3.org/2000/svg">

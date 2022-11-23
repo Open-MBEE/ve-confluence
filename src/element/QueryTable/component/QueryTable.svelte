@@ -46,6 +46,8 @@
 	// number of preview rows
 	const N_PREVIEW_ROWS = 40;
 
+	// max number of published rows
+	const N_MAX_PUBLISHED_ROWS = 300;
 
 	/**
 	 * The QueryTable model
@@ -100,6 +102,9 @@
 	// whether or not there are any filters applied
 	let b_filtered = false;
 
+	// whether or not parameter values in QueryTableParam have been loaded
+	let b_param_values_loading: boolean;
+
 	// table edited
 	$: b_changed = b_published? si_query_hash_previous !== si_query_hash_published : '' !== si_query_hash_previous;
 
@@ -133,8 +138,10 @@
 			}
 
 			// update display version
-			s_display_version = `${dt_version.toDateString()} @${dt_version.toLocaleTimeString()}`;
+			s_display_version = dt_version.toLocaleDateString('en-us', { year:"numeric", month:"long", day:"numeric"});
 		}
+		// keep track of the number of rows in the published table
+		n_published_rows = get_num_of_publ_rows();
 	});
 
 	const A_DUMMY_TABLE_ROWS = [{}, {}, {}];
@@ -148,7 +155,13 @@
 
 	let b_busy_loading = false;
 
+	// whether or not the table is in the process of being published
+	let b_publishing = false;
+
 	let g_source: {label: string} | null = null;
+
+	// number of rows in the published table
+	let n_published_rows: Number = 0;
 
 	g_source = {label:'DNG Requirements'};
 
@@ -167,6 +180,7 @@
 	enum G_INFO_MODES {
 		PREVIEW = 1,
 		LOADING = 2,
+		PUBLISHING = 3,
 	}
 
 	let xc_info_mode = G_INFO_MODES.PREVIEW;
@@ -317,7 +331,8 @@
 	}
 
 	async function publish_table() {
-		xc_info_mode = G_INFO_MODES.LOADING;
+		b_publishing = true;
+		xc_info_mode = G_INFO_MODES.PUBLISHING;
 		// get page content as xhtml document
 		const {
 			page: k_page,
@@ -348,7 +363,6 @@
 					}
 				}
 			}
-
 			const nl_rows = a_rows.length;
 
 			s_commit_message = `Published query table with ${nl_rows} row${1 === nl_rows? '': 's'} using "${k_model.queryType.label}" ${a_where.length? `where\n(${a_where.join(') AND (')}`: ''})`
@@ -373,6 +387,8 @@
 
 
 	async function reset_table() {
+		// change publishing state
+		b_publishing = false;
 		// hide parameters
 		b_display_parameters = false;
 
@@ -412,10 +428,30 @@
 		// trigger svelte update for query type change
 		k_model = k_model;
 	}
+
+	function get_num_of_publ_rows() {
+		let n = 0;
+		if(dm_anchor && dm_anchor.firstElementChild) {
+			const table_children: NodeListOf<ChildNode> = dm_anchor.firstElementChild.childNodes;
+			for(let i = 0; i < table_children.length; i++) {
+				let child = table_children[i];
+				if(child.nodeName == "TBODY") {
+					n = child.childNodes.length;
+					break;
+				}
+			}
+		}
+		return n;
+	}
+
 </script>
 
 <style lang="less">
 	@import '/src/common/ve.less';
+
+	:global(.ve-query-table + .table-wrap > table) {
+		width: 100%;
+	}
 
 	.controls {
 		display: flex;
@@ -437,6 +473,10 @@
 		.buttons {
 			flex: 1 auto;
 			text-align: right;
+
+			.active {
+				display: None;
+			}
 		}
 	}
 
@@ -445,13 +485,6 @@
 	}
 
 	.ve-table {
-		&.expanded {
-			.config {
-				.tabs {
-					border-bottom: 1px solid var(--ve-color-light-text);
-				}
-			}
-		}
 /*
 		&.published:not(.changed) {
 			&.expanded {
@@ -508,7 +541,6 @@
 
 			.tabs {
 				align-self: center;
-				border-bottom: 1px solid transparent;
 				margin: 0;
 				padding: 4px 0 4px 0;
 
@@ -517,9 +549,6 @@
 					padding: 5px 10px;
 				}
 
-				.active {
-					border-bottom: 3px solid var(--ve-color-light-text);
-				}
 
 				*:nth-child(n + 2) {
 					margin-left: 0.25em;
@@ -528,11 +557,6 @@
 				:global(* svg) {
 					margin-right: 3px;
 					transform: scale(0.9);
-				}
-
-				.parameters {
-					color: var(--ve-color-light-text);
-					cursor: pointer;
 				}
 
 				.version {
@@ -555,6 +579,13 @@
 			}
 		}
 
+		.max-rows-info {
+			padding: 8px;
+			font-style: italic;
+			color: #172B4D;
+			border: 1px solid #C1C7D0;
+		}
+
 		.config-body {
 			.transition(background-color 0.5s ease-out;);
 
@@ -562,14 +593,13 @@
 			color: var(--ve-color-medium-light-text);
 			padding: 6pt 20pt 10pt 20pt;
 
-			.query-type {
-				color: var(--ve-color-light-text);
-
-				*:nth-child(n + 2) {
-					margin-left: 0.5em;
-				}
+			.form {
+				display: grid;
+				grid-template-columns: auto 1fr;
+				grid-template-rows: auto;
 
 				.label {
+					color: var(--ve-color-light-text);
 					vertical-align: middle;
 				}
 
@@ -593,8 +623,9 @@
 					:global(.selectContainer) {
 						display: inline-flex;
 						width: fit-content;
-						min-width: 200px;
+						min-width: 285px;
 						vertical-align: middle;
+						padding: 0px 40px 0px 6px;
 					}
 
 					:global(.indicator + div:nth-child(n + 3)) {
@@ -609,17 +640,38 @@
 						margin: 3px 0 3px 4px;
 					}
 				}
+
+				.active {
+					:global(.selectContainer) {
+						background: var(--ve-color-medium-light-text) !important;
+						border-color: var(--ve-color-medium-light-text) !important;
+						color: var(--ve-color-medium-text) !important;
+						border: 0.5px solid;
+						padding-left: 6px;
+					}
+					:global(.selectContainer > .multiSelectItem) {
+						background: var(--ve-color-medium-text) !important;
+						color: var(--ve-color-button-light) !important;			
+					}
+				}
+
+				hr {
+					border: 1px solid var(--ve-color-medium-text);
+					width: 100%;
+					margin-top: 20px;
+				}
 			}
 
-			.form {
-				margin-top: 1em;
-				display: grid;
-				grid-template-columns: auto 1fr;
-				grid-template-rows: auto;
+			.preview-button {
+				display: flex;
 
-				.header {
-					margin: 0;
-					font-size: 12px;
+				button {
+					margin-left: auto;
+					margin-right: 0px;
+					display: flex;
+					align-items: center;
+					text-align: center;
+					margin-top: 8px;
 				}
 			}
 		}
@@ -635,12 +687,9 @@
 				width: 100%;
 
 				.ve-table-preview-cell-placeholder {
-					background-color: transparent;
 					vertical-align: middle;
-					height: 1em;
-					display: inline-block;
-					width: 100%;
-					border-radius: 4px;
+					border: none;
+					font-style: italic;
 				}
 			}
 		}
@@ -664,14 +713,9 @@
 				Connected Data Table {g_source ? `with ${g_source.label}` : ''}
 			</span>
 			<span class="buttons">
-				{#if b_published}
-					<span class="ve-pill">
-						<Fa icon={faCheckCircle} size="sm" />
-						Published
-					</span>
-				{/if}
+				<button class="ve-button-primary" on:click={toggle_parameters} class:active={b_display_parameters}>Edit Table</button>
 				{#if b_display_parameters}
-					<button class="ve-button-primary" on:click={publish_table} disabled={!b_changed || !b_filtered}>{b_published? 'Update': 'Publish'}</button>
+					<button class="ve-button-primary" on:click={publish_table} disabled={b_busy_loading || b_publishing || b_param_values_loading}>Publish Table</button>
 					<button class="ve-button-secondary" on:click={reset_table}>Cancel</button>
 				{/if}
 			</span>
@@ -680,10 +724,6 @@
 		<div class="ve-table" class:published={b_published} class:changed={b_changed} class:expanded={b_display_parameters}>
 			<div class="config">
 				<span class="tabs">
-					<span class="parameters" on:click={toggle_parameters} class:active={b_display_parameters}>
-						<Fa icon={faPen} size="xs" />
-						Edit Query
-					</span>
 					<span class="version">
 						<Fa icon={faHistory} size="xs" />
 						Version: {s_display_version}
@@ -695,15 +735,24 @@
 							{s_status_info}
 						{:else if G_INFO_MODES.LOADING === xc_info_mode}
 							<Fa icon={faCircleNotch} class="fa-spin" /> LOADING PREVIEW
+						{:else if G_INFO_MODES.PUBLISHING === xc_info_mode}
+							<Fa icon={faCircleNotch} class="fa-spin" /> PUBLISHING
 						{/if}
 					{/if}
 				</span>
 			</div>
+			{#if b_published && !b_display_parameters}
+				{#if n_published_rows >= N_MAX_PUBLISHED_ROWS}
+					<div class="max-rows-info">
+						<p>Table may exceed 300 record wiki limit. Showing 300 of total query results.</p>
+					</div>
+				{/if}
+			{/if}
 			{#if b_display_parameters}
 			<div class="config-body" bind:this={dm_parameters} style="display:{b_display_parameters ? 'block' : 'none'};">
-				<div class="query-type">
-					<span class="label">Query Type</span>
-					<span class="select">
+				<div class="form">
+					<span class="label">Query Type:</span>
+					<span class="select" class:active={!b_param_values_loading && b_busy_loading || b_publishing}>
 						<Select
 							value={k_model.queryType.toItem()}
 							items={Object.values(k_model.queryTypeOptions).map(k => k.toItem())}
@@ -714,25 +763,26 @@
 								</svg>
 							`}
 							Item={SelectItem}
-							containerStyles={'padding: 0px 40px 0px 6px;'}
 							listOffset={0}
+							isDisabled={!b_param_values_loading && b_busy_loading || b_publishing}
 							on:select={select_query_type}
 						/>
 					</span>
-				</div>
-				<div class="form">
-					<span class="header">Parameter</span>
-					<span class="header">Value</span>
+					<hr>
+					<hr>
 					{#await k_model.queryType.fetchParameters() then a_params}
 						{#each a_params as k_param}
-							<QueryTableParam k_query_table={k_model} {k_param} on:change={render} />
+							<QueryTableParam bind:b_param_values_loading={b_param_values_loading} k_query_table={k_model} {k_param} {b_busy_loading} {b_publishing} />
 						{/each}
 					{/await}
+				</div>
+				<div class="preview-button">
+					<button class="ve-button-primary" on:click={render} disabled={b_busy_loading || b_publishing || b_param_values_loading}>Preview Results</button>
 				</div>
 			</div>
 			{/if}
 			{#if b_display_preview}
-				<div class="table-wrap" class:busy={b_busy_loading} bind:this={dm_preview}>
+				<div class="table-wrap" class:busy={b_busy_loading || b_publishing} bind:this={dm_preview}>
 					<!-- svelte-ignore a11y-resolved -->
 					<table class="wrapped confluenceTable tablesorter tablesorter-default stickyTableHeaders" role="grid" style="padding: 0px;" resolved="">
 						<colgroup>
@@ -764,15 +814,9 @@
 						</thead>
 						<tbody aria-live="polite" aria-relevant="all">
 							{#if !g_preview.rows.length}
-								{#each A_DUMMY_TABLE_ROWS as g_row}
-									<tr role="row">
-										{#each k_model.queryType.fields as k_field}
-											<td class="confluenceTd">
-												<span class="ve-table-preview-cell-placeholder">&nbsp;</span>
-											</td>
-										{/each}
-									</tr>
-								{/each}
+								<tr role="row">
+									<td class="confluenceTd ve-table-preview-cell-placeholder">No results. Edit the query to add data to the table.</td>
+								</tr>
 							{:else}
 								{#each g_preview.rows as h_row}
 									<tr role="row">
