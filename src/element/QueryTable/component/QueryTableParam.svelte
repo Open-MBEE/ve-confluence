@@ -26,7 +26,6 @@
 
 	export let k_param: QueryParam;
 	export let k_query_table: QueryTable;
-	export let b_busy_loading: boolean;
 	export let b_publishing: boolean;
 	export let b_param_values_loading: boolean;
 
@@ -279,7 +278,7 @@
 <legend class="param-label">
 	<span>{k_param.label}:</span>
 </legend>
-<span class="param-values" class:active={b_busy_loading || b_publishing}>
+<span class="param-values" class:active={b_publishing}>
 	{#if XC_LOAD_NOT === xc_load}
 		<Select
 			value={lang.basic.loading_pending}
@@ -296,7 +295,7 @@
 			placeholder="Select Value"
 			isMulti={true}
 			isClearable={false}
-			isDisabled={b_busy_loading || b_publishing}
+			isDisabled={b_publishing}
 			showIndicator={true}
 			isVirtualList={true}
 			containerClasses={"param-selection"}

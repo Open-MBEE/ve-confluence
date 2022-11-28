@@ -141,7 +141,7 @@
 			s_display_version = dt_version.toLocaleDateString('en-us', { year:"numeric", month:"long", day:"numeric"});
 		}
 		// keep track of the number of rows in the published table
-		n_published_rows = get_num_of_publ_rows();
+		n_published_rows = get_published_table_rows().length;
 	});
 
 	const A_DUMMY_TABLE_ROWS = [{}, {}, {}];
@@ -238,27 +238,27 @@
 			const k_query = await k_model.fetchQueryBuilder();
 			const a_rows = await k_connection.execute(k_query.paginate(N_PREVIEW_ROWS+1));
 
-			if(N_PREVIEW_ROWS < a_rows.length) {
-				// start counting all rows
-				k_connection.execute(k_query.count())
-					.then((a_counts) => {
-						const nl_rows_total = +a_counts[0].count.value;
-						s_status_info = `PREVIEW (${N_PREVIEW_ROWS < nl_rows_total? N_PREVIEW_ROWS: nl_rows_total} / ${nl_rows_total} result${1 === nl_rows_total ? '' : 's'})`;
-					})
-					.catch(() => {
-						console.error('Failed to count rows for query');
-					});
+			// only display results for the most recent execution
+			if(si_query_hash_previous === si_query_hash_current) {
+				if(N_PREVIEW_ROWS < a_rows.length) {
+					// start counting all rows
+					k_connection.execute(k_query.count())
+						.then((a_counts) => {
+							const nl_rows_total = +a_counts[0].count.value;
+							s_status_info = `PREVIEW (${N_PREVIEW_ROWS < nl_rows_total? N_PREVIEW_ROWS: nl_rows_total} / ${nl_rows_total} result${1 === nl_rows_total ? '' : 's'})`;
+						})
+						.catch(() => {
+							console.error('Failed to count rows for query');
+						});
+				}
+				g_preview.rows = a_rows.map(QueryTable.cellRenderer(k_model));
+
+				s_status_info = `PREVIEW (${N_PREVIEW_ROWS < a_rows.length ? '>'+N_PREVIEW_ROWS : a_rows.length} result${1 === a_rows.length ? '' : 's'})`;
+				b_busy_loading = false;
+				// no longer busy loading
+				xc_info_mode = G_INFO_MODES.PREVIEW;
 			}
-
-			g_preview.rows = a_rows.map(QueryTable.cellRenderer(k_model));
-
-			// no longer busy loading
-			b_busy_loading = false;
-
-			s_status_info = `PREVIEW (${N_PREVIEW_ROWS < a_rows.length ? '>'+N_PREVIEW_ROWS : a_rows.length} result${1 === a_rows.length ? '' : 's'})`;
 		}
-
-		xc_info_mode = G_INFO_MODES.PREVIEW;
 	}
 
 	function toggle_pagination_controls() {
@@ -429,19 +429,17 @@
 		k_model = k_model;
 	}
 
-	function get_num_of_publ_rows() {
-		let n = 0;
+	function get_published_table_rows() {
 		if(dm_anchor && dm_anchor.firstElementChild) {
 			const table_children: NodeListOf<ChildNode> = dm_anchor.firstElementChild.childNodes;
 			for(let i = 0; i < table_children.length; i++) {
 				let child = table_children[i];
 				if(child.nodeName == "TBODY") {
-					n = child.childNodes.length;
-					break;
+					return (child as HTMLTableSectionElement).rows;
 				}
 			}
 		}
-		return n;
+		return [];
 	}
 
 </script>
@@ -752,7 +750,7 @@
 			<div class="config-body" bind:this={dm_parameters} style="display:{b_display_parameters ? 'block' : 'none'};">
 				<div class="form">
 					<span class="label">Query Type:</span>
-					<span class="select" class:active={!b_param_values_loading && b_busy_loading || b_publishing}>
+					<span class="select" class:active={!b_param_values_loading && b_publishing}>
 						<Select
 							value={k_model.queryType.toItem()}
 							items={Object.values(k_model.queryTypeOptions).map(k => k.toItem())}
@@ -764,7 +762,7 @@
 							`}
 							Item={SelectItem}
 							listOffset={0}
-							isDisabled={!b_param_values_loading && b_busy_loading || b_publishing}
+							isDisabled={!b_param_values_loading && b_publishing}
 							on:select={select_query_type}
 						/>
 					</span>
@@ -772,12 +770,12 @@
 					<hr>
 					{#await k_model.queryType.fetchParameters() then a_params}
 						{#each a_params as k_param}
-							<QueryTableParam bind:b_param_values_loading={b_param_values_loading} k_query_table={k_model} {k_param} {b_busy_loading} {b_publishing} />
+							<QueryTableParam bind:b_param_values_loading={b_param_values_loading} k_query_table={k_model} {k_param} {b_publishing} />
 						{/each}
 					{/await}
 				</div>
 				<div class="preview-button">
-					<button class="ve-button-primary" on:click={render} disabled={b_busy_loading || b_publishing || b_param_values_loading}>Preview Results</button>
+					<button class="ve-button-primary" on:click={render} disabled={b_publishing || b_param_values_loading}>Preview Results</button>
 				</div>
 			</div>
 			{/if}
@@ -813,11 +811,18 @@
 							</tr>
 						</thead>
 						<tbody aria-live="polite" aria-relevant="all">
-							{#if !g_preview.rows.length}
+							<!-- show initial preview of published table for those that have content -->
+							{#if n_published_rows > 0 && !g_preview.rows.length && !b_changed}
+								{#each get_published_table_rows() as row}
+									{@html row.innerHTML}
+								{/each}
+							<!-- for new tables/those with no content, display a placeholder -->
+							{:else if !g_preview.rows.length}
 								<tr role="row">
 									<td class="confluenceTd ve-table-preview-cell-placeholder">No results. Edit the query to add data to the table.</td>
 								</tr>
-							{:else}
+							<!-- render preview cells -->
+							{:else}		
 								{#each g_preview.rows as h_row}
 									<tr role="row">
 										{#each Object.values(h_row) as ksx_cell}
