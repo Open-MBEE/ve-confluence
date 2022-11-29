@@ -198,9 +198,7 @@
 		g_preview.rows = [];
 	}
 
-	async function render() {
-		xc_info_mode = G_INFO_MODES.LOADING;
-
+	async function check_filters() {
 		// reset filter status
 		b_filtered = false;
 
@@ -217,6 +215,10 @@
 				break;
 			}
 		}
+	}
+
+	async function render() {
+		await check_filters();
 
 		// changed from published
 		let si_query_hash_current = k_model.hash();
@@ -229,6 +231,7 @@
 
 		// concat hash differs, submit query and rebuild preview
 		if(si_query_hash_current !== si_query_hash_previous) {
+			xc_info_mode = G_INFO_MODES.LOADING;
 			// update hash
 			si_query_hash_previous = si_query_hash_current;
 
@@ -713,7 +716,7 @@
 			<span class="buttons">
 				<button class="ve-button-primary" on:click={toggle_parameters} class:active={b_display_parameters}>Edit Table</button>
 				{#if b_display_parameters}
-					<button class="ve-button-primary" on:click={publish_table} disabled={b_busy_loading || b_publishing || b_param_values_loading}>Publish Table</button>
+					<button class="ve-button-primary" on:click={publish_table} disabled={!b_filtered || b_publishing || b_busy_loading || b_param_values_loading}>Publish Table</button>
 					<button class="ve-button-secondary" on:click={reset_table}>Cancel</button>
 				{/if}
 			</span>
@@ -770,12 +773,12 @@
 					<hr>
 					{#await k_model.queryType.fetchParameters() then a_params}
 						{#each a_params as k_param}
-							<QueryTableParam bind:b_param_values_loading={b_param_values_loading} k_query_table={k_model} {k_param} {b_publishing} />
+							<QueryTableParam on:change={check_filters} bind:b_param_values_loading={b_param_values_loading} k_query_table={k_model} {k_param} {b_publishing} />
 						{/each}
 					{/await}
 				</div>
 				<div class="preview-button">
-					<button class="ve-button-primary" on:click={render} disabled={b_publishing || b_param_values_loading}>Preview Results</button>
+					<button class="ve-button-primary" on:click={render} disabled={!b_filtered || b_publishing || b_param_values_loading}>Preview Results</button>
 				</div>
 			</div>
 			{/if}
