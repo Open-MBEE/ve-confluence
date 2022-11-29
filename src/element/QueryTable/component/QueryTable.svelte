@@ -13,11 +13,9 @@
 	import Fa from 'svelte-fa/src/fa';
 
 	import {
-		faCheckCircle,
 		faCircleNotch,
 		faHistory,
-		faPen,
-		faQuestionCircle,
+		faInfoCircle
 	} from '@fortawesome/free-solid-svg-icons';
 
 	import SelectItem from '#/ui/component/SelectItem.svelte';
@@ -158,12 +156,12 @@
 	// whether or not the table is in the process of being published
 	let b_publishing = false;
 
-	let g_source: {label: string} | null = null;
+	let g_source: {label: string, source: string} | null = null;
 
 	// number of rows in the published table
 	let n_published_rows: Number = 0;
 
-	g_source = {label:'DNG Requirements'};
+	g_source = {label:'DNG Requirements', source: "Doors NG"};
 
 	$: {
 		dm_anchor.style.display = (dm_anchor.localName === 'a' || (b_published && b_display_preview)) ? 'none' :'block';
@@ -585,6 +583,36 @@
 			font-style: italic;
 			color: #172B4D;
 			border: 1px solid #C1C7D0;
+
+			.tooltip {
+				position: relative;
+				display: inline-block;
+			}
+
+			.tooltip .tooltip-text {
+				position: absolute;
+				z-index: 1;
+				background-color: #444C50;
+				visibility: hidden;
+				width: 400px;
+				height: 40px;
+				border-radius: 4px;
+				padding: 8px 24px;
+				font-size: 12px;
+				font-weight: 400;
+				line-height: 16px;
+				color: #F8F8F8;
+				text-align: center;
+				display: flex;
+				align-items:center;
+				justify-content:center;
+				top: 15px;
+				left: 11px;
+			}
+
+			.tooltip:hover .tooltip-text {
+				visibility: visible;
+			}
 		}
 
 		.config-body {
@@ -745,7 +773,15 @@
 			{#if b_published && !b_display_parameters}
 				{#if n_published_rows >= N_MAX_PUBLISHED_ROWS}
 					<div class="max-rows-info">
-						<p>Table may exceed 300 record wiki limit. Showing 300 of total query results.</p>
+						<span>
+							Table may exceed {N_MAX_PUBLISHED_ROWS} record wiki limit. Showing {N_MAX_PUBLISHED_ROWS} of total query results.
+						</span>
+						<span>	
+							<div class="tooltip">
+								<Fa icon={faInfoCircle} />
+								<span class="tooltip-text">The {N_MAX_PUBLISHED_ROWS} record wiki limit minimizes Confluence performance impacts. Create a smaller table, or access the complete list in {g_source ? `${g_source.source}` : ''}.</span>
+							</div>							  
+						</span>
 					</div>
 				{/if}
 			{/if}
