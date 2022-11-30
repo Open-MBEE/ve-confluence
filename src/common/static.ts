@@ -22,7 +22,8 @@ static_css += /* syntax: css */ `
 		--ve-font-size-body-content: 14px;
 		--ve-font-size-table-header: 12px;
 
-		--ve-color-light-background: #FFFFFF;
+		--ve-color-lighter-background: #FFFFFF;
+		--ve-color-light-background: #F5F5F5;
 		--ve-color-dark-background: #404040;
 		--ve-color-darker-background: #333333;
 		--ve-color-dark-text: #333333;
