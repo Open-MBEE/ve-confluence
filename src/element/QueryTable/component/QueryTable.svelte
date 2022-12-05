@@ -545,7 +545,7 @@
 
 				* {
 					align-self: baseline;
-					padding: 5px 10px;
+					padding: 5px 5px;
 				}
 
 
@@ -560,6 +560,7 @@
 
 				.version {
 					color: var(--ve-color-medium-light-text);
+					font-size: 14px;
 				}
 			}
 
@@ -620,7 +621,7 @@
 
 			background-color: var(--ve-color-dark-background);
 			color: var(--ve-color-medium-light-text);
-			padding: 6pt 20pt 10pt 20pt;
+			padding: 5pt 12pt 5pt 12pt;
 
 			.form {
 				display: grid;
@@ -630,6 +631,7 @@
 				.label {
 					color: var(--ve-color-light-text);
 					vertical-align: middle;
+					font-size: 14px;
 				}
 
 				.select {
@@ -687,7 +689,8 @@
 				hr {
 					border: 1px solid var(--ve-color-medium-text);
 					width: 100%;
-					margin-top: 20px;
+					margin-top: 12px;
+					margin-bottom: 0px;
 				}
 			}
 
@@ -754,7 +757,7 @@
 			<div class="config">
 				<span class="tabs">
 					<span class="version">
-						<Fa icon={faHistory} size="xs" />
+						<Fa icon={faHistory} />
 						Version: {s_display_version}
 					</span>
 				</span>

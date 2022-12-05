@@ -184,7 +184,7 @@
 */
 	.param-label {
 		color: var(--ve-color-light-text);
-		margin-right: 6em;
+		margin-right: 4em;
 		font-size: 14px;
 	}
 
