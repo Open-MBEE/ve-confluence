@@ -185,6 +185,8 @@
 	const SX_STATUS_INFO_INIT = 'PREVIEW (0 results)';
 	let s_status_info = SX_STATUS_INFO_INIT;
 
+	let s_results_message = '';
+
 	function clear_preview(): void {
 		b_busy_loading = false;
 
@@ -252,7 +254,25 @@
 							console.error('Failed to count rows for query');
 						});
 				}
+
 				g_preview.rows = a_rows.map(QueryTable.cellRenderer(k_model));
+
+				s_results_message = '';
+				if(g_preview.rows.length == 0) {
+					const a_where = [];
+					const a_params = await k_model.queryType.fetchParameters();
+					for(const gc_param of a_params) {
+						const k_list = k_model.parameterValuesList(gc_param.key);
+						const a_values = [];
+						for(const g_data of k_list) {
+							a_values.push(g_data.label);
+						}
+						if(a_values.length) {
+							a_where.push(`${gc_param.label}: ${a_values.join(', ')}`)
+						}
+					}
+					s_results_message = a_where.join("; ");
+				}
 
 				s_status_info = `PREVIEW (${N_PREVIEW_ROWS < a_rows.length ? '>'+N_PREVIEW_ROWS : a_rows.length} result${1 === a_rows.length ? '' : 's'})`;
 				b_busy_loading = false;
@@ -858,6 +878,11 @@
 								{#each get_published_table_rows() as row}
 									{@html row.innerHTML}
 								{/each}
+							<!-- for queries with no results, display a placeholder -->
+							{:else if !g_preview.rows.length && s_results_message}
+								<tr role="row">
+								<td class="confluenceTd ve-table-preview-cell-placeholder">No results for <b>{s_results_message}</b></td>
+								</tr>
 							<!-- for new tables/those with no content, display a placeholder -->
 							{:else if !g_preview.rows.length}
 								<tr role="row">
