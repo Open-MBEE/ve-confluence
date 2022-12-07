@@ -597,6 +597,10 @@
 				align-self: center;
 				padding: 2pt 4pt;
 			}
+
+			.inactive {
+				visibility: hidden;
+			}
 		}
 
 		.max-rows-info {
@@ -604,6 +608,7 @@
 			font-style: italic;
 			color: #172B4D;
 			border: 1px solid #C1C7D0;
+			font-size: 14px;
 
 			.tooltip {
 				position: relative;
@@ -627,8 +632,8 @@
 				display: flex;
 				align-items:center;
 				justify-content:center;
-				top: 15px;
-				left: 11px;
+				top: 13px;
+				left: 10px;
 			}
 
 			.tooltip:hover .tooltip-text {
@@ -746,6 +751,10 @@
 			}
 		}
 
+		.preview-placholder {
+			border: 1px solid #C1C7D0;
+		}
+
 		.tablesorter-header-inner {
 			font-size: 14px;
 		}
@@ -781,7 +790,7 @@
 						Version: {s_display_version}
 					</span>
 				</span>
-				<span class="info">
+				<span class="info" class:inactive={!b_display_parameters}>
 					{#if b_display_preview || !b_published}
 						{#if G_INFO_MODES.PREVIEW === xc_info_mode}
 							{s_status_info}
@@ -842,7 +851,7 @@
 			</div>
 			{/if}
 			{#if b_display_preview}
-				<div class="table-wrap" class:busy={b_busy_loading || b_publishing} bind:this={dm_preview}>
+				<div class="table-wrap" class:preview-placholder={!b_display_parameters} class:busy={b_busy_loading || b_publishing} bind:this={dm_preview}>
 					<!-- svelte-ignore a11y-resolved -->
 					<table class="wrapped confluenceTable tablesorter tablesorter-default stickyTableHeaders" role="grid" style="padding: 0px;" resolved="">
 						<colgroup>
@@ -881,7 +890,7 @@
 							<!-- for queries with no results, display a placeholder -->
 							{:else if !g_preview.rows.length && s_results_message}
 								<tr role="row">
-								<td class="confluenceTd ve-table-preview-cell-placeholder">No results for <b>{s_results_message}</b></td>
+									<td class="confluenceTd ve-table-preview-cell-placeholder">No results for <b>{s_results_message}</b></td>
 								</tr>
 							<!-- for new tables/those with no content, display a placeholder -->
 							{:else if !g_preview.rows.length}
