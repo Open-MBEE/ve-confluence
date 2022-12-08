@@ -15,7 +15,8 @@
 	import {
 		faCircleNotch,
 		faHistory,
-		faInfoCircle
+		faInfoCircle,
+		faPen
 	} from '@fortawesome/free-solid-svg-icons';
 
 	import SelectItem from '#/ui/component/SelectItem.svelte';
@@ -136,7 +137,7 @@
 			}
 
 			// update display version
-			s_display_version = dt_version.toLocaleDateString('en-us', { year:"numeric", month:"long", day:"numeric"});
+			s_display_version = dt_version.toLocaleDateString('en-us', { year:"numeric", month:"long", day:"numeric", hour: "numeric", minute: "numeric", }).replace("at", "");
 		}
 		// keep track of the number of rows in the published table
 		n_published_rows = get_published_table_rows().length;
@@ -753,6 +754,7 @@
 
 		.preview-placholder {
 			border: 1px solid #C1C7D0;
+			border-top: none;
 		}
 
 		.tablesorter-header-inner {
@@ -774,7 +776,9 @@
 				Connected Data Table {g_source ? `with ${g_source.label}` : ''}
 			</span>
 			<span class="buttons">
-				<button class="ve-button-primary" on:click={toggle_parameters} class:active={b_display_parameters}>Edit Table</button>
+					<button class="ve-button-primary" on:click={toggle_parameters} class:active={b_display_parameters}> 
+						<Fa icon={faPen} style="margin-right: 3px;" /> Edit Table
+					</button>
 				{#if b_display_parameters}
 					<button class="ve-button-primary" on:click={publish_table} disabled={!b_filtered || b_publishing || b_busy_loading || b_param_values_loading}>Publish Table</button>
 					<button class="ve-button-secondary" on:click={reset_table}>Cancel</button>
@@ -811,7 +815,7 @@
 						<span>	
 							<div class="tooltip">
 								<Fa icon={faInfoCircle} />
-								<span class="tooltip-text">The {N_MAX_PUBLISHED_ROWS} record wiki limit minimizes Confluence performance impacts. Create a smaller table, or access the complete list in {g_source ? `${g_source.source}` : ''}.</span>
+								<span class="tooltip-text">Table limited to {N_MAX_PUBLISHED_ROWS} records to minimize Confluence performance impact. You can create a smaller table, or access the complete list in {g_source ? `${g_source.source}` : ''}.</span>
 							</div>							  
 						</span>
 					</div>
