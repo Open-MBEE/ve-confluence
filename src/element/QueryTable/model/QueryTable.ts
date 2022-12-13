@@ -333,8 +333,8 @@ export abstract class QueryTable<
 		// fetch query builder
 		const k_query = await this.fetchQueryBuilder();
 
-		// execute query and download all rows
-		const a_rows = await k_connection.execute(k_query.all());
+		// execute query and download up to 300 rows
+		const a_rows = await k_connection.execute(k_query.paginate(300));
 
 		// build XHTML table
 		const a_fields = this.queryType.fields;
@@ -396,7 +396,7 @@ export abstract class QueryTable<
 				sparkName: 'Sparkline',
 				hidePane: 'Filtration panel',
 				disableSave: 'false',
-				rowsPerPage: '40',
+				rowsPerPage: '20',
 				separator: 'Point (.)',
 				sparkline: 'false',
 				hideColumns: 'false',
