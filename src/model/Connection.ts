@@ -333,39 +333,50 @@ export class Mms5Connection extends SparqlConnection<Mms5Connection.Serialized> 
 
 	async fetchVersionForRef(ref: string): Promise<ModelVersionDescriptor> {
 		const refId = ref.split('/')[2];
-		const d_res = await fetch(`${this.endpoint}${this._gc_serialized.repoPath}/query`, {
-			method: 'POST',
-			mode: 'cors',
-			headers: {
-				'Content-Type': 'application/sparql-query',
-				'Accept': 'application/sparql-results+json',
-				'Authorization': `Bearer ${this._token}`,
-			},
-			body: `select  ?time  where {
+		let time = null;
+		const version = `${this.endpoint}${this._gc_serialized.repoPath}${ref}-time`;
+		if (ref.startsWith('/lock')) {
+			if (window.sessionStorage.getItem(version)) {
+				time = window.sessionStorage.getItem(version);
+			}
+		}
+		if (time === null) {
+			const d_res = await fetch(`${this.endpoint}${this._gc_serialized.repoPath}/query`, {
+				method: 'POST',
+				mode: 'cors',
+				headers: {
+					'Content-Type': 'application/sparql-query',
+					'Accept': 'application/sparql-results+json',
+					'Authorization': `Bearer ${this._token}`,
+				},
+				body: `select  ?time  where {
 				?ref mms:id "${refId}" .
 				?ref mms:commit ?commit .
 				?commit mms:submitted  ?time
 			} 
 			`,
-		});
+			});
 
-		// response not ok
-		if(!d_res.ok) {
-			throw new Error(
-				`MMS Metadata query response not OK: '''\n${await d_res.text()}\n'''`
-			);
-		}
+			// response not ok
+			if (!d_res.ok) {
+				throw new Error(
+					`MMS Metadata query response not OK: '''\n${await d_res.text()}\n'''`
+				);
+			}
 
-		// parse results as JSON
-		const g_res = (await d_res.json()) as {
-			results: {
-				bindings: SparqlBindings;
+			// parse results as JSON
+			const g_res = (await d_res.json()) as {
+				results: {
+					bindings: SparqlBindings;
+				};
 			};
-		};
+			time = g_res.results.bindings[0].time.value;
+			window.sessionStorage.setItem(version, time);
+		}
 		return {
             id: ref,
             label: `${this._gc_serialized.label}`,
-            dateTime: `${g_res.results.bindings[0].time.value}`,
+            dateTime: time,
             modify: {
                 ref: ref,
             },
