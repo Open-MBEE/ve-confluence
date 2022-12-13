@@ -9,6 +9,7 @@ import type {
 	SparqlString,
 	QueryRow,
 	TypedLabeledObject,
+	SparqlBindings,
 } from '#/common/types';
 
 import SparqlEndpoint, {
@@ -17,23 +18,28 @@ import SparqlEndpoint, {
 
 import {
 	VeOdmLabeled,
-	VeOrmClass,
+    VeOrmClass,
 } from './Serializable';
 
 import type {ConnectionQuery} from '#/element/QueryTable/model/QueryTable';
 
 import type {SearcherMask} from '#/common/helper/sparql-code';
 
+import {
+	process,
+} from '#/common/static';
+
+import * as jose from 'jose';
 export interface ModelVersionDescriptor {
 	id: string;
 	label: string;
 	dateTime: string;
 	data?: Record<string, boolean | number | string>;
-	modify?: Partial<MmsSparqlConnection.Serialized>;
+	modify?: Partial<Mms5Connection.Serialized>;
 }
 
 export namespace Connection {
-	type DefaultType = `${'Mms' | 'Plain'}${'Sparql' | 'Vql'}Connection`;
+	type DefaultType = `${'Mms' | 'Plain'}${'Sparql' | 'Vql' | '5'}Connection`;
 
 	export interface Serialized<TypeString extends DefaultType=DefaultType> extends TypedLabeledObject<TypeString> {
 		endpoint: UrlString;
@@ -65,7 +71,7 @@ export interface SparqlQueryContext extends JsonObject {
 }
 
 export namespace SparqlConnection {
-	type DefaultType = `${'Mms' | 'Plain'}SparqlConnection`;
+	type DefaultType = `${'Mms5' | 'MmsSparql' | 'PlainSparql'}Connection`;
 
 	export interface Serialized<TypeString extends DefaultType=DefaultType> extends Connection.Serialized<TypeString> {
 		endpoint: UrlString;
@@ -251,6 +257,7 @@ export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Se
 					mms:submitted ?commitDateTime ;
 					.
 			}
+			order by desc(?commitDateTime) limit 100
 		`) as unknown as CommitResult[];
 
 		// failed to match pattern
@@ -271,3 +278,161 @@ export class MmsSparqlConnection extends SparqlConnection<MmsSparqlConnection.Se
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const MmsSparqlConnection_Assertion: VeOrmClass<MmsSparqlConnection.Serialized> = MmsSparqlConnection;
+
+export namespace Mms5Connection {
+	export interface Serialized extends SparqlConnection.Serialized<'Mms5Connection'> {
+		repoPath: string;
+		ref: string;
+	}
+}
+export class Mms5Connection extends SparqlConnection<Mms5Connection.Serialized> implements VersionedConnection {
+    protected _token = '';
+	initSync(): void {
+		this._k_endpoint = new SparqlEndpoint({
+			endpoint: `${this.endpoint}${this._gc_serialized.repoPath}${this._gc_serialized.ref}/query`,
+			prefixes: this.prefixes,
+		});
+
+		this._f_searcher = this._k_store.resolveSync(this._gc_serialized.searchPath) as unknown as SparqlSearcher;
+		this._f_detailer = this._k_store.resolveSync(this._gc_serialized.detailPath) as unknown as SparqlDetailer;
+        if (!this._token) {
+            this._token = '';
+        }
+	}
+
+    async init(): Promise<void> {
+        if (this._token !== '') {
+            this._k_endpoint.setAuth(this._token);
+            return;
+        }
+		const tokenName = `ve4-mms5token-${this.endpoint}`;
+		if (window.sessionStorage.getItem(tokenName)) {
+			this._token = window.sessionStorage.getItem(tokenName)!;
+			const claims = jose.decodeJwt(this._token);
+			//check if token expired
+			if (claims.exp && claims.exp > Date.now()/1000) {
+				this._k_endpoint.setAuth(this._token);
+				return;
+			}
+			console.log('mms5 token expired');
+		}
+		const res = await fetch(`${this.endpoint}/login`, {
+            method: 'GET',
+            mode: 'cors',
+            headers: {Authorization:`Basic ${process.env.MMS5BASIC}`},
+        });
+        const token: string = (await res.json()).token;
+        this._token = token;
+        this._k_endpoint.setAuth(token);
+		window.sessionStorage.setItem(tokenName, this._token);
+    }
+
+	async execute(sq_query: SparqlString, fk_controller?: (d_controller: AbortController) => void): Promise<QueryRow[]> {
+		return await this._k_endpoint.select(sq_query, fk_controller);
+	}
+
+	async fetchVersionForRef(ref: string): Promise<ModelVersionDescriptor> {
+		const refId = ref.split('/')[2];
+		let time = null;
+		const version = `${this.endpoint}${this._gc_serialized.repoPath}${ref}-time`;
+		if (ref.startsWith('/lock')) {
+			if (window.sessionStorage.getItem(version)) {
+				time = window.sessionStorage.getItem(version);
+			}
+		}
+		if (time === null) {
+			const d_res = await fetch(`${this.endpoint}${this._gc_serialized.repoPath}/query`, {
+				method: 'POST',
+				mode: 'cors',
+				headers: {
+					'Content-Type': 'application/sparql-query',
+					'Accept': 'application/sparql-results+json',
+					'Authorization': `Bearer ${this._token}`,
+				},
+				body: `select  ?time  where {
+				?ref mms:id "${refId}" .
+				?ref mms:commit ?commit .
+				?commit mms:submitted  ?time
+			} 
+			`,
+			});
+
+			// response not ok
+			if (!d_res.ok) {
+				throw new Error(
+					`MMS Metadata query response not OK: '''\n${await d_res.text()}\n'''`
+				);
+			}
+
+			// parse results as JSON
+			const g_res = (await d_res.json()) as {
+				results: {
+					bindings: SparqlBindings;
+				};
+			};
+			time = g_res.results.bindings[0].time.value;
+			window.sessionStorage.setItem(version, time);
+		}
+		return {
+            id: ref,
+            label: `${this._gc_serialized.label}`,
+            dateTime: time,
+            modify: {
+                ref: ref,
+            },
+        };
+	}
+    async fetchCurrentVersion(): Promise<ModelVersionDescriptor> {
+		return this.fetchVersionForRef(this._gc_serialized.ref);
+	}
+
+	async fetchLatestVersion(): Promise<ModelVersionDescriptor> {
+		return this.fetchVersionForRef('/branches/master');
+	}
+	async fetchVersions(): Promise<ModelVersionDescriptor[]> {
+        await fetch('');
+		return [{
+            id: this._gc_serialized.ref,
+            label: 's_label',
+            dateTime: 's_datetime',
+            modify: {
+                ref: this._gc_serialized.ref,
+            },
+        }];
+	}
+	async refExists(ref: string): Promise<boolean> {
+		const result = await fetch(`${this.endpoint}${this._gc_serialized.repoPath}${ref}`, {
+			method: 'GET',
+			mode: 'cors',
+			cache: 'no-store',
+			headers: {Authorization:`Bearer ${this._token}`},
+		});
+		return result.ok;
+	}
+    async makeLatest(ref: string): Promise<ModelVersionDescriptor> {
+        const result = await fetch(`${this.endpoint}${this._gc_serialized.repoPath}${ref}`, {
+			method: 'PUT',
+			mode: 'cors',
+			headers: {Authorization:`Bearer ${this._token}`},
+            body: `
+                <>
+                    mms:ref <../branches/master> ;
+                    dct:title "latest"@en ;
+                    .
+            `,
+		});
+		if (!result.ok) {
+			console.log(result);
+			throw new Error('Lock create failed');
+		}
+        return {
+            id: ref,
+            label: 's_label',
+            dateTime: 's_datetime',
+            modify: {
+                ref: ref,
+            },
+        };
+    }
+
+}

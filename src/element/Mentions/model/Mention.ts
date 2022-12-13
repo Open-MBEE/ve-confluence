@@ -12,7 +12,7 @@ import type {VeoPathTarget} from '#/common/veo';
 
 import {
 	Connection,
-	MmsSparqlConnection,
+	Mms5Connection,
 } from '#/model/Connection';
 
 import {
@@ -33,8 +33,6 @@ import Fa from 'svelte-fa';
 
 import {
 	dd,
-	decode_attr,
-	encode_attr,
 	parse_html,
 	qs,
 	remove_all_children,
@@ -62,10 +60,7 @@ import MentionOverlay from '#/element/Mentions/component/MentionOverlay.svelte';
 import {Transclusion} from '#/element/Transclusion/model/Transclusion';
 
 import {
-	editorAutoCursor,
 	editorMacro,
-	retro_fit,
-	SI_EDITOR_SYNC_KEY,
 } from '#/vendor/confluence/module/confluence';
 
 import AsyncLockPool from '#/util/async-lock-pool';
@@ -106,7 +101,7 @@ export class MacroDestroyedError extends Error {
 }
 
 // debounce time in ms
-const XT_DEBOUNCE = 350;
+const XT_DEBOUNCE = 1000;
 
 // global precache
 const H_PRECACHE: Record<string, Scenario> = {};
@@ -120,21 +115,6 @@ const query_row_to_display_row = (h_row: QueryRow, k_connection: Connection): Ro
 	uri: h_row.artifact.value,
 	source: k_connection,
 });
-
-function macro_parameters_from_string(sx_params: string): Hash {
-	return sx_params.split(/\|/g).reduce((h_out, s_pair) => {
-		const [si_key, s_value] = s_pair.split('=');
-		return {
-			...h_out,
-			[si_key]: s_value,
-		};
-	}, {}) as Hash;
-}
-
-function macro_parameters_to_string(h_params: Hash): string {
-	return oderac(h_params, (si_key: string, s_value: string) => `${si_key}=${s_value}`).join('|');
-}
-
 
 function* range(s_from: string, s_to: string) {
 	for(let i_char=s_from.codePointAt(0)!, i_to=s_to.codePointAt(0)!; i_char<i_to; i_char++) {
@@ -188,7 +168,7 @@ export class Mention {
 		const d_doc_wysiwyg = (qs(document, 'iframe#wysiwygTextarea_ifr') as HTMLIFrameElement).contentDocument!;
 		const k_precacher = Mention.fromConception(g_context, d_doc_wysiwyg);
 
-		await k_precacher.ready;
+		await k_precacher.ready();
 
 		for(const s_char0 of range('0', '9')) {
 			void precache(s_char0);
@@ -241,7 +221,7 @@ export class Mention {
 				value: '',
 				format: '',
 			},
-			connectionPath: 'document#connection.sparql.mms.dng',
+			connectionPath: 'document#connection.sparql.mms.dng', //TODO
 			...gc_transclusion,
 		});
 	}
@@ -375,13 +355,12 @@ export class Mention {
 				this.displayNode,
 			],
 		});
-
-		// retro_fit(this._dm_shadow);
-
-		void this._init(gc_session.ready);
 	}
 
-	protected async _init(fk_ready: MentionConfig['ready']): Promise<void> {
+	async init(): Promise<void> {
+		if (this._b_ready) {
+			return;
+		}
 		let c_retries = 0;
 		const n_max_retrires = 100;
 		while(!this.initOverlay() && c_retries < n_max_retrires) {
@@ -408,9 +387,8 @@ export class Mention {
 
 		for(const [sp_connection, gc_connection] of ode(h_connections)) {
 			switch(gc_connection.type) {
-				case 'MmsSparqlConnection': {
-					const k_connection = await VeOdm.createFromSerialized(MmsSparqlConnection, sp_connection, gc_connection as MmsSparqlConnection.Serialized, g_context);
-
+				case 'Mms5Connection': {
+					const k_connection = await VeOdm.createFromSerialized(Mms5Connection, sp_connection, gc_connection as Mms5Connection.Serialized, g_context);
 					// push as separate channels
 					this._add_channel(sp_connection, k_connection, {
 						types: SearcherMask.ID_EXACT | SearcherMask.ID_START,
@@ -576,14 +554,10 @@ export class Mention {
 	}
 
 
-	get ready(): void | Promise<void> {
+	ready(): Promise<void> {
 		// ready to go
 		if(this._b_ready) return;
-
-		// have to wait
-		return new Promise((fk_ready) => {
-			this._fk_ready = fk_ready;
-		});
+		return this.init();
 	}
 
 	get transclusion(): Transclusion {
@@ -632,7 +606,7 @@ export class Mention {
 		// bind event listeners
 		void this.bindEventListeners();
 
-		// 
+		//
 		await this._enter_attribute_selector(p_item);
 
 		// query for rendered content
@@ -786,7 +760,7 @@ export class Mention {
 		// needs to happen synchronously before setting group vars
 		this.postMessage('render_search', [s_term]);
 
-		return this.search(s_term);
+		return this.search(s_term, true);
 	}
 
 	get macroDom(): HTMLElement {

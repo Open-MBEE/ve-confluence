@@ -79,7 +79,7 @@ export const H_PREFIXES: Record<string, string> = {
 	dng_user: 'https://cae-jazz.jpl.nasa.gov/jts/users/',
 
 	// MMS RDF
-	mms: 'https://opencae.jpl.nasa.gov/mms/rdf/ontology/',
+/*	mms: 'https://opencae.jpl.nasa.gov/mms/rdf/ontology/',
 	'mms-ontology': 'https://opencae.jpl.nasa.gov/mms/rdf/ontology/',
 	'mms-graph': 'https://opencae.jpl.nasa.gov/mms/rdf/graph/',
 	'mms-property': 'https://opencae.jpl.nasa.gov/mms/rdf/property/',
@@ -93,7 +93,7 @@ export const H_PREFIXES: Record<string, string> = {
 	'uml-model-dt': 'https://www.omg.org/spec/UML/20161101/UML.xmi#datatype/',
 	'uml-primitives': 'https://www.omg.org/spec/UML/20161101/PrimitiveTypes.xmi#',
 	'uml-class': 'https://opencae.jpl.nasa.gov/mms/rdf/uml-class/',
-	'uml-property': 'https://opencae.jpl.nasa.gov/mms/rdf/uml-property/',
+	'uml-property': 'https://opencae.jpl.nasa.gov/mms/rdf/uml-property/',*/
 
 	// Neptune
 	hint: 'http://aws.amazon.com/neptune/vocab/v01/QueryHints#',

@@ -109,7 +109,7 @@ export function access<Type extends PrimitiveValue>(h_map: PrimitiveObject, a_fr
 		else if('**' === s_frag) {
 			const sp_parent = a_frags.slice(0, i_frag).join('.');
 
-			for(; i_frag<NL_PATH_FRAGMENTS; i_frag++) {
+			for(; i_frag<NL_PATH_FRAGMENTS; i_frag++) { // TODO what's going on here
 				debugger;
 				for(const si_part in z_node) {
 					const z_child = z_node[si_part];
@@ -179,7 +179,7 @@ export class ObjectStore {
 
 		let h_out: PathOptions<ValueType, ClassType> = {};
 
-		if(c_frags < NL_PATH_FRAGMENTS-1) {
+		if(c_frags < NL_PATH_FRAGMENTS-1) { // TODO check NL_PATH_FRAGMENTS impact //doesnt' work for shorter paths
 			for(const si_frag in h_options) {
 				h_out = {
 					...h_out,
@@ -267,7 +267,7 @@ export class ObjectStore {
 
 		let sp_target!: VeoPathTarget;
 
-		if(nl_frags < NL_PATH_FRAGMENTS-1) {
+		if(nl_frags < NL_PATH_FRAGMENTS-1) { // TODO check
 			if('**' === a_frags[nl_frags-1]) {
 				sp_target = a_frags.slice(0, -1).join('.');
 			}

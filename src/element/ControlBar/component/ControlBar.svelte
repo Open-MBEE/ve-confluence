@@ -88,12 +88,12 @@
 	let sx_page_content_editted: string | Error;
 	$: b_page_content_valid = sx_page_content_editted && !(sx_page_content_editted instanceof Error);
 	$: b_page_content_writable = b_page_json_valid && (new ConfluenceXhtmlDocument(sx_page_content_editted as string)).toString() !== sx_page_content_remote;
-	
+
 	const dm_sidebar = qs(document.body, '.ia-fixed-sidebar') as HTMLDivElement;
 	const dm_sidebar_scrollable = (qs(dm_sidebar, '.ia-scrollable-section') as HTMLDivElement);
 	const n_pre_scrolltop = dm_sidebar.scrollTop || 0;
 
-	let is_chrome = !!window.chrome && (!!window.chrome.webstore || !!window.chrome.runtime);
+	let is_chrome = !!window.chrome;
 	let show_warning = !is_chrome;
 	$: warning = show_warning;
 
@@ -353,11 +353,11 @@
 			sparql: {
 				mms: {
 					dng: {
-						type: 'MmsSparqlConnection',
+						type: 'MmsSparqlConnection',// TODO fix
 						label: 'DNG Requirements',
 						alias: 'DNG',
 						endpoint: 'https://ced-uat.jpl.nasa.gov/sparql',
-						modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/Model.Europa.2021-08-25T23-31-04_375Z',
+						modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/object/Commit.Europa.2022-04-01T03-02-08_720Z',
 						metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/Metadata.Europa',
 						contextPath: 'hardcoded#queryContext.sparql.dng.common',
 						searchPath: 'hardcoded#queryBuilder.sparql.dng.search.basic',
@@ -372,20 +372,20 @@
 		connection: {
 			sparql: {
 				mms: {
-					dng: {
-						type: 'MmsSparqlConnection',
-						label: 'DNG Requirements',
-						alias: 'DNG',
-						endpoint: 'https://ced-uat.jpl.nasa.gov/sparql',
-						modelGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/Model.MSR',
-						metadataGraph: 'https://opencae.jpl.nasa.gov/mms/rdf/graph/Metadata.MSR',
-						contextPath: 'hardcoded#queryContext.sparql.dng.common',
-						searchPath: 'hardcoded#queryBuilder.sparql.dng.search.basic',
-						detailPath: 'hardcoded#queryBuilder.sparql.dng.detail.basic',
-					},
-				},
+			dng: {
+				type: 'Mms5Connection',
+				label: 'DNG Requirements',
+				alias: 'DNG',
+				endpoint: 'https://mms5.jpl.nasa.gov',
+				repoPath: '/orgs/dngmdk/repos/msr',
+				ref: '/locks/initial',
+				contextPath: 'hardcoded#queryContext.sparql.dng.common',
+				searchPath: 'hardcoded#queryBuilder.sparql.dng.search.basic',
+				detailPath: 'hardcoded#queryBuilder.sparql.dng.detail.basic',
 			},
-		},
+				},
+			}
+		}
 	};
 
 
@@ -675,7 +675,7 @@
 					{#if k_document}
 						<TabPanel>
 							<div class="tab-body">
-								<p>New updates are available every Friday at 10:00 PM</p>
+								<p>New updates are available every morning</p>
 								<DatasetsTable {g_context} {b_read_only}></DatasetsTable>
 							</div>
 						</TabPanel>
@@ -714,8 +714,8 @@
 												Convert this page to become the document cover page of a new document:
 											{/if}
 										</h4>
-										<button class="ve-button-primary" on:click={() => k_document? create_document(H_PATHS_CLIPPER): reset_document(H_PATHS_CLIPPER)}>Clipper preset</button>
-										<button class="ve-button-primary" on:click={() => k_document? create_document(H_PATHS_MSR): reset_document(H_PATHS_MSR)}>MSR preset</button>
+										<!--<button class="ve-button-primary" on:click={() => k_document? create_document(H_PATHS_CLIPPER): reset_document(H_PATHS_CLIPPER)}>Clipper preset</button> -->
+										<button class="ve-button-primary" on:click={() => k_document? reset_document(H_PATHS_MSR): create_document(H_PATHS_MSR)}>MSR preset</button>
 									</div>
 								</section>
 								<section>

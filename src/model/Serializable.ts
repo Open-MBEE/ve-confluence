@@ -219,24 +219,6 @@ export class VeOdm<Serialized extends Serializable | Primitive=Serializable | Pr
 
 		// start init
 		this.initSync();
-		this.init()
-			.then(() => {
-				this._b_ready = true;
-				const a_awaits = this._a_awaits;
-				while(a_awaits.length) {
-					const fk_resolve = a_awaits.shift()!;
-					fk_resolve();
-				}
-			})
-			.catch(() => {
-				let s_serialized = '(unable to stringify - see Error details)';
-				try {
-					s_serialized = JSON.stringify(this._gc_serialized);
-				}
-				catch(e_stringify) {
-				}
-				throw new Error(`ERROR: While asynchronously initializing ${this.constructor.name} with ${s_serialized}`);
-			});
 	}
 
 	/**
@@ -275,7 +257,6 @@ export class VeOdm<Serialized extends Serializable | Primitive=Serializable | Pr
 	async restore(): Promise<this> {
 		// restore from init
 		const k_new = await VeOdm.createFromSerialized(this.constructor as VeOdmConstructor<Serialized, this>, this._sp_path, this._gc_serialized_init, this._g_context);
-
 		// call restores
 		const a_restores = this._a_restores;
 		while(a_restores.length) {
@@ -291,14 +272,11 @@ export class VeOdm<Serialized extends Serializable | Primitive=Serializable | Pr
 	}
 
 	async ready(): Promise<this> {
-		if(!this._b_ready) {
-			return await new Promise((fk_resolve) => {
-				this._a_awaits.push(() => {
-					fk_resolve(this);
-				});
-			});
+		if (this._b_ready) {
+			return this;
 		}
-
+		await this.init();
+		this._b_ready = true;
 		return this;
 	}
 

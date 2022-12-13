@@ -22,7 +22,7 @@ import {
 
 import XhtmlDocument, {XHTMLDocument} from './xhtml-document';
 
-import type {MmsSparqlConnection} from '#/model/Connection';
+import type {Mms5Connection} from '#/model/Connection';
 
 import {G_META} from '#/common/meta';
 
@@ -91,11 +91,7 @@ export interface DocumentMetadata extends JsonMetadataShape<'Document'> {
 	schema: '1.0';
 	paths: {
 		connection?: {
-			sparql?: {
-				mms?: {
-					dng?: MmsSparqlConnection.Serialized;
-				};
-			};
+			[key: string]: Mms5Connection.Serialized; 
 		};
 	};
 }
@@ -252,11 +248,11 @@ export type OdmMap<
 	anchor: Node;
 }>;
 
-export type PageMap<
-	Serialized extends Serializable=Serializable,
-	InstanceType extends VeOdm<Serialized>=VeOdm<Serialized>,
-> = Map<ConfluenceApi.BasicPage, OdmMap<Serialized, InstanceType>>;
-
+export type PageMap = {
+	pages: ConfluenceApi.PageWithContent[],
+	cfs: number,
+	tables: number
+}
 
 export async function confluence_get_json<Data extends JsonObject>(pr_path: string, gc_get?: FetchConfig): Promise<Response<Data>> {
 	// complete path with API
@@ -403,6 +399,7 @@ export abstract class ConfluenceEntity<MetadataType extends PageOrDocumentMetada
 }
 
 export interface MacroConfig {
+	name: string;
 	uuid?: string;
 	params?: Hash;
 	body: Node | Node[] | string;
@@ -522,7 +519,18 @@ export function editorMacro(gc_macro: EditorMacroConfig): HTMLElement {
 	], d_doc);
 }
 
-
+export function wrapInHtmlMacro(s_content: string, k_contents: XhtmlDocument): Node {
+	const f_builder = k_contents.builder();
+	return f_builder('ac:structured-macro', {
+		'ac:name': 'html',
+		'ac:schema-version': '1',
+		'ac:macro-id': uuid_v4().replace(/_/g, '-'),
+	}, [
+		f_builder('ac:plain-text-body', {}, [
+			k_contents.createCDATA(s_content),
+		])
+	])
+}
 export function wrapCellInHtmlMacro(s_html: string, k_contents: XhtmlDocument): Node {
 	const f_builder = k_contents.builder();
 
@@ -559,9 +567,8 @@ export class ConfluenceXhtmlDocument extends XhtmlDocument {
 }
 
 export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
-	static annotatedSpan(gc_macro: MacroConfig, k_contents: XhtmlDocument): Node {
+	static richTextBodyMacro(gc_macro: MacroConfig, k_contents: XhtmlDocument): Node {
 		const f_builder = k_contents.builder();
-
 		let yn_body;
 		{
 			const z_body = gc_macro.body;
@@ -584,9 +591,8 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 
 			yn_body = f_builder('ac:rich-text-body', {}, a_nodes);
 		}
-
 		return f_builder('ac:structured-macro', {
-			'ac:name': 'span',
+			'ac:name': gc_macro.name,
 			'ac:schema-version': '1',
 			'ac:macro-id': `${gc_macro.uuid || uuid_v4().replace(/_/g, '-')}`,
 		}, [
@@ -595,7 +601,7 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 			}, [s_value])),
 			f_builder('ac:parameter', {
 				'ac:name': 'atlassian-macro-output-type',
-			}, ['INLINE']),
+			}, ['BLOCK']),
 			yn_body,
 		]);
 	}
@@ -747,7 +753,7 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 		};
 	}
 
-	async fetchContentAsXhtmlDocument(): Promise<{versionNumber: ConfluenceApi.PageVersionNumber; document: ConfluenceXhtmlDocument}> {
+	async fetchContentAsXhtmlDocument(): Promise<{versionNumber: ConfluenceApi.PageVersionNumber; document: XhtmlDocument}> {
 		const {
 			versionNumber: n_version,
 			value: sx_value,
@@ -762,7 +768,7 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 	async postContent(k_contents: XhtmlDocument, s_message='', s_title=this.pageTitle): Promise<Response<JsonObject>> {
 		const {
 			versionNumber: n_version,
-		} = await this.fetchContentAsXhtmlDocument();
+		} = await this.fetchContentAsString(true);
 
 		const s_contents = k_contents.toString();
 
@@ -950,10 +956,9 @@ export class ConfluenceDocument extends ConfluenceEntity<DocumentMetadata> {
 		return !!(await this.fetchMetadataBundle(b_force))?.data;
 	}
 
-	async findPathTags<
-		Serialized extends Serializable=Serializable,
-		InstanceType extends VeOdm<Serialized>=VeOdm<Serialized>,
-	>(sr_path: VeoPathTarget, g_context: Context, dc_class: VeOdmConstructor<Serialized, InstanceType>=VeOdm as unknown as VeOdmConstructor<Serialized, InstanceType>): Promise<PageMap<Serialized, InstanceType>> {
+	private tableRegex = /embedded#elements.serialized.queryTable/g; // each has 2
+	private cfRegex = /embedded#elements.serialized.transclusion/g; //each has 3
+	async findPathTags(): Promise<PageMap> {
 		const g_response = await confluence_get_json(`/content/search`, {
 			search: {
 				cql: [
@@ -963,7 +968,7 @@ export class ConfluenceDocument extends ConfluenceEntity<DocumentMetadata> {
 						`id=${this._si_cover_page}`,
 						`ancestor=${this._si_cover_page}`,
 					].join(' or ')+')',
-					`text~"${sr_path}"`,
+					`macro in (div, html)`, //`text~"${sr_path}"` text isn't reliable in returning all expected pages, right now only used for table
 				].join(' and '),
 				expand: 'body.storage',
 				limit: '1000',
@@ -972,40 +977,29 @@ export class ConfluenceDocument extends ConfluenceEntity<DocumentMetadata> {
 
 		const g_search = g_response.data as ConfluenceApi.ContentResponse<ConfluenceApi.PageWithContent>;
 
-		const h_hits: PageMap<Serialized, InstanceType> = new Map();
+		const pages: ConfluenceApi.PageWithContent[] = [];
+		let tables = 0;
+		let cfs = 0;
 
 		for(const g_page of g_search.results) {
 			const sx_page = g_page.body.storage.value;
-
-			// create new store for page if element belongs to child page
-			let k_store_page = g_context.store;
-			if(g_context.page.pageId !== g_page.id) {
-				k_store_page = new ObjectStore({
-					page: new ConfluencePage(g_page.id, g_page.title),
-				});
+			let pageTables = sx_page.match(this.tableRegex) || [];
+			if (pageTables.length > 0) {
+				tables += pageTables.length / 2;
 			}
-
-			const k_doc = new XHTMLDocument(sx_page);
-			const sq_select = `//ac:parameter[@ac:name="id"][starts-with(text(),"${sr_path}")]`;
-			const a_parameters = k_doc.select(sq_select) as Node[];  // eslint-disable-line @typescript-eslint/no-unnecessary-type-assertion
-
-			// page path
-			const h_page: OdmMap<Serialized, InstanceType> = {};
-			h_hits.set(g_page, h_page);
-
-			for(const ym_param of a_parameters) {
-				const sp_element = ym_param.textContent!;
-
-				const gc_serialized = await ('page' === ObjectStore.locationPart(sp_element)? k_store_page: g_context.store).resolve(sp_element);
-
-				h_page[sp_element] = {
-					odm: await VeOdm.createFromSerialized<Serialized, InstanceType>(dc_class, sp_element, gc_serialized as unknown as Serialized, g_context),
-					anchor: ym_param.parentNode!,
-				};
+			let pageCfs = sx_page.match(this.cfRegex) || [];
+			if (pageCfs.length > 0) {
+				cfs += pageCfs.length / 3;
+			}
+			if (pageTables.length > 0 || pageCfs.length > 0) {
+				pages.push(g_page);
 			}
 		}
-
-		return h_hits;
+		return {
+			pages,
+			tables,
+			cfs
+		}
 	}
 
 	async fetchUserHasUpdatePermissions(): Promise<boolean> {

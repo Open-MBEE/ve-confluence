@@ -1,9 +1,8 @@
 import type {
-	QueryParam,
 	MmsSparqlQueryTable,
 } from '#/element/QueryTable/model/QueryTable';
 
-import type {MmsSparqlConnection} from '#/model/Connection';
+import type {Mms5Connection} from '#/model/Connection';
 
 import {
 	ode,
@@ -11,7 +10,6 @@ import {
 
 import {
 	NoOpSparqlSelectQuery,
-	SparqlQueryHelper,
 	SparqlSelectQuery,
 } from '../../util/sparql-endpoint';
 
@@ -22,14 +20,15 @@ import type {
 
 const terse_lit = (s: string) => `"${s.replace(/[\r\n]+/g, '').replace(/"/g, '\\"')}"`;
 
-function attr(h_props: Hash, si_attr: string, s_attr_key: string) {
+function attr(h_props: Hash, si_attr: string, s_attr_key: string, has_many: boolean) {
 	const sx_prop = h_props[si_attr] = `?_${si_attr}`;
 
 	return /* syntax: sparql */ `
-		${sx_prop} a rdf:Property ;
-			rdfs:label ${terse_lit(s_attr_key)} .
+			${sx_prop}_decl a oslc:Property ;
+				dct:title ${terse_lit(s_attr_key)}^^rdf:XMLLiteral ;
+				oslc:propertyDefinition ${sx_prop} .
 
-		?artifact ${sx_prop} [rdfs:label ?${si_attr}Value] .
+			?artifact ${sx_prop} [rdfs:label ?${si_attr}Value${has_many ? 's' : ''}] .
 	`;
 }
 
@@ -43,89 +42,18 @@ const H_NATIVE_DNG_PATTERNS: Record<string, string> = {
 	requirementText: /* syntax: sparql */ `
 		?artifact jazz_rm:primaryText ?requirementTextValue .
 	`,
-	affectedSystems: /* syntax: sparql */ `
-		[
-			rdf:subject ?artifact ;
-			rdf:predicate <https://jpl.nasa.gov/msr/rm#linkType/Allocation> ;
-			rdf:object ?affectedSystem ;
-		] .
-
-		?affectedSystem a oslc_rm:Requirement ;
-			dct:title ?affectedSystemValue ;
-			.
-	`,
 	children: /* syntax: sparql */ `
 		optional {
-			?children a oslc_rm:Requirement ;
-				ibm_type:Decomposition ?artifact ;
+			?children ibm_type:Decomposition ?artifact ;
+				a oslc_rm:Requirement ;
 				dct:title ?childrenValues ;
 				.
 		}
 	`,
 };
 
-const H_NATIVE_DNG_PARAMS: Record<string, string> = {
-	id: /* syntax: sparql */ `
-		?artifact dct:identifier ?value .
-	`,
-	requirementName: /* syntax: sparql */ `
-		?artifact dct:title ?value .
-	`,
-};
-
 interface BuildConfig {
 	bgp?: SparqlString;
-}
-
-export async function build_dng_select_param_query(this: MmsSparqlQueryTable, k_param: QueryParam, s_seach_text?: string): Promise<SparqlSelectQuery> {
-	const a_bgp: string[] = [];
-
-	const a_selects = [
-		'?value',
-		'(count(?artifact) as ?count)',
-	];
-
-	// get format for native parameters
-	if(k_param.key in H_NATIVE_DNG_PARAMS) {
-		a_bgp.push(H_NATIVE_DNG_PARAMS[k_param.key]);
-	}
-	// use property formatting for parameter
-	else {
-		a_bgp.push(`?_attr a rdf:Property ;
-				rdfs:label ${SparqlQueryHelper.literal(k_param.value)} .
-			?artifact a oslc_rm:Requirement ;
-				?_attr [rdfs:label ?value] .
-		`);
-	}
-
-	// add filter for searching for parameters
-	if(s_seach_text) {
-		a_bgp.push(`
-			filter contains(lcase(?value),"${s_seach_text.toLowerCase().replace(/"/g, '\\"').replace(/\n/g, '')}") 
-		`);
-	}
-
-	const k_connection = await this.fetchConnection();
-
-	return new SparqlSelectQuery({
-		select: [...a_selects],
-		from: `<${k_connection.modelGraph}>`,
-		bgp: /* syntax: sparql */ `
-			?artifact a oslc_rm:Requirement ;
-				oslc:instanceShape [
-					dct:title "Requirement"^^rdf:XMLLiteral ;
-				] ;
-			.
-			# exclude requirements that are part of a requirement document
-			filter not exists {
-				?collection a oslc_rm:RequirementCollection ;
-					oslc_rm:uses ?artifact ;
-					.
-			}
-			${a_bgp.join('\n')}
-		`,
-		group: '?value order by desc(?count)',
-	});
 }
 
 export async function build_dng_select_query_from_params(this: MmsSparqlQueryTable, gc_build?: BuildConfig): Promise<SparqlSelectQuery> {
@@ -144,7 +72,7 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 
 	// each param
 	for(const {
-		key: si_param, label: s_label,
+		key: si_param, label: s_label, value: s_value,
 	} of await this.queryType.fetchParameters()) {
 		// fetch values list
 		const k_list = this.parameterValuesList(si_param);
@@ -154,11 +82,10 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 
 		// insert value filter
 		a_bgp.push(/* syntax: sparql */ `
-			${(si_param in H_NATIVE_DNG_PATTERNS)? '': attr(h_props, si_param, s_label)}
-
 			values ?${si_param}Value {
 				${[...this.parameterValuesList(si_param)].map(k => terse_lit(k.value)).join(' ')}
 			}
+			${(si_param in H_NATIVE_DNG_PATTERNS)? '': attr(h_props, si_param, s_value, false)}
 		`);
 	}
 
@@ -192,7 +119,7 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 			// insert binding pattern fragment
 			a_bgp.push(/* syntax: sparql */ `
 				optional {
-					${attr(h_props, si_param, s_value)}
+					${attr(h_props, si_param, s_value, b_many)}
 				}
 			`);
 		}
@@ -200,23 +127,22 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 		else if('native' === s_source) {
 			if(si_param in H_NATIVE_DNG_PATTERNS) {
 				a_bgp.push(H_NATIVE_DNG_PATTERNS[si_param]);
-
-				if('children' === si_param) {
-					a_aggregates.push(/* syntax: sparql */ `
-						(group_concat(distinct ?${si_param}; separator='\\u0000') as ?${si_param})
-					`);
+				if ('children' === si_param) {
+					a_aggregates.push(`
+						(group_concat(distinct ?children; separator='\\u0000') as ?childrenArtifact)
+					`)
 				}
 			}
 		}
 	}
 
-	const k_connection = await this.fetchConnection();
-
 	return new SparqlSelectQuery({
 		count: '?artifact',
 		select: [...a_selects, ...a_aggregates],
-		from: `<${k_connection.modelGraph}>`,
 		bgp: /* syntax: sparql */ `
+			#hint:Query hint:joinOrder "Ordered" .
+			#hint:Query hint:useDFE true .
+			
 			?artifact a oslc_rm:Requirement ;
 				oslc:instanceShape [
 					dct:title "Requirement"^^rdf:XMLLiteral ;
@@ -224,20 +150,15 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 				.
 
 			# exclude requirements that are part of a requirement document
-			filter not exists {
-				?collection a oslc_rm:RequirementCollection ;
-					oslc_rm:uses ?artifact ;
-					.
+			filter exists {
+				?artifact jazz_nav:parent ?parent .
 			}
-
-			${a_bgp.join('\n')}
-
 			${sq_bgp || ''}
+			${a_bgp.join('\n')}
 		`,
 		group: a_aggregates.length ? a_selects.join(' ') : null,
 		sort: [
 			...a_selects.includes('?idValue')? ['asc(?idValue)']: [],
-			'asc(?artifact)',
 		],
 	});
 }
@@ -252,15 +173,20 @@ export enum SearcherMask {
 	ALL = 0xffff,
 }
 
-export function dng_detailer_query(this: MmsSparqlConnection, p_artifact: string): SparqlSelectQuery {
+export function dng_detailer_query(this: Mms5Connection, p_artifact: string): SparqlSelectQuery {
 	return new SparqlSelectQuery({
 		select: [
 			'?idValue',
 			'?requirementNameValue',
 			'?requirementTextValue',
 		],
-		from: `<${this.modelGraph}>`,
 		bgp: /* syntax: sparql */ `
+		
+			hint:Query hint:joinOrder "Ordered" .
+			#hint:Query hint:useDFE true .
+			values ?artifact {
+				<${p_artifact}>
+			}
 			?artifact a oslc_rm:Requirement ;
 				oslc:instanceShape [
 					dct:title "Requirement"^^rdf:XMLLiteral ;
@@ -268,10 +194,8 @@ export function dng_detailer_query(this: MmsSparqlConnection, p_artifact: string
 				.
 
 			# exclude requirements that are part of a requirement document
-			filter not exists {
-				?collection a oslc_rm:RequirementCollection ;
-					oslc_rm:uses ?artifact ;
-					.
+			filter exists {
+				?artifact jazz_nav:parent ?parent .
 			}
 			
 			${H_NATIVE_DNG_PATTERNS.id}
@@ -279,15 +203,11 @@ export function dng_detailer_query(this: MmsSparqlConnection, p_artifact: string
 			${H_NATIVE_DNG_PATTERNS.requirementName}
 
 			${H_NATIVE_DNG_PATTERNS.requirementText}
-
-			values ?artifact {
-				<${p_artifact}>
-			}
 		`,
 	});
 }
 
-export function dng_searcher_query(this: MmsSparqlConnection, s_input: string, xm_types?: number): SparqlSelectQuery {
+export function dng_searcher_query(this: Mms5Connection, s_input: string, xm_types?: number): SparqlSelectQuery {
 	// criteria for searching
 	const h_criteria = {
 		1: [],
@@ -358,8 +278,10 @@ export function dng_searcher_query(this: MmsSparqlConnection, s_input: string, x
 			'?requirementNameValue',
 			`(strLen(strBefore(lcase(?requirementNameValue), "${s_sanitized}")) as ?score)`,
 		],
-		from: `<${this.modelGraph}>`,
 		bgp: /* syntax: sparql */ `
+			hint:Query hint:joinOrder "Ordered" .
+			#hint:Query hint:useDFE true .
+			
 			?artifact a oslc_rm:Requirement ;
 				oslc:instanceShape [
 					dct:title "Requirement"^^rdf:XMLLiteral ;
@@ -367,12 +289,9 @@ export function dng_searcher_query(this: MmsSparqlConnection, s_input: string, x
 				.
 
 			# exclude requirements that are part of a requirement document
-			filter not exists {
-				?collection a oslc_rm:RequirementCollection ;
-					oslc_rm:uses ?artifact ;
-					.
+			filter exists {
+				?artifact jazz_nav:parent ?parent .
 			}
-			
 			${H_NATIVE_DNG_PATTERNS.id}
 
 			${H_NATIVE_DNG_PATTERNS.requirementName}

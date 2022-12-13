@@ -22,11 +22,12 @@ static_css += /* syntax: css */ `
 		--ve-font-size-body-content: 14px;
 		--ve-font-size-table-header: 12px;
 
+		--ve-color-lighter-background: #FFFFFF;
 		--ve-color-light-background: #F5F5F5;
 		--ve-color-dark-background: #404040;
 		--ve-color-darker-background: #333333;
 		--ve-color-dark-text: #333333;
-		--ve-color-medium-text: #8D8D8D;
+		--ve-color-medium-text: #6F6F6F;
 		--ve-color-medium-light-text: #D0D0D0;
 		--ve-color-light-text: #FFFFFF;
 		--ve-color-accent-light: #2C7E8F;
@@ -48,21 +49,13 @@ static_css += /* syntax: css */ `
 		vertical-align: middle;
 	}
 
+	.ve-transclusion-display {
+		padding-left: 3px;
+	}
 	.observes-inline {
 		display: inline;
 	}
 
-	.propagates-inline+* {
-		display: inline;
-	}
-
-	.ve-transclusion-display {
-		padding-left: 3px;
-	}
-
-	.mce-visual-caret {
-		display: none !important;
-	}
 `;
 
 export const static_js = '';

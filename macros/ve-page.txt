@@ -1,0 +1,24 @@
+Macro Name: your-choice
+Macro Title: This is what users see as the macro
+Macro Body Processing: No macro body
+
+Text below the dotted line is the macro template code
+-----------------------------------------------------
+## Macro title: This is what users see as the macro
+## Macro has a body: N
+## Body processing: Selected body processing option
+## Output: Selected output option
+##
+## Developed by: XXX
+## Date created: dd/mm/yyyy
+## Installed by: My Name
+
+## @param Env:title=Environment|type=enum|enumValues=prod,uat,test|default=prod|desc=Environment
+
+#if( $paramEnv == 'prod' )
+  <script type="text/javascript" src="https://your-host/cdn/viewer.min.js"></script>
+#elseif( $paramEnv == 'uat' )
+  <script type="text/javascript" src="https://your-host-uat/cdn/viewer.min.js"></script>
+#else
+  <script type="text/javascript" src="https://your-host-test/cdn/viewer.dev.js"></script>
+#end

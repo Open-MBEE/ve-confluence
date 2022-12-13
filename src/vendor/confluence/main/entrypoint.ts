@@ -7,8 +7,6 @@ import type {
 	ConfluenceXhtmlDocument,
 } from '#/vendor/confluence/module/confluence';
 
-import G_META from '#/common/meta';
-
 import {
 	process,
 	lang,
@@ -25,21 +23,14 @@ import {
 	dm_main_header,
 	uuid_v4,
 	dm_main,
-	dd,
-	parse_html,
 	remove_all_children,
-	dm_page,
-	dm_container,
 } from '#/util/dom';
 
 import type {SvelteComponent} from 'svelte';
 
 import ControlBar from '#/element/ControlBar/component/ControlBar.svelte';
 
-import DngArtifact from '#/element/DngArtifact/component/DngArtifact.svelte';
-
 import QueryTable from '#/element/QueryTable/component/QueryTable.svelte';
-
 
 import {MmsSparqlQueryTable} from '#/element/QueryTable/model/QueryTable';
 
@@ -48,11 +39,8 @@ import {
 	K_HARDCODED,
 } from '#/common/hardcoded';
 
-import {
+import type {
 	Context,
-	Serializable,
-	VeOdm,
-	VeOdmConstructor,
 } from '#/model/Serializable';
 
 import {ObjectStore} from '#/model/ObjectStore';
@@ -61,14 +49,9 @@ import {
 	xpathSelect1,
 } from '#/vendor/confluence/module/xhtml-document';
 
-import type {VeoPath} from '#/common/veo';
-
-import type {
-	TypedKeyedUuidedObject,
-} from '#/common/types';
-
 import {
 	inject_frame,
+	SR_HASH_VE_PAGE_EDIT_MODE
 } from './inject-frame';
 
 import {Transclusion} from '#/element/Transclusion/model/Transclusion';
@@ -112,15 +95,9 @@ interface Correlation {
 
 interface ViewBundle extends Correlation {
 	/**
-	 * directive's HTML element in the current DOM
-	 */
-	render: HTMLElement;
-
-	/**
 	 * anchor point to insert component before
 	 */
-	anchor?: HTMLElement;
-
+	anchor: HTMLElement;
 	/**
 	 * directive's corresponding XML node in the Wiki page's storage XHTML document
 	 */
@@ -128,13 +105,6 @@ interface ViewBundle extends Correlation {
 }
 
 type DirectiveDescriptor = (a_handle: Handle) => Correlation;
-
-interface CorrelationDescriptor {
-	storage: string;
-	live: string;
-	struct?: (ym_node: Node, dm_elmt: HTMLElement) => Record<string, any>;
-	directive: DirectiveDescriptor;
-}
 
 enum Ve4Error {
 	UNKNOWN,
@@ -155,147 +125,45 @@ type ControlBarConfig = {
 	props?: Record<string, any>;
 };
 
-const P_DNG_WEB_PREFIX = process.env.DOORS_NG_PREFIX;
-
-// for excluding elements that are within active directives
-const SX_PARAMETER_ID_PAGE_ELEMENT = `ac:parameter[@ac:name="id"][starts-with(text(),"page#elements.")]`;
-const SX_PARAMETER_ID_EMBEDDED_ELEMENT = `ac:parameter[@ac:name="id"][starts-with(text(),"embedded#elements.")]`;
-const SX_EXCLUDE_ACTIVE_PAGE_ELEMENTS = /* syntax: xpath */ `[not(ancestor::ac:structured-macro[@ac:name="html"][child::${SX_PARAMETER_ID_EMBEDDED_ELEMENT}])]`;
-const SX_EXCLUDE_ACTIVE_EMBEDDED_ELEMENTS = /* syntax: xpath */ `[not(ancestor::ac:structured-macro[@ac:name="html"][child::${SX_PARAMETER_ID_EMBEDDED_ELEMENT}])]`;
-
-const A_DIRECTIVE_CORRELATIONS: CorrelationDescriptor[] = [
-	// // dng web link
-	// {
-	// 	storage: /* syntax: xpath */ `.//a[starts-with(@href,"${P_DNG_WEB_PREFIX}")]${SX_EXCLUDE_ACTIVE_PAGE_ELEMENTS}`,
-	// 	live: `a[href^="${P_DNG_WEB_PREFIX}"]:not([data-ve-type])`,
-	// 	directive: ([ym_anchor, g_link]) => ({
-	// 		component: DngArtifact,
-	// 		props: {
-	// 			ym_anchor,
-	// 			g_link,
-	// 			p_href: ym_anchor.getAttribute('href'),
-	// 			s_label: ym_anchor.textContent?.trim() || '',
-	// 			g_context: G_CONTEXT,
-	// 		},
-	// 	}),
-	// },
-];
-
 let K_OBJECT_STORE: ObjectStore;
 let k_page: ConfluencePage;
 let kv_control_bar: ControlBar;
 const G_CONTEXT: Context = {} as Context;
-
-const H_PAGE_DIRECTIVES: Record<string, DirectiveDescriptor> = {
-	// 'Insert Block View': () => ({component:InsertBlockView}),
-	// 'Insert DNG Artifact or Attribute': ([ym_anchor]) => ({
-	// 	component: InsertInlineView,
-	// 	props: {
-	// 		p_url: ym_anchor.getAttribute('href'),
-	// 	},
-	// }),
-
-	'CAE CED Table Element': ([, g_struct]: [HTMLElement, Record<string, unknown>]) => {
-		const si_uuid = (g_struct.uuid as string) || uuid_v4().replace(/_/g, '-');
-		const si_key: VeoPath.Full = `page#elements.serialized.queryTable.${si_uuid}`;
-
-		return {
-			component: QueryTable,
-			props: {
-				k_model: new MmsSparqlQueryTable(si_key,
-					{
-						type: 'MmsSparqlQueryTable',
-						key: si_key,
-						uuid: si_uuid,
-						group: 'dng',
-						queryTypePath: 'hardcoded#queryType.sparql.dng.afsr',
-						connectionPath: 'document#connection.sparql.mms.dng',
-						parameterValues: {},
-					},
-					G_CONTEXT,
-				),
-			},
-		};
-	},
-};
 
 const xpath_attrs = (a_attrs: string[]) => a_attrs.map(sx => `[${sx}]`).join('');
 
 let k_document: ConfluenceDocument | null;
 let k_source: ConfluenceXhtmlDocument;
 
-function* correlate(gc_correlator: CorrelationDescriptor): Generator<ViewBundle> {
-	// find all matching page nodes
-	const a_nodes = k_source.select<Node>(gc_correlator.storage);
-	const nl_nodes = a_nodes.length;
-
-	// find all corresponding dom elements
-	const a_elmts = qsa(dm_content, gc_correlator.live) as HTMLElement[];
-
-	// mismatch
-	if(a_elmts.length !== nl_nodes) {
-		debugger;
-		// `XPath selection found ${nl_nodes} matches but DOM query selection found ${a_elmts.length} matches`);
-		throw new Error(format(lang.error.xpath_dom_mismatch, {
-			node_count: nl_nodes,
-			element_count: a_elmts.length,
-		}));
-	}
-
-	// apply struct mapper
-	const f_struct = gc_correlator.struct;
-	const a_structs = f_struct? a_nodes.map((ym_node, i_node) => f_struct(ym_node, a_elmts[i_node])): [];
-
-	// each match
-	for(let i_match = 0; i_match < nl_nodes; i_match++) {
-		yield {
-			...gc_correlator.directive([a_elmts[i_match], a_structs[i_match]]),
-			anchor: a_elmts[i_match],
-			node: a_nodes[i_match],
-		};
-	}
-}
-
 function render_component(g_bundle: ViewBundle, b_hide_anchor = false) {
 	const dm_anchor = g_bundle.anchor;
-	const dm_render = g_bundle.render || dm_anchor;
 
 	// hide anchor
-	if(b_hide_anchor) {
-		if(dm_anchor) {
-			(g_bundle.render || dm_anchor).style.display = 'none';
-		}
+	if(b_hide_anchor && dm_anchor) {
+		dm_anchor.style.display = 'none';
 	}
-
+	// https://svelte.dev/docs#run-time-client-side-component-api-creating-a-component
 	// render component
 	new g_bundle.component({
-		...(dm_anchor
-			? {
-				target: dm_anchor.parentNode as HTMLElement,
-				anchor: dm_anchor,
-			}
-			: {
-				target: dm_render,
-			}),
+		target: dm_anchor.parentNode as HTMLElement,
+		anchor: dm_anchor,
 		props: {
 			...g_bundle.props || {},
 			yn_directive: g_bundle.node,
-			// ...GM_CONTEXT,
+			dm_anchor: dm_anchor
 		},
 	});
 }
-
-export async function main(): Promise<void> {
+function getJsonFromScript(text: string) {
+	return text.replace('//<![CDATA[', '').replace('//]]>', '');
+}
+async function main(): Promise<void> {
 	if('object' !== typeof lang?.basic) {
 		throw new Error(`ERROR: No lang file defined! Did you forget to set the environment variables when building?`);
 	}
-
-	const dm_header = qs(dm_container, '#header');
 	kv_control_bar = new ControlBar({
 		target: dm_main_header as HTMLElement,
 		anchor: qs(dm_main_header, 'div#navigation'),
-		// target: dm_header.parentElement,
-		// anchor: dm_header.nextSibling,
 		props: {
 			g_context: G_CONTEXT,
 		},
@@ -355,60 +223,49 @@ export async function main(): Promise<void> {
 		throw new Error(`Document exists but no metadata`);
 	}
 
-	// each page directive
-	for(const si_page_directive in H_PAGE_DIRECTIVES) {
-		const f_directive = H_PAGE_DIRECTIVES[si_page_directive];
-		// page refs
-		const dg_refs = correlate({
-			storage: `.//ri:page${xpath_attrs([
-				`@ri:space-key="${G_META.space_key}" or not(@ri:space-key)`,
-				`@ri:content-title="${si_page_directive}"`,
-			])}`,
-			live: `a[href="/display/${G_META.space_key}/${si_page_directive.replace(/ /g, '+')}"]`,
-			struct: (ym_node) => {
-				const ym_parent = ym_node.parentNode as Element;
-
-				return {
-					label: ('ac:link' === ym_parent.nodeName? ym_parent.textContent: '') || si_page_directive,
-					// macro_id: (ym_parent 'ac:macro-id')
-				};
-			},
-			directive: f_directive,
-		});
-
-		// page link as absolute url
-		const p_href = `${G_META.base_url}/display/${G_META.space_key}/${si_page_directive.replace(/ /g, '+')}`;
-		const dg_links = correlate({
-			storage: `.//a[@href="${p_href}"]`,
-			live: `a[href="${p_href}"]`,
-			struct: ym_node => ({label:ym_node.textContent}),
-			directive: f_directive,
-		});
-
-		// each instance
-		for(const g_bundle of [...dg_refs, ...dg_links]) {
-			render_component(g_bundle, true);
-		}
-	}
-
-	// each simple directive
-	for(const gc_correlator of A_DIRECTIVE_CORRELATIONS) {
-		// select all instances of this directive
-		const dg_directives = correlate(gc_correlator);
-
-		//
-		for(const g_bundle of dg_directives) {
-			render_component(g_bundle, true);
-		}
-	}
-
-	// interpret published elements
+	//find initial tables
 	{
 		// xpath query for rendered elements
-		const a_macros = k_source.select<Node>(`//ac:structured-macro[@ac:name="html"][child::${SX_PARAMETER_ID_EMBEDDED_ELEMENT}]`);
+		const a_macros = k_source.select<Node>(`//ac:structured-macro[@ac:name="ve-table"]`);
+		const a_divs = qsa(dm_main, '.ve-table-init');
+		if (a_macros.length != a_divs.length) {
+			console.log('table counts don\'t match');
+		}
+		for (let i = 0; i < a_macros.length; i++) {
+			const dm_anchor = a_divs[i];
+			const si_uuid = uuid_v4().replace(/_/g, '-');
+			const si_key = `embedded#elements.serialized.queryTable.${si_uuid}`;
+			const k_model = new MmsSparqlQueryTable(si_key,
+				{
+					type: 'MmsSparqlQueryTable',
+					key: si_key,
+					uuid: si_uuid,
+					group: 'dng',
+					queryTypePath: 'hardcoded#queryType.sparql.dng.bid',
+					connectionPath: 'document#connection.sparql.mms.dng',
+					parameterValues: {},
+				},
+				G_CONTEXT
+			);
+			// inject component
+			render_component({
+				component: QueryTable,
+				anchor: dm_anchor as HTMLElement,
+				node: a_macros[i],
+				props: {
+					k_model,
+					b_published: false,
+				},
+			}, false);
+		}
+	}
+	// interpret transclusions
+	{
+		// xpath query for rendered elements
+		const a_macros = k_source.select<Node>(`//ac:structured-macro[@ac:name="html"][child::ac:parameter[@ac:name="id"][starts-with(text(),"embedded#elements.serialized.transclusion")]]`);
 
 		// translate into ve paths
-		const a_paths = a_macros.map(yn => [xpathSelect1<Text>(`./ac:parameter[@ac:name="id"]/text()`, yn).data, yn] as [VeoPath.Full, Node]);
+		const a_paths = a_macros.map(yn => [xpathSelect1<Text>(`./ac:parameter[@ac:name="id"]/text()`, yn).data, yn] as [string, Node]);
 
 		// resolve serialized element
 		for(const [sp_element, yn_directive] of a_paths) {
@@ -430,242 +287,101 @@ export async function main(): Promise<void> {
 			}
 
 			// parse element metadata
-			const gc_element = JSON.parse(dm_script.textContent || '{}') as Serializable;
-
-			// model and component class
-			let dc_model!: VeOdmConstructor<Serializable, VeOdm<Serializable>>;
-			// let dc_component: {new(o: Record<string, unknown>): SvelteComponent};
-			let dc_component!: typeof SvelteComponentDev;
-
-			// deserialize
-			switch(gc_element.type) {
-				// query table
-				case 'MmsSparqlQueryTable': {
-					// @ts-expect-error safu
-					dc_model = MmsSparqlQueryTable;
-					dc_component = QueryTable;
-					break;
-				}
-
-				// transclusion
-				case 'Transclusion': {
-					// debugger;
-					// @ts-expect-error safu
-					dc_model = Transclusion;
-					dc_component = TransclusionComponent;
-					break;
-				}
-
-				default: {
-					debugger;
-					break;
-				}
-			}
-
-			if(dc_model) {
-				// construct model instance
-				const k_model = await VeOdm.createFromSerialized(dc_model, sp_element, gc_element, G_CONTEXT);
-
+			const gc_element = JSON.parse(dm_script.textContent || '{}') as Transclusion.Serialized;
+			const k_model = await new Transclusion(sp_element, gc_element, G_CONTEXT).ready(); //VeOdm.createFromSerialized(Transclusion, sp_element, gc_element, G_CONTEXT)
+			dm_anchor.innerHTML = "";
 				// inject component
-				render_component({
-					component: dc_component,
-					render: remove_all_children(dm_anchor),
-					anchor: dm_script,
-					node: yn_directive,
-					props: {
-						k_model,
-						b_published: true,
-					},
-				}, true);
-			}
+			render_component({
+				component: TransclusionComponent,
+				anchor: dm_script as HTMLElement,
+				node: yn_directive,
+				props: {
+					k_model,
+					b_published: true,
+				},
+			}, true);
 		}
 	}
 
-	// interpret rendered elements
+	// interpret published tables
 	{
 		// xpath query for rendered elements
-		const a_macros = k_source.select<Node>(`//ac:structured-macro[@ac:name="span"][child::${SX_PARAMETER_ID_PAGE_ELEMENT}]`);
+		const a_macros = k_source.select<Node>(`//ac:structured-macro[@ac:name="div"][child::ac:parameter[@ac:name="id"][starts-with(text(),"embedded#elements.serialized.queryTable")]]`);
 
 		// translate into ve paths
-		const a_paths = a_macros.map(yn => [xpathSelect1<Text>(`./ac:parameter[@ac:name="id"]/text()`, yn).data, yn] as [VeoPath.Full, Node]);
+		const a_paths = a_macros.map(yn => [xpathSelect1<Text>(`./ac:parameter[@ac:name="id"]/text()`, yn).data, yn] as [string, Node]);
 
 		// resolve serialized element
 		for(const [sp_element, yn_directive] of a_paths) {
-			const gc_element = await K_OBJECT_STORE.resolve(sp_element as string);
+			//const gc_element = await K_OBJECT_STORE.resolve(sp_element);
 
 			// correlate to live DOM element
-			const a_spans = qsa(dm_main, `span[id="${sp_element}"]`);
+			const a_divs = qsa(dm_main, `div[id="${sp_element}"]`);
 
 			// incorrect match
-			if(1 !== a_spans.length) {
-				throw new Error(`Expected exactly 1 annotated span element on page with id="${sp_element}" but found ${a_spans.length}`);
+			if(1 !== a_divs.length) {
+				throw new Error(`Expected exactly 1 annotated div element on page with id="${sp_element}" but found ${a_divs.length}`);
 			}
 
-			const dm_render = a_spans[0] as HTMLElement;
+			const dm_render = a_divs[0] as HTMLElement;
+			const id = sp_element.split('.')[3];
+			const a_scripts = qsa(dm_main, `script[data-ve-eid="${id}"]`);
+			if (1 !== a_scripts.length) {
+				throw new Error(`Expected 1 script for id=${id} but found ${a_scripts.length}`);
+			}
+			const dm_script = a_scripts[0];
+			const gc_element = JSON.parse(getJsonFromScript(dm_script.textContent!) || '{}') as MmsSparqlQueryTable.Serialized;
 
+			// get gc_element
 			// select adjacent element
-			let dm_anchor = dm_render.parentElement!.nextSibling as HTMLElement;
-			if(!dm_anchor && 'SPAN' === dm_render.parentElement?.nodeName) {
-				dm_anchor = dm_render.parentElement.parentElement!.nextElementSibling as HTMLElement;
-			}
-
-			// model and component class
-			let dc_model!: VeOdmConstructor<Serializable, VeOdm<Serializable>>;
-			// let dc_component: {new(o: Record<string, unknown>): SvelteComponent};
-			let dc_component!: typeof SvelteComponentDev;
-
-			// deserialize
-			switch(gc_element.type) {
-				// query table
-				case 'MmsSparqlQueryTable': {
-					// @ts-expect-error safu
-					dc_model = MmsSparqlQueryTable;
-					dc_component = QueryTable;
-					break;
-				}
-
-				// transclusion
-				case 'Transclusion': {
-					// debugger;
-					// @ts-expect-error safu
-					dc_model = Transclusion;
-					dc_component = TransclusionComponent;
-					break;
-				}
-
-				default: {
-					debugger;
-					break;
-				}
-			}
-
-			if(dc_model) {
-				// construct model instance
-				const k_model = await VeOdm.createFromSerialized(dc_model, sp_element, gc_element as Serializable, G_CONTEXT);
-
-				// inject component
-				render_component({
-					component: dc_component,
-					render: dm_render,
-					anchor: dm_anchor,
-					node: yn_directive,
-					props: {
-						k_model,
-						b_published: true,
-					},
-				}, true);
-			}
+			let dm_anchor = dm_render.querySelector('div.table-wrap') as HTMLElement;
+			const k_model = await new MmsSparqlQueryTable(sp_element, gc_element, G_CONTEXT).ready();
+			// inject component
+			render_component({
+				component: QueryTable,
+				anchor: dm_anchor,
+				node: yn_directive,
+				props: {
+					k_model,
+					b_published: true,
+				},
+			}, false);
 		}
 	}
 }
 
 const H_HASH_TRIGGERS: Record<string, (de_hash_change?: HashChangeEvent) => Promise<void>> = {
-	async 'load-editor'() {
-		// apply beta changes
+	async 'editor'() {
 		replace_edit_button();
-
-		if(!p_original_edit_link) {
+		if (!p_original_edit_link) {
 			throw new Error(`Original page edit button link was never captured`);
 		}
 		return await inject_frame(p_original_edit_link);
 	},
-
 	async 'admin'(de_hash_change?: HashChangeEvent) {
-		if(de_hash_change && de_hash_change.oldURL !== de_hash_change.newURL) {
+		if (de_hash_change && de_hash_change.oldURL !== de_hash_change.newURL) {
 			location.reload();
 		}
-
 		await Promise.resolve();
-	},
-
-	async 'beta'() {
-		const m_path = /^(.*[^+])\+*$/.exec(location.pathname);
-		if(m_path) {
-			const s_expect = m_path[1]+'+';
-			if(location.pathname !== s_expect) {
-				location.href = s_expect+'#beta';
-				return;
-			}
-		}
-		else {
-			console.error(`Unmatchable pathname: ${location.pathname}`);
-		}
-
-		// update version info
-		kv_control_bar.$set({s_app_version:`${process.env.VERSION}-beta`});
-
-		// // apply beta changes
-		// replace_edit_button();
-
-		await Promise.resolve();
-	},
-
-	async 'noop'() {
-		const dm_edit = qs(dm_main, 'a#editPageLink')! as HTMLAnchorElement;
-		dm_edit.href = '#noop';
-
-		await Promise.resolve();
-	},
+	}
 };
 
-
 let p_original_edit_link = '';
-const S_VE_PATCHED = 'vePatched';
-type MutableHistory = History & {
-	[S_VE_PATCHED]: boolean;
-}
 
 function replace_edit_button() {
-	// history not yet patched
-	if(!(history as MutableHistory)[S_VE_PATCHED]) {
-		(history as MutableHistory)[S_VE_PATCHED] = true;
-		const f_push = history.pushState;
-		history.pushState = (w_state: unknown, s_title: string, p_url: string) => {
-			// edit mode
-			if(/^\/pages\/editpage\.action/.test(p_url)) {
-				const p_load_editor = location.pathname+'+++#editor';
-				queueMicrotask(() => {
-					location.href = p_load_editor;
-				});
-
-				setTimeout(() => {
-					location.href = p_load_editor;
-				}, 200);
-				return;
-			}
-
-			// default
-			f_push.call(history, w_state, s_title, p_url);
-		};
-
-		// window.addEventListener('beforeunload', () => {
-		// 	debugger;
-		// });
-	}
-
 	// already replaced
-	if(p_original_edit_link) return;
+	if (p_original_edit_link) return;
 
 	const dm_edit = qs(dm_main, 'a#editPageLink')! as HTMLAnchorElement;
 	p_original_edit_link = dm_edit.href;
-	dm_edit.href = '#load-editor';
-
+	dm_edit.href = SR_HASH_VE_PAGE_EDIT_MODE;
 	// remove all event listeners
 	const dm_clone = dm_edit.cloneNode(true);
 	dm_edit.parentNode?.replaceChild(dm_clone, dm_edit);
-
-	// // prefetch wysiwyg editor script
-	// const dm_prefetch = dd('link', {
-	// 	rel: 'prefetch',
-	// 	href: P_SRC_WYSIWYG_EDITOR,
-	// 	as: 'script',
-	// });
-	// document.head.appendChild(dm_prefetch);
 }
 
 function hash_updated(de_hash_change?: HashChangeEvent): void {
 	const a_hashes = location.hash.slice(1).split(/:/g);
-
 	for(const si_hash of a_hashes) {
 		if(si_hash in H_HASH_TRIGGERS) {
 			void H_HASH_TRIGGERS[si_hash](de_hash_change);
@@ -673,86 +389,24 @@ function hash_updated(de_hash_change?: HashChangeEvent): void {
 	}
 }
 
-const H_PATH_SUFFIX_TO_HASH: Record<string, string> = {
-	'+': 'beta',
-	'++': 'admin',
-	'+++': 'load-editor',
-};
-
 function dom_ready() {
-	// apply beta changes
 	replace_edit_button();
-
+	if (location.hash === SR_HASH_VE_PAGE_EDIT_MODE) {
+		hash_updated();
+		return;
+	}
+	// kickoff main
+	void main();
 	// listen for hash change
 	window.addEventListener('hashchange', hash_updated as (de: Event) => void);
-
-	INTERPRET_LOCATION: {
-		let si_page_title = location.pathname;
-
-		// viewpage.action
-		if(location.pathname.endsWith('viewpage.action')) {
-			const y_params = new URLSearchParams(location.search);
-
-			// normalize viewpage URL
-			si_page_title = encodeURIComponent(y_params.get('title')!).replace(/%20/g, '+');
-
-			// replace URL with page title version
-			history.replaceState(null, '', `/display/${y_params.get('spaceKey')!}/${si_page_title}`);
-		}
-		// doeditpage.action
-		else if(location.pathname.endsWith('doeditpage.action')) {
-			// normalize viewpage URL
-			si_page_title = encodeURIComponent(G_META.page_title).replace(/%20/g, '+');
-
-			// redirect to view page
-			location.href = `/display/${G_META.space_key}/${si_page_title}`;
-		}
-
-		// special url indication
-		const m_special = /(\++)$/.exec(si_page_title);
-		if(m_special) {
-			const s_suffix = m_special[1];
-
-			// suffix is mapped
-			if(s_suffix in H_PATH_SUFFIX_TO_HASH) {
-				// lookup corresponding hash
-				const s_set_hash = H_PATH_SUFFIX_TO_HASH[s_suffix];
-
-				// resolve hash parts
-				const as_parts = new Set(location.hash.slice(1).split(/:/g).filter(s => s));
-
-				// hash already set
-				if(as_parts.has(s_set_hash)) {
-					// manually trigger hash update
-					hash_updated();
-				}
-				// hash not set
-				else {
-					// prepend new hash part and update hash, allowing listener to trigger handler
-					location.hash = '#'+[s_set_hash, ...as_parts].join(':');
-				}
-
-				// exit location interpretter block
-				break INTERPRET_LOCATION;
-			}
-		}
-
-		// trigger update
-		hash_updated();
-	}
 }
 
 // entry point
 {
-	// kickoff main
-	void main();
-
 	// document is already loaded
-	if(['complete', 'interactive', 'loaded'].includes(document.readyState)) {
+	if (['complete', 'interactive', 'loaded'].includes(document.readyState)) {
 		dom_ready();
-	}
-	// dom content not yet loaded; add event listener
-	else {
+	} else { // dom content not yet loaded; add event listener
 		document.addEventListener('DOMContentLoaded', () => {
 			dom_ready();
 		}, false);

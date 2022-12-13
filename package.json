@@ -1,6 +1,6 @@
 {
   "name": "ve4",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "start": "echo Started",
@@ -16,7 +16,7 @@
     "@rollup/plugin-commonjs": "^21.0.1",
     "@rollup/plugin-node-resolve": "^13.0.6",
     "@rollup/plugin-replace": "^3.0.0",
-    "@rollup/plugin-typescript": "^8.3.0",
+    "@rollup/plugin-typescript": "~8.3.0",
     "@rollup/plugin-url": "^6.1.0",
     "@tsconfig/svelte": "^2.0.1",
     "@types/jquery": "^3.5.9",
@@ -46,7 +46,7 @@
     "ts-toolbelt": "^9.6.0",
     "tslib": "^2.3.1",
     "ttypescript": "^1.5.13",
-    "typescript": "^4.5.2"
+    "typescript": "~4.5.2"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^5.15.4",
@@ -59,9 +59,10 @@
     "svelte-tabs": "^1.1.0",
     "svelte-virtual-scroll-list": "^1.0.8",
     "xmldom": "^0.6.0",
-    "xpath": "0.0.32"
+    "xpath": "0.0.32",
+    "jose": "~4.6.2"
   },
   "engines": {
-    "node": ">=14.0"
+    "node": ">=12.0"
   }
 }
