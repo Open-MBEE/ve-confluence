@@ -334,8 +334,8 @@ export abstract class QueryTable<
 		// fetch query builder
 		const k_query = await this.fetchQueryBuilder();
 
-		// execute query and download up to 300 rows
-		const a_rows = await k_connection.execute(k_query.paginate(300));
+		// execute query and download up to 160 rows
+		const a_rows = await k_connection.execute(k_query.paginate(160));
 
 		// build XHTML table
 		const a_fields = this.queryType.fields;
