@@ -240,7 +240,7 @@ export namespace QueryTable {
 	}
 }
 
-function sanitize_false_directives(sx_html: string): Node {
+function sanitize_false_directives(sx_html: string): ChildNode[] {
 	const d_parser = new DOMParser();
 	const d_doc = d_parser.parseFromString(sx_html, 'text/html');
 	const a_links = d_doc.querySelectorAll(`a[href^="${process.env.DOORS_NG_PREFIX || ''}"]`);
@@ -254,7 +254,7 @@ function sanitize_false_directives(sx_html: string): Node {
 	const nodes_with_width = d_doc.querySelectorAll('*[width]');
 	nodes_with_width.forEach(node => node.removeAttribute('width'));
 
-	return d_doc.body.childNodes[0];
+	return Array.from(d_doc.body.childNodes);
 }
 
 export abstract class QueryTable<
@@ -344,7 +344,7 @@ export abstract class QueryTable<
 		    f_builder('table', {"class": "wrapped confluenceTable tablesorter tablesorter-default stickyTableHeaders"}, [
 			f_builder('colgroup', {}, a_fields.map(() => f_builder('col'))),
 			f_builder('thead', {"class": "tableFloatingHeaderOriginal"}, [
-				f_builder('tr', {}, a_fields.map(g_field => f_builder('th', {"class": "confluenceTh tablesorter-header sortableHeader tablesorter-headerUnSorted dateFormat-ddmmyyyy"}, [
+				f_builder('tr', {}, a_fields.map(g_field => f_builder('th', {"class": "confluenceTh tablesorter-header sortableHeader tablesorter-headerUnSorted"}, [
 					g_field.label,
 				])))
 			]),
@@ -357,7 +357,7 @@ export abstract class QueryTable<
 						// rich content type
 						if('text/plain' !== ksx_cell.contentType) {
 							// sanitize false directives
-							a_nodes.push(sanitize_false_directives(sx_cell));
+							a_nodes.push(...sanitize_false_directives(sx_cell));
 						}
 						else {
 							a_nodes.push(sx_cell);
