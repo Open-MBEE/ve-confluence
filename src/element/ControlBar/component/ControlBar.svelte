@@ -167,11 +167,6 @@
 		// go async to allow svelte components to bind to local variables
 		await Promise.resolve();
 
-		// user does not have write permisisons to this page
-		if('READ_WRITE' !== G_META.access_mode) {
-			b_read_only = true;
-		}
-
 		// initial control bar alignment
 		queueMicrotask(realign_control_bar);
 
@@ -228,6 +223,16 @@
 
 			sx_page_content_local = g_bundle.document.prettyPrint();
 			sx_page_content_remote = g_bundle.document.toString();
+		}
+
+
+		if(k_page) {
+			let b_has_page_update = await k_page.fetchUserHasUpdatePermissions();
+			b_read_only = !b_has_page_update;
+			if(k_document) {
+				let b_has_doc_update = await k_document.fetchUserHasUpdatePermissions();
+				b_read_only = !b_has_page_update || b_has_doc_update;
+			}
 		}
 	});
 
