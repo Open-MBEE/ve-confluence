@@ -202,9 +202,6 @@
 
 			sx_document_metadata_local = JSON.stringify(g_bundle?.data, null, '  ');
 			sx_document_metadata_remote = JSON.stringify(g_bundle?.data);
-
-			// user does not have edit permissions to document
-			b_read_only ||= !await k_document.fetchUserHasUpdatePermissions();  // eslint-disable-line @typescript-eslint/no-unsafe-call
 		}
 
 		LOAD_PAGE_METADATA: {
@@ -225,13 +222,11 @@
 			sx_page_content_remote = g_bundle.document.toString();
 		}
 
-
 		if(k_page) {
-			let b_has_page_update = await k_page.fetchUserHasUpdatePermissions();
-			b_read_only = !b_has_page_update;
+			b_read_only = !await k_page.fetchUserHasUpdatePermissions();;
+			// page is in a document, determine if the user has edit access to the document
 			if(k_document) {
-				let b_has_doc_update = await k_document.fetchUserHasUpdatePermissions();
-				b_read_only = !b_has_page_update || b_has_doc_update;
+				b_read_only = !await k_document.fetchUserHasUpdatePermissions();;
 			}
 		}
 	});

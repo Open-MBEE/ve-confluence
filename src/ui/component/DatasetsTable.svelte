@@ -25,9 +25,10 @@
 	import {
 		VeOdm,
 	} from '#/model/Serializable';
-import {
-	ObjectStore
-} from '#/model/ObjectStore';
+	
+	import {
+		ObjectStore
+	} from '#/model/ObjectStore';
 
 	import {
 		faCheckCircle,
@@ -123,6 +124,15 @@ import {
 		}
 
 		A_CONNECTIONS = A_CONNECTIONS;
+
+		const k_page = g_context.page;
+		const k_document = g_context.document;
+		if(k_page) {
+			b_read_only = !await k_page.fetchUserHasUpdatePermissions();
+			if(k_document) {
+				b_read_only = !await k_document.fetchUserHasUpdatePermissions();;
+			}
+		}
 	})();
 
 	function set_connection_properties(k_connection: Connection, h_set: Partial<CustomDataProperties>) {
@@ -241,6 +251,9 @@ import {
 			// download page
 			const k_page = ConfluencePage.fromBasicPageInfo(g_page);
 
+			// don't update page if the user doesn't have access to it
+			if(!await k_page.fetchUserHasUpdatePermissions()) continue;
+
 			// fetch xhtml contents
 			let {
 				document: k_doc,
@@ -284,11 +297,13 @@ import {
 				cf.setConnection(k_connection_new);
 				let cfstring = await cf.fetchDisplayText();
 				let display = cdataDoc.select('//span[@class="ve-transclusion-display"]')[0].childNodes.item(0) as Text;
-				display.replaceData(0, display.data.length, cfstring);
-				cdataNode.replaceData(0, cdataNode.data.length, cdataDoc.toString());
-				set_connection_properties(k_connection, {
-					cfs_touched_count: ++c_cfs_touched,
-				});
+				if(display) {
+					display.replaceData(0, display.data.length, cfstring);
+					cdataNode.replaceData(0, cdataNode.data.length, cdataDoc.toString());
+					set_connection_properties(k_connection, {
+						cfs_touched_count: ++c_cfs_touched,
+					});
+				}
 			}
 			let sx_new_page = k_doc.toString();
 			if (sx_page === sx_new_page) {

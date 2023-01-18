@@ -870,8 +870,8 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 
 	async fetchUserHasUpdatePermissions(): Promise<boolean> {
 
-		// fetch document cover page restrictions
-		const g_response_cover = await confluence_get_json<ConfluenceApi.RestrictionsResponse>(`/content/${this.pageId}/restriction/byOperation/update`, {
+		// fetch page restrictions
+		const g_response_page = await confluence_get_json<ConfluenceApi.RestrictionsResponse>(`/content/${this.pageId}/restriction/byOperation/update`, {
 			search: {
 				expand: ['restrictions.user', 'restrictions.group'].join(','),
 			},
@@ -879,7 +879,7 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 
 
 		// destructure response data
-		const g_data = g_response_cover.data!;
+		const g_data = g_response_page.data!;
 		const {
 			group: {
 				results: a_groups_cover,
