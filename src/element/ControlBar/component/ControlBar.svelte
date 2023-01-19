@@ -676,7 +676,7 @@
 						<TabPanel>
 							<div class="tab-body">
 								<p>New updates are available every morning</p>
-								<DatasetsTable {g_context} {b_read_only}></DatasetsTable>
+								<DatasetsTable {g_context} ></DatasetsTable>
 							</div>
 						</TabPanel>
 					{/if}

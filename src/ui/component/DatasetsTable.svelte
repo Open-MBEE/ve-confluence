@@ -70,7 +70,6 @@
 	};
 
 	export let g_context: Context;
-	export let b_read_only = false;
 	let k_object_store = g_context.store;
 
 	let g_version_current: ModelVersionDescriptor;
@@ -124,15 +123,6 @@
 		}
 
 		A_CONNECTIONS = A_CONNECTIONS;
-
-		const k_page = g_context.page;
-		const k_document = g_context.document;
-		if(k_page) {
-			b_read_only = !await k_page.fetchUserHasUpdatePermissions();
-			if(k_document) {
-				b_read_only = !await k_document.fetchUserHasUpdatePermissions();;
-			}
-		}
 	})();
 
 	function set_connection_properties(k_connection: Connection, h_set: Partial<CustomDataProperties>) {
@@ -379,6 +369,20 @@
 		];
 	}
 
+	async function can_update_to_latest(k_connection: Connection): Promise<boolean>  {
+		const info = await locate_tables(k_connection)
+		if(!info) return false;
+		for(const g_page of info.pages) { // TODO this should just requery all pages to prevent potential outdated data/conflicts
+			// download page
+			let k_page = ConfluencePage.fromBasicPageInfo(g_page);
+			let b_user_can_update = await k_page.fetchUserHasUpdatePermissions();
+			if(!b_user_can_update){
+				return false;
+			}
+		}
+		return true;
+	}
+
 	/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
 </script>
 
@@ -555,10 +559,14 @@
 					<td>{k_connection.label}</td>
 					<td class="cell-version">
 						{#await fetch_version_info(k_connection)}
-							&nbsp; Loading...
-						{:then [g_current_version, g_latest_version, s_hash, s_current_version, s_latest_version]}
-						    &nbsp; {s_current_version} &nbsp; <button disabled={g_current_version.dateTime === g_latest_version.dateTime || b_read_only} on:click="{select_version_for(k_connection)}">Update to Latest</button> &nbsp;
+							&nbsp; Loading... &nbsp;
+							{:then [g_current_version, g_latest_version, s_hash, s_current_version, s_latest_version]}
+							{#await can_update_to_latest(k_connection)}
+								&nbsp; Loading... &nbsp;
+					 		{:then b_can_update} 
+						    	&nbsp; {s_current_version} &nbsp; <button disabled={g_current_version.dateTime === g_latest_version.dateTime || !b_can_update} on:click="{select_version_for(k_connection)}">Update to Latest</button> &nbsp;
 						<!-- bind:this={h_selects['@'+s_hash]} -->
+							{/await}
 						{/await}
 
 						<Modal>
