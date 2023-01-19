@@ -46,7 +46,7 @@
 	const N_PREVIEW_ROWS = 40;
 
 	// max number of published rows
-	const N_MAX_PUBLISHED_ROWS = 300;
+	const N_MAX_PUBLISHED_ROWS = 160;
 
 	/**
 	 * The QueryTable model

@@ -240,7 +240,7 @@ export namespace QueryTable {
 	}
 }
 
-function sanitize_false_directives(sx_html: string): string {
+function sanitize_false_directives(sx_html: string): ChildNode[] {
 	const d_parser = new DOMParser();
 	const d_doc = d_parser.parseFromString(sx_html, 'text/html');
 	const a_links = d_doc.querySelectorAll(`a[href^="${process.env.DOORS_NG_PREFIX || ''}"]`);
@@ -253,7 +253,8 @@ function sanitize_false_directives(sx_html: string): string {
 	});
 	const nodes_with_width = d_doc.querySelectorAll('*[width]');
 	nodes_with_width.forEach(node => node.removeAttribute('width'));
-	return d_doc.body.innerHTML;
+
+	return Array.from(d_doc.body.childNodes);
 }
 
 export abstract class QueryTable<
@@ -333,18 +334,21 @@ export abstract class QueryTable<
 		// fetch query builder
 		const k_query = await this.fetchQueryBuilder();
 
-		// execute query and download up to 300 rows
-		const a_rows = await k_connection.execute(k_query.paginate(300));
+		// execute query and download up to 160 rows
+		const a_rows = await k_connection.execute(k_query.paginate(160));
 
 		// build XHTML table
 		const a_fields = this.queryType.fields;
 		const f_builder = k_contents.builder();
-		const yn_table = f_builder('table', {}, [
+		const yn_table = f_builder('div', {"class": "table-wrap"}, [
+		    f_builder('table', {"class": "wrapped confluenceTable tablesorter tablesorter-default stickyTableHeaders"}, [
 			f_builder('colgroup', {}, a_fields.map(() => f_builder('col'))),
-			f_builder('tbody', {}, [
-				f_builder('tr', {}, a_fields.map(g_field => f_builder('th', {}, [
+			f_builder('thead', {"class": "tableFloatingHeaderOriginal"}, [
+				f_builder('tr', {}, a_fields.map(g_field => f_builder('th', {"class": "confluenceTh tablesorter-header sortableHeader tablesorter-headerUnSorted"}, [
 					g_field.label,
-				]))),
+				])))
+			]),
+			f_builder('tbody', {}, [
 				...a_rows.map(QueryTable.cellRenderer(this)).map(h_row => f_builder('tr', {}, [
 					...Object.values(h_row).map((ksx_cell) => {
 						const a_nodes: Array<Node | string> = [];
@@ -353,29 +357,23 @@ export abstract class QueryTable<
 						// rich content type
 						if('text/plain' !== ksx_cell.contentType) {
 							// sanitize false directives
-							const sx_sanitize = sanitize_false_directives(sx_cell);
-
-							// sanitization changed string (making it HTML) or it already was HTML; wrap in HTML macro
-							if(sx_sanitize !== sx_cell || 'text/html' === ksx_cell.contentType) {
-								a_nodes.push(wrapInHtmlMacro(sx_sanitize, k_contents));
-							}
-							// update cell
-							else {
-								a_nodes.push(...XHTMLDocument.xhtmlToNodes(sx_sanitize));
-							}
+							a_nodes.push(...sanitize_false_directives(sx_cell));
 						}
 						else {
 							a_nodes.push(sx_cell);
 						}
 
 						// build cell using node or string
-						return f_builder('td', {}, a_nodes);
+						return f_builder('td', {"class": "confluenceTd"}, a_nodes);
 					}),
 				])),
 			]),
-		]);
+		])]);
 		const id = this.path.split('.')[3];
-		// wrap in confluence macro
+		// convert table node to string
+		let temp = document.createElement("div");
+		temp.appendChild(yn_table);
+		let s_table = temp.innerHTML;
 		const yn_macro = ConfluencePage.richTextBodyMacro({
 			name: 'div',
 			params: {
@@ -384,7 +382,7 @@ export abstract class QueryTable<
 			body: [
 				wrapInHtmlMacro('<script type="application/json" data-ve-eid="' + id + '" data-ve-type="table-metadata">' +
 					JSON.stringify(this._gc_serialized) + '</script>', k_contents),
-				yn_table,
+				wrapInHtmlMacro(s_table, k_contents),
 			],
 			autoCursor: false,
 		}, k_contents);
