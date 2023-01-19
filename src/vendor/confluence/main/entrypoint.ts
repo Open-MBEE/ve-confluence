@@ -373,6 +373,9 @@ function replace_edit_button() {
 	if (p_original_edit_link) return;
 
 	const dm_edit = qs(dm_main, 'a#editPageLink')! as HTMLAnchorElement;
+	if (!dm_edit) { // no edit button
+		return;
+	}
 	p_original_edit_link = dm_edit.href;
 	dm_edit.href = SR_HASH_VE_PAGE_EDIT_MODE;
 	// remove all event listeners
