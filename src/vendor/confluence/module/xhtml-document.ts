@@ -47,6 +47,14 @@ export function xpathSelect1<ReturnType extends SelectedValue=SelectedValue>(sx_
 // @ts-expect-error ignore spread error
 export const xpathEvaluate = (sx_xpath: string, yn_context?: Node, ...a_args: any[]) => xpath.evaluate(sx_xpath.replace(/&nbsp;/g, '&#160;'), yn_context || null, G_NS_RESOLVER, ...a_args);
 
+let hm_entities = new Map<string, string>([
+	["&nbsp;", "&#160;"],
+	["&rdquo;", "&#8221;"],
+	["&ldquo;", "&#8220;"],
+	["&rsquo;", "&#8217;"],
+	["&lsquo;", "&#8216;"]
+]);
+
 export class XHTMLDocument {
 	static xhtmlToNodes(sx_xhtml: string): ChildNode[] {
 		return [...new XHTMLDocument(sx_xhtml)];
@@ -56,7 +64,11 @@ export class XHTMLDocument {
 	_y_doc: XMLDocument;
 
 	constructor(sx_doc='') {
-		this._sx_doc = sx_doc.replace(/&nbsp;/g, '&#160;');
+		this._sx_doc = sx_doc;
+
+		for(let [key, value] of hm_entities) {
+			this._sx_doc = this._sx_doc.replace(new RegExp(key, "g"), value);
+		}
 
 		this._y_doc = (new DOMParser()).parseFromString(`<xml ${SX_NAMESPACES}>${this._sx_doc}</xml>`, 'application/xml');
 	}
