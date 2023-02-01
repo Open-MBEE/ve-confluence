@@ -58,7 +58,7 @@ export class XHTMLDocument {
 	constructor(sx_doc='') {
 		this._sx_doc = sx_doc;
 
-		this._y_doc = (new DOMParser()).parseFromString(`<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><xml ${SX_NAMESPACES}>${this._sx_doc}</xml>`, 'application/xml');
+		this._y_doc = (new DOMParser()).parseFromString(`<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd"><xml ${SX_NAMESPACES}>${this._sx_doc}</xml>`, 'application/xml');
 	}
 
 	get root(): Node {
@@ -108,7 +108,7 @@ export class XHTMLDocument {
 		const y_processor = new XSLTProcessor();
 		y_processor.importStylesheet(y_xslt);
 
-		const y_doc = new DOMParser().parseFromString(`<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><xml ${SX_NAMESPACES}>${this.toString()}</xml>`, 'application/xml');
+		const y_doc = new DOMParser().parseFromString(`<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd"><xml ${SX_NAMESPACES}>${this.toString()}</xml>`, 'application/xml');
 		const y_result = y_processor.transformToDocument(y_doc.childNodes.item(1));
 		return new XMLSerializer()
 			.serializeToString(y_result.childNodes[0])
