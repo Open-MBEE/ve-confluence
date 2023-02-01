@@ -62,7 +62,7 @@ export class XHTMLDocument {
 	}
 
 	get root(): Node {
-		return this._y_doc.childNodes[1];
+		return this._y_doc.childNodes[this._y_doc.childNodes.length-1];
 	}
 
 	* [Symbol.iterator]<ElementType extends ChildNode>(): Generator<ElementType> {
