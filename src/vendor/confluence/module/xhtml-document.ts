@@ -47,34 +47,22 @@ export function xpathSelect1<ReturnType extends SelectedValue=SelectedValue>(sx_
 // @ts-expect-error ignore spread error
 export const xpathEvaluate = (sx_xpath: string, yn_context?: Node, ...a_args: any[]) => xpath.evaluate(sx_xpath.replace(/&nbsp;/g, '&#160;'), yn_context || null, G_NS_RESOLVER, ...a_args);
 
-let hm_entities = new Map<string, string>([
-	["&nbsp;", "&#160;"],
-	["&rdquo;", "&#8221;"],
-	["&ldquo;", "&#8220;"],
-	["&rsquo;", "&#8217;"],
-	["&lsquo;", "&#8216;"]
-]);
-
 export class XHTMLDocument {
 	static xhtmlToNodes(sx_xhtml: string): ChildNode[] {
 		return [...new XHTMLDocument(sx_xhtml)];
 	}
 
 	_sx_doc: string;
-	_y_doc: XMLDocument;
+	_y_doc: XMLDocument; //this now has doctype declaration as first child so root should be second child
 
 	constructor(sx_doc='') {
 		this._sx_doc = sx_doc;
 
-		for(let [key, value] of hm_entities) {
-			this._sx_doc = this._sx_doc.replace(new RegExp(key, "g"), value);
-		}
-
-		this._y_doc = (new DOMParser()).parseFromString(`<xml ${SX_NAMESPACES}>${this._sx_doc}</xml>`, 'application/xml');
+		this._y_doc = (new DOMParser()).parseFromString(`<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><xml ${SX_NAMESPACES}>${this._sx_doc}</xml>`, 'application/xml');
 	}
 
 	get root(): Node {
-		return this._y_doc.childNodes[0];
+		return this._y_doc.childNodes[1];
 	}
 
 	* [Symbol.iterator]<ElementType extends ChildNode>(): Generator<ElementType> {
@@ -120,8 +108,8 @@ export class XHTMLDocument {
 		const y_processor = new XSLTProcessor();
 		y_processor.importStylesheet(y_xslt);
 
-		const y_doc = new DOMParser().parseFromString(`<xml ${SX_NAMESPACES}>${this.toString()}</xml>`, 'application/xml');
-		const y_result = y_processor.transformToDocument(y_doc);
+		const y_doc = new DOMParser().parseFromString(`<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><xml ${SX_NAMESPACES}>${this.toString()}</xml>`, 'application/xml');
+		const y_result = y_processor.transformToDocument(y_doc.childNodes.item(1));
 		return new XMLSerializer()
 			.serializeToString(y_result.childNodes[0])
 			.replace(/^\s*<xml[^>]*>\s*|\s*<\/xml>\s*$/g, '');
