@@ -867,6 +867,62 @@ export class ConfluencePage extends ConfluenceEntity<PageMetadata> {
 	async isDocumentMember(): Promise<boolean> {
 		return null !== await this.fetchDocument();
 	}
+
+	async fetchUserHasUpdatePermissions(): Promise<boolean> {
+
+		// fetch page restrictions
+		const g_response_page = await confluence_get_json<ConfluenceApi.RestrictionsResponse>(`/content/${this.pageId}/restriction/byOperation/update`, {
+			search: {
+				expand: ['restrictions.user', 'restrictions.group'].join(','),
+			},
+		});
+
+
+		// destructure response data
+		const g_data = g_response_page.data!;
+		const {
+			group: {
+				results: a_groups_cover,
+			},
+			user: {
+				results: a_users_cover,
+			},
+		} = g_data.restrictions;
+
+		// no restriction(s) exists
+		if(!a_groups_cover.length && !a_users_cover.length) {
+			return true;
+		}
+
+		// user key
+		const si_user_current = G_META.remote_user_key;
+
+		// each user
+		for(const g_user of a_users_cover) {
+			// found current user
+			if(g_user.userKey === si_user_current) return true;
+		}
+
+		// fetch user groups
+		const g_response_user = await confluence_get_json<ConfluenceApi.MemberOfResponse>('/user/memberof', {
+			search: {
+				key: G_META.remote_user_key,
+			},
+		});
+
+		// convert user groups into set
+		const as_groups_user = new Set((g_response_user.data?.results || []).map(g_group => g_group.name));
+
+		// each group
+		for(const g_group of a_groups_cover) {
+			// user belongs to authorized group
+			if(as_groups_user.has(g_group.name)) {
+				return true;
+			}
+		}
+
+		return false;
+	}
 }
 
 export class ConfluenceDocument extends ConfluenceEntity<DocumentMetadata> {

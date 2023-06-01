@@ -25,9 +25,10 @@
 	import {
 		VeOdm,
 	} from '#/model/Serializable';
-import {
-	ObjectStore
-} from '#/model/ObjectStore';
+	
+	import {
+		ObjectStore
+	} from '#/model/ObjectStore';
 
 	import {
 		faCheckCircle,
@@ -69,7 +70,6 @@ import {
 	};
 
 	export let g_context: Context;
-	export let b_read_only = false;
 	let k_object_store = g_context.store;
 
 	let g_version_current: ModelVersionDescriptor;
@@ -241,6 +241,9 @@ import {
 			// download page
 			const k_page = ConfluencePage.fromBasicPageInfo(g_page);
 
+			// don't update page if the user doesn't have access to it
+			if(!await k_page.fetchUserHasUpdatePermissions()) continue;
+
 			// fetch xhtml contents
 			let {
 				document: k_doc,
@@ -284,11 +287,13 @@ import {
 				cf.setConnection(k_connection_new);
 				let cfstring = await cf.fetchDisplayText();
 				let display = cdataDoc.select('//span[@class="ve-transclusion-display"]')[0].childNodes.item(0) as Text;
-				display.replaceData(0, display.data.length, cfstring);
-				cdataNode.replaceData(0, cdataNode.data.length, cdataDoc.toString());
-				set_connection_properties(k_connection, {
-					cfs_touched_count: ++c_cfs_touched,
-				});
+				if(display) {
+					display.replaceData(0, display.data.length, cfstring);
+					cdataNode.replaceData(0, cdataNode.data.length, cdataDoc.toString());
+					set_connection_properties(k_connection, {
+						cfs_touched_count: ++c_cfs_touched,
+					});
+				}
 			}
 			let sx_new_page = k_doc.toString();
 			if (sx_page === sx_new_page) {
@@ -362,6 +367,20 @@ import {
 			s_current_display,
 			s_latest_display,
 		];
+	}
+
+	async function can_update_to_latest(k_connection: Connection): Promise<boolean>  {
+		const info = await locate_tables(k_connection)
+		if(!info) return false;
+		for(const g_page of info.pages) { // TODO this should just requery all pages to prevent potential outdated data/conflicts
+			// download page
+			let k_page = ConfluencePage.fromBasicPageInfo(g_page);
+			let b_user_can_update = await k_page.fetchUserHasUpdatePermissions();
+			if(!b_user_can_update){
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
@@ -540,10 +559,14 @@ import {
 					<td>{k_connection.label}</td>
 					<td class="cell-version">
 						{#await fetch_version_info(k_connection)}
-							&nbsp; Loading...
-						{:then [g_current_version, g_latest_version, s_hash, s_current_version, s_latest_version]}
-						    &nbsp; {s_current_version} &nbsp; <button disabled={g_current_version.dateTime === g_latest_version.dateTime || b_read_only} on:click="{select_version_for(k_connection)}">Update to Latest</button> &nbsp;
+							&nbsp; Loading... &nbsp;
+							{:then [g_current_version, g_latest_version, s_hash, s_current_version, s_latest_version]}
+							{#await can_update_to_latest(k_connection)}
+								&nbsp; Loading... &nbsp;
+					 		{:then b_can_update} 
+						    	&nbsp; {s_current_version} &nbsp; <button disabled={g_current_version.dateTime === g_latest_version.dateTime || !b_can_update} on:click="{select_version_for(k_connection)}">Update to Latest</button> &nbsp;
 						<!-- bind:this={h_selects['@'+s_hash]} -->
+							{/await}
 						{/await}
 
 						<Modal>

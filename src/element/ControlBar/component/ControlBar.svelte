@@ -167,11 +167,6 @@
 		// go async to allow svelte components to bind to local variables
 		await Promise.resolve();
 
-		// user does not have write permisisons to this page
-		if('READ_WRITE' !== G_META.access_mode) {
-			b_read_only = true;
-		}
-
 		// initial control bar alignment
 		queueMicrotask(realign_control_bar);
 
@@ -207,9 +202,6 @@
 
 			sx_document_metadata_local = JSON.stringify(g_bundle?.data, null, '  ');
 			sx_document_metadata_remote = JSON.stringify(g_bundle?.data);
-
-			// user does not have edit permissions to document
-			b_read_only ||= !await k_document.fetchUserHasUpdatePermissions();  // eslint-disable-line @typescript-eslint/no-unsafe-call
 		}
 
 		LOAD_PAGE_METADATA: {
@@ -228,6 +220,14 @@
 
 			sx_page_content_local = g_bundle.document.prettyPrint();
 			sx_page_content_remote = g_bundle.document.toString();
+		}
+
+		if(k_page) {
+			b_read_only = !await k_page.fetchUserHasUpdatePermissions();;
+			// page is in a document, determine if the user has edit access to the document
+			if(k_document) {
+				b_read_only = !await k_document.fetchUserHasUpdatePermissions();;
+			}
 		}
 	});
 
@@ -676,7 +676,7 @@
 						<TabPanel>
 							<div class="tab-body">
 								<p>New updates are available every morning</p>
-								<DatasetsTable {g_context} {b_read_only}></DatasetsTable>
+								<DatasetsTable {g_context} ></DatasetsTable>
 							</div>
 						</TabPanel>
 					{/if}

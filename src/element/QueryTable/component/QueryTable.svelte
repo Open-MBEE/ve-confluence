@@ -107,6 +107,9 @@
 	// table edited
 	$: b_changed = b_published? si_query_hash_previous !== si_query_hash_published : '' !== si_query_hash_previous;
 
+	// read-only mode
+	let b_read_only = true;
+
 	// once the component mounts
 	onMount(async() => {
 		// get query table's connection
@@ -141,6 +144,13 @@
 		}
 		// keep track of the number of rows in the published table
 		n_published_rows = get_published_table_rows().length;
+
+		// determine if the user has read-only access
+		const k_page = k_model.getContext().page;
+
+		if(k_page) {
+			b_read_only = !await k_page.fetchUserHasUpdatePermissions();
+		}
 	});
 
 	const A_DUMMY_TABLE_ROWS = [{}, {}, {}];
@@ -775,15 +785,17 @@
 			<span class="label">
 				Connected Data Table {g_source ? `with ${g_source.label}` : ''}
 			</span>
-			<span class="buttons">
-					<button class="ve-button-primary" on:click={toggle_parameters} class:active={b_display_parameters}> 
-						<Fa icon={faPen} style="margin-right: 3px;" /> Edit Table
-					</button>
-				{#if b_display_parameters}
-					<button class="ve-button-primary" on:click={publish_table} disabled={!b_filtered || b_publishing || b_busy_loading || b_param_values_loading}>Publish Table</button>
-					<button class="ve-button-secondary" on:click={reset_table}>Cancel</button>
-				{/if}
-			</span>
+			{#if !b_read_only}
+				<span class="buttons">
+						<button class="ve-button-primary" on:click={toggle_parameters} class:active={b_display_parameters}> 
+							<Fa icon={faPen} style="margin-right: 3px;" /> Edit Table
+						</button>
+					{#if b_display_parameters}
+						<button class="ve-button-primary" on:click={publish_table} disabled={!b_filtered || b_publishing || b_busy_loading || b_param_values_loading}>Publish Table</button>
+						<button class="ve-button-secondary" on:click={reset_table}>Cancel</button>
+					{/if}
+				</span>
+			{/if}
 		</div>
 
 		<div class="ve-table" class:published={b_published} class:changed={b_changed} class:expanded={b_display_parameters}>
