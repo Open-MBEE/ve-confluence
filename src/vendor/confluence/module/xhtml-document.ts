@@ -39,7 +39,10 @@ const SX_EXCLUDE_ACTIVE_DIRECTIVES = `[not(ancestor::ac:structured-macro[@ac:nam
 // css style for active directives
 const SX_STYLE_DIRECTIVE = 'background-color:lemonchiffon;';
 
-const select_ns = xpath.useNamespaces({...H_NAMESPACES});
+const select_ns = xpath.useNamespaces({
+	...H_NAMESPACES,
+	'': P_NS_XHTML,
+});
 
 export const xpathSelect = (sx_xpath: string, ...a_args: any[]) => select_ns(sx_xpath.replace(/&nbsp;/g, '&#160;'), ...a_args);
 
