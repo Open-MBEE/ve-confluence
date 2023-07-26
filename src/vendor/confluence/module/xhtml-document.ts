@@ -120,7 +120,6 @@ export class XHTMLDocument {
 	}
 
 	toString(): string {
-
 		return new XMLSerializer()
 			.serializeToString(this.root)
 			.replace(/^\s*<xml[^>]*>\s*|\s*<\/xml>\s*$/g, '');
