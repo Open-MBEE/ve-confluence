@@ -55,7 +55,7 @@
     "gretchen": "^1.5.0",
     "svelte-fa": "https://github.com/blake-regalia/svelte-fa",
     "svelte-select": "4.4.6",
-    "svelte-simple-modal": "^1.1.1",
+    "svelte-simple-modal": "~1.1.1",
     "svelte-tabs": "^1.1.0",
     "svelte-virtual-scroll-list": "^1.0.8",
     "xmldom": "^0.6.0",
