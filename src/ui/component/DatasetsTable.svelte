@@ -257,7 +257,7 @@ import {
 				let cdataNode: CDATASection = ym_param.parentElement.querySelector('*|rich-text-body > *|structured-macro[*|name="html"] > *|plain-text-body').childNodes.item(0) as CDATASection;
 				//let cdataNode: CDATASection = ym_param.parentNode!.childNodes.item(2).childNodes.item(1).childNodes.item(0).childNodes.item(0) as CDATASection;
 				let cdataDoc = new XHTMLDocument(cdataNode.data);
-				let script = cdataDoc.select('//script');
+				let script = cdataDoc.select('//*[local-name()="script"]');
 				let serialized = JSON.parse(script[0].textContent.replace(/\\n|\\t/g, ''));
 				let k_odm: QueryTable = new MmsSparqlQueryTable(sp_element, serialized, g_context);
 				await k_odm.ready();
@@ -277,13 +277,13 @@ import {
 				//let cdataNode: CDATASection = ym_param.parentNode!.childNodes.item(3).childNodes.item(0) as CDATASection;
 				let cdataNode: CDATASection = ym_param.parentElement.querySelector('*|plain-text-body').childNodes.item(0) as CDATASection;
 				let cdataDoc = new XHTMLDocument(cdataNode.data);
-				let script = cdataDoc.select('//script');
+				let script = cdataDoc.select('//*[local-name()="script"]');
 				let serialized = JSON.parse(script[0].textContent.replace(/\\n|\\t/g, ''));
 				let cf: Transclusion = new Transclusion(`transient.transclusion.random`, serialized as Transclusion.Serialized, g_context);
 				await cf.ready();
 				cf.setConnection(k_connection_new);
 				let cfstring = await cf.fetchDisplayText();
-				let display = cdataDoc.select('//span[@class="ve-transclusion-display"]')[0].childNodes.item(0) as Text;
+				let display = cdataDoc.select('//*[local-name()="span"][@class="ve-transclusion-display"]')[0].childNodes.item(0) as Text;
 				display.replaceData(0, display.data.length, cfstring);
 				cdataNode.replaceData(0, cdataNode.data.length, cdataDoc.toString());
 				set_connection_properties(k_connection, {
