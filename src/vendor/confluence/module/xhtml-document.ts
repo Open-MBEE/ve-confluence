@@ -8,6 +8,9 @@ const SI_VIEW_PREFIX = 've4';
 // unique namespaces prefix
 const P_URN_NS = 'urn:confluence-prefix:';
 
+// html namespace
+const P_NS_XHTML = 'http://www.w3.org/1999/xhtml';
+
 // set of prefixes to support when parsing XHTML strings from Confluence
 const AS_PREFIXES = new Set(['ac', 'ri']);
 
@@ -26,7 +29,7 @@ const SX_NAMESPACES = [...AS_PREFIXES]
 	.join(' ');
 
 const G_NS_RESOLVER = {
-	lookupNamespaceURI: (s_ns: string | null): string | null => s_ns? H_NAMESPACES[s_ns] || null: null,
+	lookupNamespaceURI: (s_ns: string | null): string | null => s_ns? H_NAMESPACES[s_ns] || null: P_NS_XHTML,
 };
 
 // for excluding elements that are within active directives
@@ -58,7 +61,7 @@ export class XHTMLDocument {
 	constructor(sx_doc='') {
 		this._sx_doc = sx_doc;
 
-		this._y_doc = (new DOMParser()).parseFromString(`<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd"><xml xmlns="http://www.w3.org/1999/xhtml" ${SX_NAMESPACES}>${this._sx_doc}</xml>`, 'application/xml');
+		this._y_doc = (new DOMParser()).parseFromString(`<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd"><xml xmlns="${P_NS_XHTML}" ${SX_NAMESPACES}>${this._sx_doc}</xml>`, 'application/xml');
 		const errorNode = this._y_doc.querySelector('parsererror');
 		if (errorNode) {
 			throw new Error(`cannot parse doc ${errorNode}`);
@@ -112,7 +115,7 @@ export class XHTMLDocument {
 		const y_processor = new XSLTProcessor();
 		y_processor.importStylesheet(y_xslt);
 
-		const y_doc = new DOMParser().parseFromString(`<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd"><xml ${SX_NAMESPACES}>${this.toString()}</xml>`, 'application/xml');
+		const y_doc = new DOMParser().parseFromString(`<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd"><xml xmlns="${P_NS_XHTML}" ${SX_NAMESPACES}>${this.toString()}</xml>`, 'application/xml');
 		const y_result = y_processor.transformToDocument(y_doc.childNodes.item(1));
 		return new XMLSerializer()
 			.serializeToString(y_result.childNodes[0])
