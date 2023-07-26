@@ -58,7 +58,7 @@ export class XHTMLDocument {
 	constructor(sx_doc='') {
 		this._sx_doc = sx_doc;
 
-		this._y_doc = (new DOMParser()).parseFromString(`<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd"><xml ${SX_NAMESPACES}>${this._sx_doc}</xml>`, 'application/xml');
+		this._y_doc = (new DOMParser()).parseFromString(`<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd"><xml xmlns="http://www.w3.org/1999/xhtml" ${SX_NAMESPACES}>${this._sx_doc}</xml>`, 'application/xml');
 		const errorNode = this._y_doc.querySelector('parsererror');
 		if (errorNode) {
 			throw new Error(`cannot parse doc ${errorNode}`);
@@ -120,6 +120,7 @@ export class XHTMLDocument {
 	}
 
 	toString(): string {
+
 		return new XMLSerializer()
 			.serializeToString(this.root)
 			.replace(/^\s*<xml[^>]*>\s*|\s*<\/xml>\s*$/g, '');
