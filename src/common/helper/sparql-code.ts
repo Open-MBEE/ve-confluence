@@ -287,7 +287,7 @@ export function dng_searcher_query(this: Mms5Connection, s_input: string, xm_typ
 
 	// build query
 	return new SparqlSelectQuery({
-		count: '?artifact',
+		count: '?item',
 		select: [
 			...b_multirank? ['?rank']: [],
 			'?item',
