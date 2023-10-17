@@ -57,39 +57,51 @@
 			b_param_values_loading = true;
 			const k_connection = (await k_query_table.fetchConnection()) as Mms5Connection;
 			let queryString: string;
+
 			if('id' === k_param_load.key) {
 				queryString = /* syntax: sparql */`
-				select ?value ("1" as ?count) {
-					hint:Query hint:joinOrder "Ordered" .
-					#hint:Query hint:useDFE true .
-					
-					?_attr a oslc_rm:Requirement ;
-						oslc:instanceShape
-							[
-								dct:title "Requirement"^^rdf:XMLLiteral ;
-							] ;
-					.
-
-					filter exists {
-						?_attr jazz_nav:parent ?parent .
-					}
-					?_attr dct:identifier ?value .
-				} order by asc(?value)
-			`;
+					select ?value ("1" as ?count) {
+						hint:Query hint:joinOrder "Ordered" .
+						#hint:Query hint:useDFE true .
+						
+						?_item a def:Item ;
+							:itemType/:display "MSR_Requirement" ;
+							:documentKey ?value ;
+						.
+					} order by asc(?value)
+				`;
 			}
 			else {
 				queryString = /* syntax: sparql */ `
-				select ?value (count(?req) as ?count) {
-					hint:Query hint:joinOrder "Ordered" .
-					#hint:Query hint:useDFE true .
+					select ?value (count(?item) as ?count) {
+						hint:Query hint:joinOrder "Ordered" .
+						#hint:Query hint:useDFE true .
+				`;
 
-						?_attr_decl a oslc:Property ;
-							dct:title ${Sparql.literal(k_param_load.value)}^^rdf:XMLLiteral ;
-							oslc:propertyDefinition ?_attr .
-
-					?req ?_attr [rdfs:label ?value] .
+				// query performance optimization; use hardcoded edge IRI
+				if(k_param_load.edge) {
+					queryString += `
+						?item :fields/<${k_param_load.edge}>/:name ?value .
+					`;
 				}
-				group by ?value order by desc(?count)
+				// find edge by its label property
+				else {
+					queryString += `
+						?_picklist a def:PickList ;
+							:name ${Sparql.literal(k_param_load.value)} ;
+							^:pickList ?_option .
+						
+						?_option :name ?value .
+
+						?itemFields ?_edge ?_option .
+						
+						?item :fields ?itemFields .
+					`;
+				}
+
+				queryString += `
+					}
+					group by ?value order by desc(?count)
 				`;
 			}
 

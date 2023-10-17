@@ -372,17 +372,17 @@
 		connection: {
 			sparql: {
 				mms: {
-			dng: {
-				type: 'Mms5Connection',
-				label: 'DNG Requirements',
-				alias: 'DNG',
-				endpoint: 'https://mms5.jpl.nasa.gov',
-				repoPath: '/orgs/dngmdk/repos/msr',
-				ref: '/locks/initial',
-				contextPath: 'hardcoded#queryContext.sparql.dng.common',
-				searchPath: 'hardcoded#queryBuilder.sparql.dng.search.basic',
-				detailPath: 'hardcoded#queryBuilder.sparql.dng.detail.basic',
-			},
+					dng: {
+						type: 'Mms5Connection',
+						label: 'Requirements',
+						alias: 'Jama',
+						endpoint: 'https://mms5.jpl.nasa.gov',
+						repoPath: '/orgs/jama/repos/msr2',
+						ref: '/locks/initial',
+						contextPath: 'hardcoded#queryContext.sparql.dng.common',
+						searchPath: 'hardcoded#queryBuilder.sparql.dng.search.basic',
+						detailPath: 'hardcoded#queryBuilder.sparql.dng.detail.basic',
+					},
 				},
 			}
 		}

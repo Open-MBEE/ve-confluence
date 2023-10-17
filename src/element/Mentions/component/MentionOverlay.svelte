@@ -119,7 +119,8 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 	}
 
 	function row_id(g_row: Row, si_channel: string) {
-		return `DNG:${g_row.subtitle}`;
+		// return `DNG:${g_row.subtitle}`;
+		return g_row.subtitle;
 	}
 
 
@@ -237,7 +238,7 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 
 
 	const H_ICONS: Record<string, string> = {
-		'DNG Requirements': `
+		'Requirements': `
 			<svg style="transform:scale(0.75, 0.75)" width="33" height="33" version="2.0">
 				<use href="#ve-icon-dng" />
 			</svg>

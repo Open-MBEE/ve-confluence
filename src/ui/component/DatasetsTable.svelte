@@ -7,7 +7,6 @@
 
 </script>
 <script lang="ts">
-
 	import {
 		Connection,
 		connectionHasVersioning,
@@ -25,9 +24,6 @@
 	import {
 		VeOdm,
 	} from '#/model/Serializable';
-import {
-	ObjectStore
-} from '#/model/ObjectStore';
 
 	import {
 		faCheckCircle,
@@ -39,12 +35,10 @@ import {
 	import Modal from 'svelte-simple-modal';
 
 	import ContextDummy from './ContextDummy.svelte';
-	// import {bind} from 'svelte-simple-modal';
 
-	import {
-		ConfluencePage,
-	} from '#/vendor/confluence/module/confluence';
-	import XhtmlDocument, {XHTMLDocument} from '#/vendor/confluence/module/xhtml-document';
+	import {ConfluencePage} from '#/vendor/confluence/module/confluence';
+
+	import {XHTMLDocument} from '#/vendor/confluence/module/xhtml-document';
 
 	import type {PageMap} from '#/vendor/confluence/module/confluence';
 

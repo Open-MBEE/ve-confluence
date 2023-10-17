@@ -349,12 +349,13 @@ export class Mms5Connection extends SparqlConnection<Mms5Connection.Serialized> 
 					'Accept': 'application/sparql-results+json',
 					'Authorization': `Bearer ${this._token}`,
 				},
-				body: `select  ?time  where {
-				?ref mms:id "${refId}" .
-				?ref mms:commit ?commit .
-				?commit mms:submitted  ?time
-			} 
-			`,
+				body: `
+					select ?time where {
+						?ref mms:id "${refId}" .
+						?ref mms:commit ?commit .
+						?commit mms:submitted  ?time
+					}
+				`,
 			});
 
 			// response not ok

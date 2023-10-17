@@ -40,6 +40,7 @@ import {
 import XHTMLDocument from '#/vendor/confluence/module/xhtml-document';
 
 import {process} from '#/common/static';
+import H_PREFIXES, {S_EDGE_SUFFIX} from '#/common/prefixes';
 
 export namespace QueryParamValue {
 	export interface Serialized extends TypedLabeledObject<'QueryParamValue'> {
@@ -111,6 +112,7 @@ export namespace QueryParam {
 		sortPath: VeoPathTarget | null;
 		value: string;
 		label?: string;
+		edge?: string;
 	}
 }
 
@@ -121,6 +123,10 @@ export class QueryParam extends VeOdmKeyed<QueryParam.Serialized> {
 
 	get label(): string {
 		return this._gc_serialized.label || this.value || this.key;
+	}
+
+	get edge(): string {
+		return this._gc_serialized.edge? H_PREFIXES['']+this._gc_serialized.edge+S_EDGE_SUFFIX: '';
 	}
 
 	get sort(): undefined | CompareFunction<Labeled> {
@@ -138,6 +144,7 @@ export namespace QueryField {
 	export interface Serialized extends TypedKeyedPrimitive<'QueryField'> {
 		value: string;
 		label?: string;
+		edge?: string;
 		source: 'native' | 'attribute';
 		hasMany: boolean;
 		cell: (g_row: QueryRow) => TypedString;
@@ -163,6 +170,10 @@ export class QueryField extends VeOdmKeyed<QueryField.Serialized> {
 
 	get cell(): (g_row: QueryRow) => TypedString {
 		return this._gc_serialized.cell;
+	}
+
+	get edge(): string {
+		return this._gc_serialized.edge? H_PREFIXES['']+this._gc_serialized.edge+S_EDGE_SUFFIX: '';
 	}
 }
 

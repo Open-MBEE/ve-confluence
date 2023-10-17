@@ -260,7 +260,7 @@ async function onReady() {
 	}
     init_editor();
 	init_bindings(tinymce.activeEditor);
-	void Mention.initGlobalPrecache(G_CONTEXT);
+	// void Mention.initGlobalPrecache(G_CONTEXT);
 }
 
 function init_bindings(y_editor: PatchedEditor) {

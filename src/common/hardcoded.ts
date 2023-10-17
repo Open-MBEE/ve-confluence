@@ -8,7 +8,7 @@ import type {
 	QueryRow,
 } from '#/common/types';
 
-import type {
+import {
 	MmsSparqlQueryTable,
 	QueryField,
 	QueryParam,
@@ -37,7 +37,7 @@ import {
 	dng_searcher_query,
 } from './helper/sparql-code';
 
-import H_PREFIXES from './prefixes';
+import H_PREFIXES, {S_EDGE_SUFFIX} from './prefixes';
 
 export interface HardcodedGroup<ValueType extends PrimitiveValue=PrimitiveValue> extends PrimitiveObject {
 	[si_frag: string]: ValueType;
@@ -169,7 +169,9 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 		sparql: {
 			dng: {
 				level: {
-					value: 'Level',
+					label: 'Level',
+					value: 'MSR_Level',
+					edge: 'level',
 					sortPath: 'hardcoded#utility.function.sort.label_asc',
 				},
 				sysvac: {
@@ -177,15 +179,20 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					// sortPath: null,
 				},
 				maturity: {
-					value: 'Maturity',
+					label: 'Maturity',
+					value: 'MSR_State',
+					edge: 'state',
 					sortPath: null,
 				},
 				capturingDocument: {
-					value: 'Capturing Document',
+					label: 'Capturing Document',
+					value: 'MSR_Capturing_Document_List',
+					edge: 'capturing_document'
 				},
 				workflow: {
 					label: 'Maturity',
-					value: 'State (Requirement Workflow)',
+					value: 'MSR_State',
+					edge: 'state',
 				},
 				id: {
 					value: 'Identifier',
@@ -293,7 +300,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					label: null, // inherit from value
 					source: 'native',
 					hasMany: false,
-					cell: (g: QueryRow) => xhtml`<a href="${g.artifact.value}">${escape_html(g.requirementNameValue.value)}</a>`,
+					cell: (g: QueryRow) => xhtml`<a href="${g.item.value}">${escape_html(g.requirementNameValue.value)}</a>`,
 				},
 				requirementText: {
 					value: 'Requirement Text',
@@ -303,8 +310,9 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					cell: (g: QueryRow) => html`${g.requirementTextValue.value}`,
 				},
 				keyDriver: {
-					value: 'Key/Driving',
+					value: 'MSR_Key_Driving_List',
 					label: 'Key/Driving',
+					edge: 'key_or_driving',
 					source: 'attribute',
 					hasMany: true,
 					cell: unordered_list('keyDriverValue'),
@@ -317,29 +325,32 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					cell: (g: QueryRow) => plain`${escape_html(g.affectedSystemsValue?.value || '')}`,
 				},
 				allocatedSystems: {
-					value: 'Allocated System',
-					label: 'Allocated System', // inherit from value
+					value: 'MSR_Allocated_System_Concurrence_List',
+					label: 'Allocated System',
+					edge: 'allocated_system_concurrence',
 					source: 'attribute',
 					hasMany: true,
 					cell: unordered_list('allocatedSystemsValue'),
 				},
 				maturity: {
-					value: 'Maturity',
-					label: null, // inherit from value
+					value: 'MSR_State',
+					label: 'Maturity',
+					edge: 'state',
 					source: 'attribute',
 					hasMany: false,
 					cell: (g: QueryRow) => plain`${escape_html(g.maturityValue?.value || '')}`,
 				},
 				workflow: {
-					value: 'State (Requirement Workflow)',
-					label: "Maturity", // inherit from value
+					value: 'MSR_State',
+					label: 'Maturity', // inherit from value
+					edge: 'state',
 					source: 'attribute',
 					hasMany: false,
 					cell: (g: QueryRow) => plain`${escape_html(g.workflowValue?.value || '')}`,
 				},
 				children: {
-					value: 'Child Requirements',
 					label: null,  // inherit from value
+					value: 'Child Requirements',
 					source: 'native',
 					hasMany: true,
 					cell: (g: QueryRow) => xhtml`<ul>${
@@ -376,30 +387,54 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					basicParams: build_dng_select_query_from_params,
 					basicParamsL3(this: MmsSparqlQueryTable): Promise<SparqlSelectQuery> {
 						return build_dng_select_query_from_params.call(this, {
-							bgp: /* syntax: js */ `
+							// 	?levelPickList a def:PickList ;
+							// 	:name "MSR_Level" ;
+							// 	^:pickList ?levelOption .
 
-							?level_decl a oslc:Property ;
-								dct:title "Level"^^rdf:XMLLiteral ;
-								oslc:propertyDefinition ?_level .							
+							// ?levelOption :name "L3" .
 
-							?artifact ?_level [rdfs:label "L3"] .
+							// ?itemFields ?_level ?levelOption .
+
+							bgp: /* syntax: sparql */ `
+								?itemFields <${H_PREFIXES['']+'level'+S_EDGE_SUFFIX}>/:name "L3" .
 							`,
 						});
 					},
 					basicParamsL3ChildrenAndL4s(this: MmsSparqlQueryTable): Promise<SparqlSelectQuery> {
 						return build_dng_select_query_from_params.call(this, {
-							bgp: /* syntax: js */ `
-							?level_decl a oslc:Property ;
-								dct:title "Level"^^rdf:XMLLiteral ;
-								oslc:propertyDefinition ?_level .							
+							// bgp: /* syntax: sparql */ `
+							// 	?levelPickList a def:PickList ;
+							// 		:name "MSR_Level" ;
+							// 		^:pickList ?levelOption .
 
+							// 	?itemFields ?_level ?levelOption .
+
+							// 	{
+							// 		?levelOption :name "L4" ;
+							// 	} union {
+							// 		?item ^:toItem ?relationship .
+
+							// 		?relationship
+							// 			:relationshipType/:name "Decomposition" ;
+							// 			:fromItem ?parent .
+
+							// 		?levelPickList ^:pickList ?parentLevelOption .
+
+							// 		?parent ?_level ?parentLevelOption .
+
+							// 		?parentLevelOption :name "L3" .
+							// 	}
+							// `,
+
+							bgp: `
 								{
-									?artifact ?_level [rdfs:label "L4"] .
+									?itemFields <${H_PREFIXES['']+'level'+S_EDGE_SUFFIX}>/:name "L4" .
 								} union {
-									?artifact a oslc_rm:Requirement ;
-										ibm_type:Decomposition ?parent .
-
-									?parent ?_level [rdfs:label "L3"] .
+									?item ^:toItem [
+										a def:Relationship ;
+										:relationshipType/:name "Decomposition" ;
+										:fromItem/:fields/<${H_PREFIXES['']+'level'+S_EDGE_SUFFIX}>/:name "L3" ;
+									] ;
 								}
 							`,
 						});

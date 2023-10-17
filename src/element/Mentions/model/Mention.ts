@@ -112,7 +112,7 @@ export const R_TRANSCLUDE_SYMBOL_PREFIX = new RegExp(`^${S_TRANSCLUDE_SYMBOL.rep
 const query_row_to_display_row = (h_row: QueryRow, k_connection: Connection): Row => ({
 	title: h_row.requirementNameValue.value,
 	subtitle: h_row.idValue.value,
-	uri: h_row.artifact.value,
+	uri: h_row.item.value,
 	source: k_connection,
 });
 
@@ -841,11 +841,11 @@ export class Mention {
 				let a_mapped: Row[] = [];
 				const k_connection = g_channel.connection;
 
-				if('DNG Requirements' === g_channel.connection.label) {
+				if('Requirements' === g_channel.connection.label) {
 					a_mapped = a_rows.map(h_row => ({
 						title: h_row.requirementNameValue.value,
 						subtitle: h_row.idValue.value,
-						uri: h_row.artifact.value,
+						uri: h_row.item.value,
 						source: k_connection,
 					}));
 				}

@@ -162,7 +162,7 @@
 	// number of rows in the published table
 	let n_published_rows: Number = 0;
 
-	g_source = {label:'DNG Requirements', source: "Doors NG"};
+	g_source = {label:'Requirements', source: 'Jama'};
 
 	$: {
 		dm_anchor.style.display = (dm_anchor.localName === 'a' || (b_published && b_display_preview)) ? 'none' :'block';
