@@ -1,44 +1,17 @@
 <script lang="ts">
-	import {
-		dd,
-		decode_attr,
-		encode_attr,
-		qs,
-		qsa,
-	} from '#/util/dom';
+	import {qs, qsa} from '#/util/dom';
 
-	import type {PatchedEditor} from '#/common/meta';
+	import {DisplayMode} from '../model/Autocomplete';
 
-	import type {Context} from '#/model/Serializable';
-
-	import {
-		DisplayMode,
-	} from '../model/Autocomplete';
-
-	import type {
-		Channel,
-	} from '../model/Autocomplete';
-
-	import type {QueryRow,
-		ValuedLabeledObject} from '#/common/types';
-
-	import type {Connection} from '#/model/Connection';
+	import type {ValuedLabeledObject} from '#/common/types';
 
 	import {escape_html} from '#/util/strings';
-
-	import AsyncLockPool from '#/util/async-lock-pool';
 
 	import {
 		escape_regex,
 		ode,
 		oderac,
 	} from '#/util/belt';
-
-	import Fa from 'svelte-fa';
-
-	import {
-		faAngleDown,
-	} from '@fortawesome/free-solid-svg-icons';
 
 	import {
 		createEventDispatcher,
@@ -55,7 +28,6 @@
 	import type {
 		Mention,
 	} from '../model/Mention';
-import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 
 	export let k_mention: Mention;
 	
@@ -100,23 +72,7 @@ import { SI_EDITOR_SYNC_KEY } from '#/vendor/confluence/module/confluence';
 	// 	},
 	// });
 
-	function filter_channels(s_name: string) {
-		k_mention.setChannelUse(g_channel => s_name === g_channel.connection.label);
-		qs(dm_container, '.filter.selected')?.classList.remove('selected');
-		qs(dm_container, `.filter[data-channel="${s_name}"]`)?.classList.add('selected');
 
-		// reload view
-		render_search();
-	}
-
-	function enable_all_channels() {
-		k_mention.setChannelUse(() => true);
-		qs(dm_container, '.filter.selected')?.classList.remove('selected');
-		qs(dm_container, `.filter[data-channel-all]`)?.classList.add('selected');
-
-		// reload view
-		render_search();
-	}
 
 	function row_id(g_row: Row, si_channel: string) {
 		// return `DNG:${g_row.subtitle}`;
