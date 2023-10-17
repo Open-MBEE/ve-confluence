@@ -39,4 +39,6 @@ export const H_PREFIXES: Record<string, string> = {
 
 export const S_EDGE_SUFFIX = '$200';
 
+export const SI_PROJECT = '194';
+
 export default H_PREFIXES;
