@@ -49,13 +49,11 @@ const H_NATIVE_DNG_PATTERNS: Record<string, string> = {
 	`,
 	children: /* syntax: sparql */ `
 		optional {
-			?relationship
+			?item ^:fromItem [
+				a def:Relationship ;
 				:relationshipType/:name "Decomposition" ;
-				:fromItem ?item ;
-				:toItem ?children ;
-				.
-			
-			?children :fields/:name ?childrenValues .
+				:toItem/:fields/:name ?childrenValues ;
+			] .
 		}
 	`,
 };
