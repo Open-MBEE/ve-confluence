@@ -41,4 +41,6 @@ export const S_EDGE_SUFFIX = '$200';
 
 export const SI_PROJECT = '194';
 
+export const item_iri_to_href = (p_iri: string) => p_iri.replace(/^.+\/(\d+)$/, `https://cae-jama.jpl.nasa.gov/perspective.req#/items/$1?projectId=${SI_PROJECT}`);
+
 export default H_PREFIXES;

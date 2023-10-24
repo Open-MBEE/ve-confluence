@@ -21,7 +21,7 @@
 	import {
 		dm_main,
 	} from '#/util/dom';
-    import {SI_PROJECT} from '#/common/prefixes';
+    import {SI_PROJECT, item_iri_to_href} from '#/common/prefixes';
 
 	/**
 	* The transclusion model
@@ -283,7 +283,7 @@
 	<div class="arrow-down" bind:this={dm_arrow}></div>
 </div>
 
-<a href={k_model.itemIri.replace(/^.+\/(\d+)$/, `https://cae-jama.jpl.nasa.gov/perspective.req#/items/$1?projectId=${SI_PROJECT}`)} class="transclusion" on:mouseenter={enable_hover} on:mouseleave={disable_hover} bind:this={dm_link}>
+<a href={item_iri_to_href(k_model.itemIri)} class="transclusion" on:mouseenter={enable_hover} on:mouseleave={disable_hover} bind:this={dm_link}>
 	<span>
 		<Fa icon={faBolt} />
 	</span>

@@ -52,8 +52,21 @@ const H_NATIVE_DNG_PATTERNS: Record<string, string> = {
 			?item ^:fromItem [
 				a def:Relationship ;
 				:relationshipType/:name "Decomposition" ;
-				:toItem/:fields/:name ?childrenValues ;
+				:toItem ?children ;
 			] .
+
+			?children :fields/:name ?childrenValues .
+		}
+	`,
+	allocatedSystems: /* syntax: sparql */ `
+		optional {
+			?item ^:toItem [
+				a def:Relationship ;
+				:relationshipType/:name "Allocation" ;
+				:fromItem ?allocatedSystems ;
+			] .
+
+			?allocatedSystems :fields/:name ?allocatedSystemsValues .
 		}
 	`,
 };
@@ -141,9 +154,14 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 		else if('native' === s_source) {
 			if(si_param in H_NATIVE_DNG_PATTERNS) {
 				a_bgp.push(H_NATIVE_DNG_PATTERNS[si_param]);
-				if ('children' === si_param) {
+				if('children' === si_param) {
 					a_aggregates.push(`
-						(group_concat(distinct ?children; separator='\\u0000') as ?childrenArtifact)
+						(group_concat(distinct ?children; separator='\\u0000') as ?childrenItem)
+					`)
+				}
+				else if('allocatedSystems' === si_param) {
+					a_aggregates.push(`
+						(group_concat(distinct ?allocatedSystems; separator='\\u0000') as ?allocatedSystemsItem)
 					`)
 				}
 			}

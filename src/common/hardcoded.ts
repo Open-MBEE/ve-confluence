@@ -37,7 +37,7 @@ import {
 	dng_searcher_query,
 } from './helper/sparql-code';
 
-import H_PREFIXES, {S_EDGE_SUFFIX} from './prefixes';
+import H_PREFIXES, {S_EDGE_SUFFIX, item_iri_to_href} from './prefixes';
 
 export interface HardcodedGroup<ValueType extends PrimitiveValue=PrimitiveValue> extends PrimitiveObject {
 	[si_frag: string]: ValueType;
@@ -300,7 +300,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					label: null, // inherit from value
 					source: 'native',
 					hasMany: false,
-					cell: (g: QueryRow) => xhtml`<a href="${g.item.value}">${escape_html(g.requirementNameValue.value)}</a>`,
+					cell: (g: QueryRow) => xhtml`<a href="${item_iri_to_href(g.item.value)}">${escape_html(g.requirementNameValue.value)}</a>`,
 				},
 				requirementText: {
 					value: 'Requirement Text',
@@ -325,12 +325,22 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					cell: (g: QueryRow) => plain`${escape_html(g.affectedSystemsValue?.value || '')}`,
 				},
 				allocatedSystems: {
-					value: 'MSR_Allocated_System_Concurrence_List',
-					label: 'Allocated System',
-					edge: 'allocated_system_concurrence',
-					source: 'attribute',
+					// value: 'MSR_Allocated_System_Concurrence_List',
+					// label: 'Allocated System',
+					// edge: 'allocated_system_concurrence',
+					// source: 'attribute',
+					// hasMany: true,
+					// cell: unordered_list('allocatedSystemsValue'),
+					label: null,
+					value: 'Allocated System',
+					source: 'native',
 					hasMany: true,
-					cell: unordered_list('allocatedSystemsValue'),
+					cell: (g: QueryRow) => xhtml`<ul>${
+						g.allocatedSystemsValue.value
+							.split(/\0/g)
+							.map((s, i) => /* syntax: html*/ `<li><a href="${item_iri_to_href(g.allocatedSystemsItem.value.split(/\0/g)[i])}">${escape_html(s)}</a></li>`)
+							.join('')
+					}</ul>`,
 				},
 				maturity: {
 					value: 'MSR_State',
@@ -356,7 +366,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					cell: (g: QueryRow) => xhtml`<ul>${
 						g.childrenValue.value
 							.split(/\0/g)
-							.map((s, i) => /* syntax: html*/ `<li><a href="${g.childrenArtifact.value.split(/\0/g)[i]}">${escape_html(s)}</a></li>`)
+							.map((s, i) => /* syntax: html*/ `<li><a href="${item_iri_to_href(g.childrenItem.value.split(/\0/g)[i])}">${escape_html(s)}</a></li>`)
 							.join('')
 					}</ul>`,
 				},
