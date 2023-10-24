@@ -272,6 +272,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 						'hardcoded#queryField.sparql.dng.id',
 						'hardcoded#queryField.sparql.dng.requirementName',
 						'hardcoded#queryField.sparql.dng.requirementText',
+						'hardcoded#queryField.sparql.dng.workflow'
 					],
 				},
 			},
