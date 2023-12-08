@@ -18,7 +18,7 @@ import type {
 	SparqlString,
 } from '../types';
 
-const terse_lit = (s: string) => `"${s.replace(/[\r\n]+/g, '').replace(/"/g, '\\"')}"`;
+const terse_lit = (s: string, type: string) => `"${s.replace(/[\r\n]+/g, '').replace(/"/g, '\\"')}"${type}`;
 
 function attr(h_props: Hash, si_attr: string, s_attr_key: string, p_edge: string, has_many: boolean) {
 	const sx_prop = h_props[si_attr] = `?_${si_attr}`;
@@ -29,7 +29,7 @@ function attr(h_props: Hash, si_attr: string, s_attr_key: string, p_edge: string
 		? `?itemFields <${p_edge}>/:name ${sx_value} .`
 		: /* syntax: sparql */ `
 			${sx_prop}_decl a def:PickListOption ;
-				:pickList/:name ${terse_lit(s_attr_key)} ;
+				:pickList/:name ${terse_lit(s_attr_key, '')} ;
 				:name ${sx_value} ;
 				.
 
@@ -39,8 +39,9 @@ function attr(h_props: Hash, si_attr: string, s_attr_key: string, p_edge: string
 
 const H_NATIVE_DNG_PATTERNS: Record<string, string> = {
 	id: /* syntax: sparql */ `
-		?item :documentKey ?idValue .
+		?item :id ?idValue .
 	`,
+	projectId: `?item :documentKey ?projectIdValue .`,
 	requirementName: /* syntax: sparql */ `
 		?itemFields :name ?requirementNameValue .
 	`,
@@ -60,10 +61,10 @@ const H_NATIVE_DNG_PATTERNS: Record<string, string> = {
 	`,
 	allocatedSystems: /* syntax: sparql */ `
 		optional {
-			?item ^:toItem [
+			?item ^:fromItem [
 				a def:Relationship ;
 				:relationshipType/:name "Allocation" ;
-				:fromItem ?allocatedSystems ;
+				:toItem ?allocatedSystems ;
 			] .
 
 			?allocatedSystems :fields/:name ?allocatedSystemsValues .
@@ -106,10 +107,10 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 		// insert value filter
 		a_values.push(/* syntax: sparql */ `
 			values ?${si_param}Value {
-				${[...this.parameterValuesList(si_param)].map(k => terse_lit(k.value)).join(' ')}
+				${[...this.parameterValuesList(si_param)].map(k => terse_lit(k.value, si_param === 'id' ? '^^xsd:integer' : '')).join(' ')}
 			}
 		`);
-		
+
 		if(!(si_param in H_NATIVE_DNG_PATTERNS)) {
 			a_bgp.push(attr(h_props, si_param, s_value, p_edge, false));
 		}
@@ -169,9 +170,6 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 	}
 
 	const sx_query = /* syntax: sparql */ `
-		hint:Query hint:joinOrder "Ordered" .
-		#hint:Query hint:useDFE true .
-		
 		?item a def:Item ;
 			:itemType/:display "MSR_Requirement" ;
 			:fields ?itemFields ;
@@ -211,13 +209,11 @@ export function dng_detailer_query(this: Mms5Connection, p_item: string): Sparql
 	return new SparqlSelectQuery({
 		select: [
 			'?idValue',
+			'?projectIdValue',
 			'?requirementNameValue',
 			'?requirementTextValue',
 		],
 		bgp: /* syntax: sparql */ `
-		
-			hint:Query hint:joinOrder "Ordered" .
-			#hint:Query hint:useDFE true .
 			values ?item {
 				<${p_item}>
 			}
@@ -226,13 +222,9 @@ export function dng_detailer_query(this: Mms5Connection, p_item: string): Sparql
 				:fields ?itemFields ;
 				.
 
-			## exclude requirements that are part of a requirement document
-			#filter exists {
-			#	?artifact jazz_nav:parent ?parent .
-			#}
 			
 			${H_NATIVE_DNG_PATTERNS.id}
-
+			${H_NATIVE_DNG_PATTERNS.projectId}
 			${H_NATIVE_DNG_PATTERNS.requirementName}
 
 			${H_NATIVE_DNG_PATTERNS.requirementText}
@@ -268,12 +260,12 @@ export function dng_searcher_query(this: Mms5Connection, s_input: string, xm_typ
 	if(/^\d+$/.test(s_sanitized)) {
 		if(xm_types & SearcherMask.ID_EXACT) {
 			b_id_candidate = true;
-			h_criteria[1].push(`str(?idValue) = "MSR-MSRREQ-${s_sanitized}"`);
+			h_criteria[1].push(`str(?idValue) = "${s_sanitized}"`);
 		}
 
 		if(xm_types & SearcherMask.ID_START) {
 			b_id_candidate = true;
-			h_criteria[3].push(`strStarts(?idValue, "MSR-MSRREQ-${s_sanitized}")`);
+			h_criteria[3].push(`strStarts(?idValue, "${s_sanitized}")`);
 		}
 	}
 
@@ -308,12 +300,11 @@ export function dng_searcher_query(this: Mms5Connection, s_input: string, xm_typ
 			...b_multirank? ['?rank']: [],
 			'?item',
 			'?idValue',
+			'?projectIdValue',
 			'?requirementNameValue',
 			`(strLen(strBefore(lcase(?requirementNameValue), "${s_sanitized}")) as ?score)`,
 		],
 		bgp: /* syntax: sparql */ `
-			hint:Query hint:joinOrder "Ordered" .
-			#hint:Query hint:useDFE true .
 			
 			?item a def:Item ;
 				:itemType/:display "MSR_Requirement" ;
@@ -325,6 +316,7 @@ export function dng_searcher_query(this: Mms5Connection, s_input: string, xm_typ
 			#	?artifact jazz_nav:parent ?parent .
 			#}
 			${H_NATIVE_DNG_PATTERNS.id}
+			${H_NATIVE_DNG_PATTERNS.projectId}
 
 			${H_NATIVE_DNG_PATTERNS.requirementName}
 

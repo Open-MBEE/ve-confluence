@@ -76,7 +76,7 @@
 	let g_document_metadata_editted: DocumentMetadata | Error;
 	$: b_document_json_valid = g_document_metadata_editted && !(g_document_metadata_editted instanceof Error);
 	$: b_document_json_writable = b_document_json_valid && JSON.stringify(g_document_metadata_editted) !== sx_document_metadata_remote;
-	
+
 	let sx_page_metadata_remote: string;
 	$: sx_page_metadata_local = '';
 	let g_page_metadata_editted: PageMetadata | Error;
@@ -101,7 +101,7 @@
 	// 	dm_sidebar_scrollable = (qs(dm_sidebar, '.ia-scrollable-section') as HTMLDivElement);
 	// 	n_pre_scrolltop = dm_sidebar.scrollTop || 0;
 	// }
-	
+
 	$: {
 		try {
 			g_document_metadata_editted = JSON.parse(sx_document_metadata_local) as DocumentMetadata;
@@ -376,9 +376,9 @@
 						type: 'Mms5Connection',
 						label: 'Requirements',
 						alias: 'Jama',
-						endpoint: 'https://mms5.jpl.nasa.gov',
-						repoPath: '/orgs/jama/repos/msr2',
-						ref: '/locks/initial',
+						endpoint: 'https://mms5-test.jpl.nasa.gov',
+						repoPath: '/orgs/jama/repos/msr3',
+						ref: '/locks/migration',
 						contextPath: 'hardcoded#queryContext.sparql.dng.common',
 						searchPath: 'hardcoded#queryBuilder.sparql.dng.search.basic',
 						detailPath: 'hardcoded#queryBuilder.sparql.dng.detail.basic',
@@ -488,7 +488,7 @@
 		margin-right: -40px;
 		margin-top: -20px;
 		margin-bottom: 20px;
-		
+
 		.heading {
 			position: relative;
 			cursor: pointer;
@@ -499,7 +499,7 @@
 				align-items: center;
 				min-height: 38px;
 				margin-left: 20px;
-				
+
 				.title {
 					font-weight: 500;
 					font-size: 12pt;
@@ -656,7 +656,7 @@
 					<!-- drop-down -->
 					<svg width="24" height="25" viewBox="0 0 24 25" fill="none" xmlns="http://www.w3.org/2000/svg">
 						<path d="M7.41 9.09L12 13.67L16.59 9.09L18 10.5L12 16.5L6 10.5L7.41 9.09Z" fill="white"/>
-					</svg>                        
+					</svg>
 				</span>
 			</div>
 		</div>
@@ -709,7 +709,7 @@
 									<div>
 										<h4>
 											{#if k_document}
-												Reset document metadata to a preset: 
+												Reset document metadata to a preset:
 											{:else}
 												Convert this page to become the document cover page of a new document:
 											{/if}

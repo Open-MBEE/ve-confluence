@@ -9,9 +9,9 @@
 		QueryParam,
 		QueryTable,
 	} from '#/element/QueryTable/model/QueryTable';
-	
+
 	import type {Mms5Connection} from '#/model/Connection';
-	
+
 	import {Sparql} from '#/util/sparql-endpoint';
 
 	import type {ValuedLabeledObject} from '#/common/types';
@@ -61,12 +61,9 @@
 			if('id' === k_param_load.key) {
 				queryString = /* syntax: sparql */`
 					select ?value ("1" as ?count) {
-						hint:Query hint:joinOrder "Ordered" .
-						#hint:Query hint:useDFE true .
-						
 						?_item a def:Item ;
 							:itemType/:display "MSR_Requirement" ;
-							:documentKey ?value ;
+							:id ?value ;
 						.
 					} order by asc(?value)
 				`;
@@ -74,8 +71,6 @@
 			else {
 				queryString = /* syntax: sparql */ `
 					select ?value (count(?item) as ?count) {
-						hint:Query hint:joinOrder "Ordered" .
-						#hint:Query hint:useDFE true .
 				`;
 
 				// query performance optimization; use hardcoded edge IRI

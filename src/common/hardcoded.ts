@@ -156,6 +156,7 @@ const A_QUERY_FIELD_PATHS_BASIC = [
 ];
 const A_QUERY_FIELD_PATHS_MSR = [
 	'hardcoded#queryField.sparql.dng.id',
+	'hardcoded#queryField.sparql.dng.projectId',
 	'hardcoded#queryField.sparql.dng.requirementName',
 	'hardcoded#queryField.sparql.dng.requirementText',
 	'hardcoded#queryField.sparql.dng.keyDriver',
@@ -277,6 +278,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 				simple: {
 					queryFieldsPaths: [
 						'hardcoded#queryField.sparql.dng.id',
+						'hardcoded#queryField.sparql.dng.projectId',
 						'hardcoded#queryField.sparql.dng.requirementName',
 						'hardcoded#queryField.sparql.dng.requirementText',
 					],
@@ -294,6 +296,13 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					source: 'native',
 					hasMany: false,
 					cell: (g: QueryRow) => plain`${escape_html(g.idValue.value)}`,
+				},
+				projectId: {
+					value: 'Project ID',
+					label: null,
+					source: 'native',
+					hasMany: false,
+					cell: (g: QueryRow) => plain`${escape_html(g.projectIdValue.value)}`,
 				},
 				requirementName: {
 					value: 'Requirement Name',

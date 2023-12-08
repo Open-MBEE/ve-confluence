@@ -350,6 +350,7 @@ export class Mms5Connection extends SparqlConnection<Mms5Connection.Serialized> 
 					'Authorization': `Bearer ${this._token}`,
 				},
 				body: `
+				    PREFIX mms: <https://mms.openmbee.org/rdf/ontology/>
 					select ?time where {
 						?ref mms:id "${refId}" .
 						?ref mms:commit ?commit .
