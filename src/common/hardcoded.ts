@@ -155,7 +155,7 @@ const A_QUERY_FIELD_PATHS_BASIC = [
 	'hardcoded#queryField.sparql.dng.maturity',
 ];
 const A_QUERY_FIELD_PATHS_MSR = [
-	'hardcoded#queryField.sparql.dng.id',
+	//'hardcoded#queryField.sparql.dng.id',
 	'hardcoded#queryField.sparql.dng.projectId',
 	'hardcoded#queryField.sparql.dng.requirementName',
 	'hardcoded#queryField.sparql.dng.requirementText',
@@ -225,7 +225,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 					queryBuilderPath: 'hardcoded#queryBuilder.sparql.dng.table.basicParamsL3ChildrenAndL4s',
 				},*/
 				bid: {
-					label: 'By Requirement ID',
+					label: 'By API ID',
 					queryParametersPaths: [
 						'hardcoded#queryParameter.sparql.dng.id',
 					],
@@ -277,7 +277,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 				},
 				simple: {
 					queryFieldsPaths: [
-						'hardcoded#queryField.sparql.dng.id',
+						//'hardcoded#queryField.sparql.dng.id',
 						'hardcoded#queryField.sparql.dng.projectId',
 						'hardcoded#queryField.sparql.dng.requirementName',
 						'hardcoded#queryField.sparql.dng.requirementText',
@@ -447,12 +447,12 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 
 							bgp: `
 								{
-									?itemFields <${H_PREFIXES['']+'level'+S_EDGE_SUFFIX}>/:name "L4" .
+									?itemFields <${H_PREFIXES['']+'level'+S_EDGE_SUFFIX}>/:name "L3" .
 								} union {
-									?item ^:toItem [
+									?item ^:fromItem [
 										a def:Relationship ;
 										:relationshipType/:name "Decomposition" ;
-										:fromItem/:fields/<${H_PREFIXES['']+'level'+S_EDGE_SUFFIX}>/:name "L3" ;
+										:toItem/:fields/<${H_PREFIXES['']+'level'+S_EDGE_SUFFIX}>/:name "L4" ;
 									] ;
 								}
 							`,

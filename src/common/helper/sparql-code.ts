@@ -171,6 +171,7 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 
 	const sx_query = /* syntax: sparql */ `
 		?item a def:Item ;
+			:id ?idValue ;
 			:itemType/:display "MSR_Requirement" ;
 			:fields ?itemFields ;
 			.

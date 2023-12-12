@@ -265,6 +265,7 @@
 		<hr>
 		<div class="content">
 			{#each ode(h_attributes) as [si_key, [s_attr, k_display]]}
+				{#if si_key !== 'idValue'}
 					<div class="display">
 						<div class="attribute" data-key={si_key}>
 							{s_attr}
@@ -277,6 +278,7 @@
 							{/if}
 						</div>
 					</div>
+				{/if}
 			{/each}
 		</div>
 	</div>

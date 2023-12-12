@@ -1051,7 +1051,7 @@ export class Mention {
 		// annotate value strings
 		return {
 			projectIdValue: {
-				label: 'Requirement ID',
+				label: 'Project ID',
 				value: new PlainString(g_item.projectIdValue.value),
 			},
 			requirementNameValue: {

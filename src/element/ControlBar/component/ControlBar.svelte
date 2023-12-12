@@ -378,7 +378,7 @@
 						alias: 'Jama',
 						endpoint: 'https://mms5-test.jpl.nasa.gov',
 						repoPath: '/orgs/jama/repos/msr3',
-						ref: '/locks/migration',
+						ref: '/locks/migration2',
 						contextPath: 'hardcoded#queryContext.sparql.dng.common',
 						searchPath: 'hardcoded#queryBuilder.sparql.dng.search.basic',
 						detailPath: 'hardcoded#queryBuilder.sparql.dng.detail.basic',
