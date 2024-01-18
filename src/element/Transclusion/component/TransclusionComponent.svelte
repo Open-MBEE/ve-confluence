@@ -131,7 +131,7 @@
 			dm_arrow.style.transform = 'translateX(0px)';
 		}
 
-		dm_hover.style.top = (g_rect.top - g_main.top)+'px';
+		dm_hover.style.top = (g_rect.top - g_main.top - 25)+'px';
 		dm_hover.style.left = (g_rect.left - g_main.left)+'px';
 	}
 
