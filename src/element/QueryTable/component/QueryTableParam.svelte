@@ -62,7 +62,7 @@
 				queryString = /* syntax: sparql */`
 					select ?value ("1" as ?count) {
 						?_item a def:Item ;
-							:itemType/:display "MSR_Requirement" ;
+							:itemType/:display "Requirement" ;
 							:id ?value ;
 						.
 					} order by asc(?value)

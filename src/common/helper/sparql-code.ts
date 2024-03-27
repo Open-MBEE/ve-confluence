@@ -172,7 +172,7 @@ export async function build_dng_select_query_from_params(this: MmsSparqlQueryTab
 	const sx_query = /* syntax: sparql */ `
 		?item a def:Item ;
 			:id ?idValue ;
-			:itemType/:display "MSR_Requirement" ;
+			:itemType/:display "Requirement" ;
 			:fields ?itemFields ;
 			.
 
@@ -219,7 +219,7 @@ export function dng_detailer_query(this: Mms5Connection, p_item: string): Sparql
 				<${p_item}>
 			}
 			?item a def:Item ;
-				:itemType/:display "MSR_Requirement" ;
+				:itemType/:display "Requirement" ;
 				:fields ?itemFields ;
 				.
 
@@ -308,7 +308,7 @@ export function dng_searcher_query(this: Mms5Connection, s_input: string, xm_typ
 		bgp: /* syntax: sparql */ `
 			
 			?item a def:Item ;
-				:itemType/:display "MSR_Requirement" ;
+				:itemType/:display "Requirement" ;
 				:fields ?itemFields ;
 				.
 
