@@ -171,7 +171,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 			dng: {
 				level: {
 					label: 'Level',
-					value: 'MSR_Level',
+					value: 'Level',
 					edge: 'level',
 					sortPath: 'hardcoded#utility.function.sort.label_asc',
 				},
@@ -181,8 +181,8 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 				},
 				maturity: {
 					label: 'Maturity',
-					value: 'MSR_State',
-					edge: 'state',
+					value: 'maturity',
+					edge: 'maturity',
 					sortPath: null,
 				},
 				capturingDocument: {
@@ -192,8 +192,8 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 				},
 				workflow: {
 					label: 'Maturity',
-					value: 'MSR_State',
-					edge: 'state',
+					value: 'maturity',
+					edge: 'maturity',
 				},
 				id: {
 					value: 'Identifier',
@@ -321,7 +321,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 				keyDriver: {
 					value: 'MSR_Key_Driving_List',
 					label: 'Key/Driving',
-					edge: 'key_or_driving',
+					edge: 'keydriving',
 					source: 'attribute',
 					hasMany: true,
 					cell: unordered_list('keyDriverValue'),
@@ -354,7 +354,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 				maturity: {
 					value: 'MSR_State',
 					label: 'Maturity',
-					edge: 'state',
+					edge: 'maturity',
 					source: 'attribute',
 					hasMany: false,
 					cell: (g: QueryRow) => plain`${escape_html(g.maturityValue?.value || '')}`,
@@ -362,7 +362,7 @@ export const H_HARDCODED_OBJECTS: HardcodedObjectRoot = auto_type({
 				workflow: {
 					value: 'MSR_State',
 					label: 'Maturity', // inherit from value
-					edge: 'state',
+					edge: 'maturity',
 					source: 'attribute',
 					hasMany: false,
 					cell: (g: QueryRow) => plain`${escape_html(g.workflowValue?.value || '')}`,

@@ -37,9 +37,9 @@ export const H_PREFIXES: Record<string, string> = {
 	def: 'https://cae-jama.jpl.nasa.gov/rest/v1#/definitions/',
 };
 
-export const S_EDGE_SUFFIX = '$200';
+export const S_EDGE_SUFFIX = '$189';
 
-export const SI_PROJECT = '265';
+export const SI_PROJECT = '344';
 
 export const item_iri_to_href = (p_iri: string) => p_iri.replace(/^.+\/(\d+)$/, `https://cae-jama.jpl.nasa.gov/perspective.req#/items/$1?projectId=${SI_PROJECT}`);
 
